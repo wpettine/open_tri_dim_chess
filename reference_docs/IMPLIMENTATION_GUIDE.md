@@ -282,8 +282,8 @@ This is the **most critical phase**. The world grid is your single source of tru
  * This is the SINGLE SOURCE OF TRUTH for square positions.
  */
 export interface WorldSquare {
-  id: string;                    // e.g., "a2WL", "z0WQL"
-  boardId: string;               // "WL", "NL", "BL", "WQL", "WKL", "BQL", "BKL"
+  id: string;                    // e.g., "a2W", "z0WQL"
+  boardId: string;               // "W", "N", "B", "WQL", "WKL", "BQL", "BKL"
   file: number;                  // 0-5 (z, a, b, c, d, e)
   rank: number;                  // 0-9
   level: string;                 // Same as boardId
@@ -298,7 +298,7 @@ export interface WorldSquare {
  * Represents a board (main or attack) in the game.
  */
 export interface BoardLayout {
-  id: string;                    // "WL", "WQL", etc.
+  id: string;                    // "W", "WQL", etc.
   type: 'main' | 'attack';
   size: { width: number; height: number }; // Number of squares (not world units)
   currentPin?: string;           // For attack boards only
@@ -370,7 +370,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
   QL2: {
     id: 'QL2',
     fileOffset: 0,
-    rankOffset: 2,  // Ranks 2-3 (overlaps with WL)
+    rankOffset: 2,  // Ranks 2-3 (overlaps with W main board)
     zHeight: Z_WHITE_MAIN,
     adjacentPins: ['QL1', 'QL3', 'QL4'],
     level: 1,
@@ -379,7 +379,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
   QL3: {
     id: 'QL3',
     fileOffset: 0,
-    rankOffset: 4,  // Ranks 4-5 (overlaps with WL/NL)
+    rankOffset: 4,  // Ranks 4-5 (overlaps with W/N main boards)
     zHeight: Z_NEUTRAL_MAIN,
     adjacentPins: ['QL1', 'QL2', 'QL4', 'QL5'],
     level: 2,
@@ -388,7 +388,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
   QL4: {
     id: 'QL4',
     fileOffset: 0,
-    rankOffset: 6,  // Ranks 6-7 (overlaps with NL/BL)
+    rankOffset: 6,  // Ranks 6-7 (overlaps with N/B main boards)
     zHeight: Z_BLACK_MAIN,
     adjacentPins: ['QL2', 'QL3', 'QL5', 'QL6'],
     level: 3,
@@ -397,7 +397,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
   QL5: {
     id: 'QL5',
     fileOffset: 0,
-    rankOffset: 8,  // Ranks 8-9 (overlaps with BL)
+    rankOffset: 8,  // Ranks 8-9 (overlaps with B main board)
     zHeight: Z_BLACK_MAIN,
     adjacentPins: ['QL3', 'QL4', 'QL6'],
     level: 4,
@@ -406,7 +406,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
   QL6: {
     id: 'QL6',
     fileOffset: 0,
-    rankOffset: 8,  // Ranks 8-9 (above BL)
+    rankOffset: 8,  // Ranks 8-9 (above B main board)
     zHeight: Z_BLACK_MAIN + ATTACK_OFFSET,
     adjacentPins: ['QL4', 'QL5'],
     level: 5,
@@ -426,7 +426,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
   KL2: {
     id: 'KL2',
     fileOffset: 4,
-    rankOffset: 2,  // Ranks 2-3
+    rankOffset: 2,  // Ranks 2-3 (overlaps with W main board)
     zHeight: Z_WHITE_MAIN,
     adjacentPins: ['KL1', 'KL3', 'KL4'],
     level: 1,
@@ -555,7 +555,7 @@ export function createSquareId(file: number, rank: number, boardId: string): str
  * Parse a square ID into components.
  */
 export function parseSquareId(id: string): { file: number; rank: number; boardId: string } | null {
-  // Format: "a2WL" (1 char file, 1-2 digit rank, board ID)
+  // Format: "a2W" (1 char file, 1-2 digit rank, board ID)
   const match = id.match(/^([zabcde])(\d+)(\w+)$/);
   if (!match) return null;
   
@@ -595,21 +595,28 @@ export function createChessWorld(): ChessWorld {
   });
 
   // Create main boards (static positions)
-  createMainBoard(world, 'WL', {
+  // Rank ranges from user specification:
+  // - White attack: 0-1
+  // - White main: 1-4 (overlaps with attack at rank 1)
+  // - Neutral main: 3-6 (overlaps with White at 3-4, with Black at 5-6)
+  // - Black main: 5-8 (overlaps with Neutral at 5-6, with attack at 8)
+  // - Black attack: 8-9 (overlaps with main at rank 8)
+  
+  createMainBoard(world, 'W', {
     files: [1, 2, 3, 4],    // a-d
-    ranks: [2, 3, 4, 5],    // White main board
+    ranks: [1, 2, 3, 4],    // White main board (ranks 1-4)
     zHeight: 0,
   });
 
-  createMainBoard(world, 'NL', {
+  createMainBoard(world, 'N', {
     files: [1, 2, 3, 4],    // a-d
-    ranks: [4, 5, 6, 7],    // Neutral board (overlaps)
+    ranks: [3, 4, 5, 6],    // Neutral board (ranks 3-6, overlaps with W at 3-4, B at 5-6)
     zHeight: 5,
   });
 
-  createMainBoard(world, 'BL', {
+  createMainBoard(world, 'B', {
     files: [1, 2, 3, 4],    // a-d
-    ranks: [6, 7, 8, 9],    // Black main board (overlaps)
+    ranks: [5, 6, 7, 8],    // Black main board (ranks 5-8, overlaps with N at 5-6)
     zHeight: 10,
   });
 
@@ -731,9 +738,9 @@ describe('World Grid Creation', () => {
     const world = createChessWorld();
     
     expect(world.boards.size).toBe(7); // 3 main + 4 attack
-    expect(world.boards.has('WL')).toBe(true);
-    expect(world.boards.has('NL')).toBe(true);
-    expect(world.boards.has('BL')).toBe(true);
+    expect(world.boards.has('W')).toBe(true);
+    expect(world.boards.has('N')).toBe(true);
+    expect(world.boards.has('B')).toBe(true);
     expect(world.boards.has('WQL')).toBe(true);
     expect(world.boards.has('WKL')).toBe(true);
     expect(world.boards.has('BQL')).toBe(true);
@@ -744,14 +751,14 @@ describe('World Grid Creation', () => {
     const world = createChessWorld();
     
     // Each main board has 4x4 = 16 squares
-    const wlSquares = Array.from(world.squares.values()).filter(s => s.boardId === 'WL');
-    expect(wlSquares.length).toBe(16);
+    const wSquares = Array.from(world.squares.values()).filter(s => s.boardId === 'W');
+    expect(wSquares.length).toBe(16);
     
-    const nlSquares = Array.from(world.squares.values()).filter(s => s.boardId === 'NL');
-    expect(nlSquares.length).toBe(16);
+    const nSquares = Array.from(world.squares.values()).filter(s => s.boardId === 'N');
+    expect(nSquares.length).toBe(16);
     
-    const blSquares = Array.from(world.squares.values()).filter(s => s.boardId === 'BL');
-    expect(blSquares.length).toBe(16);
+    const bSquares = Array.from(world.squares.values()).filter(s => s.boardId === 'B');
+    expect(bSquares.length).toBe(16);
   });
 
   it('should create all squares for attack boards', () => {
@@ -839,19 +846,19 @@ describe('Coordinate System Validation', () => {
     it('should have same worldY for same rank across different boards', () => {
       const world = createChessWorld();
       
-      // Rank 4 appears on both WL and NL
-      const a4WL = world.squares.get('a4WL');
-      const a4NL = world.squares.get('a4NL');
+      // Rank 4 appears on both W and N
+      const a4W = world.squares.get('a4W');
+      const a4N = world.squares.get('a4N');
       
-      expect(a4WL?.worldY).toBeDefined();
-      expect(a4NL?.worldY).toBeDefined();
-      expect(a4WL?.worldY).toBeCloseTo(a4NL!.worldY, 5);
+      expect(a4W?.worldY).toBeDefined();
+      expect(a4N?.worldY).toBeDefined();
+      expect(a4W?.worldY).toBeCloseTo(a4N!.worldY, 5);
       
-      // Rank 6 appears on both NL and BL
-      const a6NL = world.squares.get('a6NL');
-      const a6BL = world.squares.get('a6BL');
+      // Rank 6 appears on both N and B
+      const a6N = world.squares.get('a6N');
+      const a6B = world.squares.get('a6B');
       
-      expect(a6NL?.worldY).toBeCloseTo(a6BL!.worldY, 5);
+      expect(a6N?.worldY).toBeCloseTo(a6B!.worldY, 5);
     });
 
     it('should have sequential worldY values for sequential ranks', () => {
@@ -859,8 +866,8 @@ describe('Coordinate System Validation', () => {
       
       const rank0 = world.squares.get('z0WQL')?.worldY;
       const rank1 = world.squares.get('z1WQL')?.worldY;
-      const rank2 = world.squares.get('a2WL')?.worldY;
-      const rank3 = world.squares.get('a3WL')?.worldY;
+      const rank2 = world.squares.get('a2W')?.worldY;
+      const rank3 = world.squares.get('a3W')?.worldY;
       
       expect(rank0).toBeDefined();
       expect(rank1).toBeDefined();
@@ -882,21 +889,21 @@ describe('Coordinate System Validation', () => {
       const world = createChessWorld();
       
       // File 'a' (1) appears on main boards and attack boards
-      const a2WL = world.squares.get('a2WL');
-      const a4NL = world.squares.get('a4NL');
-      const a6BL = world.squares.get('a6BL');
+      const a2W = world.squares.get('a2W');
+      const a4N = world.squares.get('a4N');
+      const a6B = world.squares.get('a6B');
       
-      expect(a2WL?.worldX).toBeCloseTo(a4NL!.worldX, 5);
-      expect(a4NL?.worldX).toBeCloseTo(a6BL!.worldX, 5);
+      expect(a2W?.worldX).toBeCloseTo(a4N!.worldX, 5);
+      expect(a4N?.worldX).toBeCloseTo(a6B!.worldX, 5);
     });
 
     it('should have sequential worldX values for sequential files', () => {
       const world = createChessWorld();
       
       const fileZ = world.squares.get('z0WQL')?.worldX;
-      const fileA = world.squares.get('a2WL')?.worldX;
-      const fileB = world.squares.get('b2WL')?.worldX;
-      const fileC = world.squares.get('c2WL')?.worldX;
+      const fileA = world.squares.get('a2W')?.worldX;
+      const fileB = world.squares.get('b2W')?.worldX;
+      const fileC = world.squares.get('c2W')?.worldX;
       
       expect(fileZ).toBeDefined();
       expect(fileA).toBeDefined();
@@ -924,8 +931,8 @@ describe('Coordinate System Validation', () => {
       );
       
       const minMainY = Math.min(
-        world.squares.get('a2WL')!.worldY,
-        world.squares.get('d2WL')!.worldY
+        world.squares.get('a2W')!.worldY,
+        world.squares.get('d2W')!.worldY
       );
       
       expect(maxAttackY).toBeLessThan(minMainY);
@@ -934,10 +941,10 @@ describe('Coordinate System Validation', () => {
     it('should position black attack boards at correct ranks', () => {
       const world = createChessWorld();
       
-      // BQL at ranks 8-9 should have higher Y than BL at ranks 6-7
+      // BQL at ranks 8-9 should have higher Y than B at ranks 6-7
       const maxMainY = Math.max(
-        world.squares.get('a7BL')!.worldY,
-        world.squares.get('d7BL')!.worldY
+        world.squares.get('a7B')!.worldY,
+        world.squares.get('d7B')!.worldY
       );
       
       const minAttackY = Math.min(
@@ -955,7 +962,7 @@ describe('Coordinate System Validation', () => {
       // Test that direct function calls match world grid
       const world = createChessWorld();
       
-      const testSquare = world.squares.get('b4NL');
+      const testSquare = world.squares.get('b4N');
       expect(testSquare).toBeDefined();
       
       const calculatedX = fileToWorldX(2); // file 'b' = 2
@@ -1061,7 +1068,7 @@ export function logWorldCoordinates(world: ChessWorld): void {
   });
   
   console.log('\n📍 Sample Squares:');
-  ['z0WQL', 'a2WL', 'b4NL', 'c6BL', 'e9BKL'].forEach(id => {
+  ['z0WQL', 'a2W', 'b4N', 'c6B', 'e9BKL'].forEach(id => {
     const sq = world.squares.get(id);
     if (sq) {
       console.log(`  ${id}: (${sq.worldX.toFixed(2)}, ${sq.worldY.toFixed(2)}, ${sq.worldZ.toFixed(2)})`);
@@ -1419,7 +1426,7 @@ pnpm dev
 
 **Validation checklist:**
 - [ ] All 7 boards are visible
-- [ ] Squares are labeled correctly (e.g., "a2WL", "z0WQL")
+- [ ] Squares are labeled correctly (e.g., "a2W", "z0WQL")
 - [ ] Ranks increase from bottom to top (0 at bottom, 9 at top)
 - [ ] Files go from left to right (z leftmost, e rightmost)
 - [ ] White attack boards are below white main board
@@ -1490,67 +1497,59 @@ export function createInitialPieces(): Piece[] {
     hasMoved: false,
   });
 
-  // White Main Level (WL) - Ranks 2-5
-  // Rank 2: Pawns
-  pieces.push(createPiece('pawn', 'white', 1, 2, 'WL')); // a2
-  pieces.push(createPiece('pawn', 'white', 2, 2, 'WL')); // b2
-  pieces.push(createPiece('pawn', 'white', 3, 2, 'WL')); // c2
-  pieces.push(createPiece('pawn', 'white', 4, 2, 'WL')); // d2
+  // White Main Board (W) - Based on move_logic_tests.md Table 1
+  // Rank 1: King and Queen
+  pieces.push(createPiece('king', 'white', 2, 1, 'W'));   // b1W
+  pieces.push(createPiece('queen', 'white', 3, 1, 'W'));  // c1W
+  
+  // Rank 2: Bishops and Knights
+  pieces.push(createPiece('bishop', 'white', 1, 2, 'W')); // a2W
+  pieces.push(createPiece('knight', 'white', 2, 2, 'W')); // b2W
+  pieces.push(createPiece('knight', 'white', 3, 2, 'W')); // c2W
+  pieces.push(createPiece('bishop', 'white', 4, 2, 'W')); // d2W
+  
+  // Rank 3: Pawns (note: file 'e' is used!)
+  pieces.push(createPiece('pawn', 'white', 2, 3, 'W'));   // b3W
+  pieces.push(createPiece('pawn', 'white', 3, 3, 'W'));   // c3W
+  pieces.push(createPiece('pawn', 'white', 4, 3, 'W'));   // d3W
+  pieces.push(createPiece('pawn', 'white', 5, 3, 'W'));   // e3W
 
-  // Rank 3: Rook, Knight, Bishop, Rook
-  pieces.push(createPiece('rook', 'white', 1, 3, 'WL'));   // a3
-  pieces.push(createPiece('knight', 'white', 2, 3, 'WL')); // b3
-  pieces.push(createPiece('bishop', 'white', 3, 3, 'WL')); // c3
-  pieces.push(createPiece('rook', 'white', 4, 3, 'WL'));   // d3
+  // Black Main Board (B) - Based on move_logic_tests.md Table 1
+  // Rank 6: Pawns (note: file 'e' is used!)
+  pieces.push(createPiece('pawn', 'black', 2, 6, 'B'));   // b6B
+  pieces.push(createPiece('pawn', 'black', 3, 6, 'B'));   // c6B
+  pieces.push(createPiece('pawn', 'black', 4, 6, 'B'));   // d6B
+  pieces.push(createPiece('pawn', 'black', 5, 6, 'B'));   // e6B
+  
+  // Rank 7: Bishops and Knights
+  pieces.push(createPiece('bishop', 'black', 1, 7, 'B')); // a7B
+  pieces.push(createPiece('knight', 'black', 2, 7, 'B')); // b7B
+  pieces.push(createPiece('knight', 'black', 3, 7, 'B')); // c7B
+  pieces.push(createPiece('bishop', 'black', 4, 7, 'B')); // d7B
+  
+  // Rank 8: King and Queen
+  pieces.push(createPiece('queen', 'black', 2, 8, 'B'));  // b8B
+  pieces.push(createPiece('king', 'black', 3, 8, 'B'));   // c8B
 
-  // Rank 5: Knight, Queen, King, Bishop
-  pieces.push(createPiece('knight', 'white', 1, 5, 'WL')); // a5
-  pieces.push(createPiece('queen', 'white', 2, 5, 'WL'));  // b5
-  pieces.push(createPiece('king', 'white', 3, 5, 'WL'));   // c5
-  pieces.push(createPiece('bishop', 'white', 4, 5, 'WL')); // d5
+  // White Queen-side Attack Board (WQL) - Based on move_logic_tests.md Table 1
+  pieces.push(createPiece('rook', 'white', 0, 0, 'WQL')); // z0WQL
+  pieces.push(createPiece('pawn', 'white', 0, 1, 'WQL')); // z1WQL
+  pieces.push(createPiece('pawn', 'white', 1, 1, 'WQL')); // a1WQL
 
-  // Black Main Level (BL) - Ranks 6-9
-  // Rank 6: Knight, Queen, King, Bishop
-  pieces.push(createPiece('knight', 'black', 1, 6, 'BL')); // a6
-  pieces.push(createPiece('queen', 'black', 2, 6, 'BL'));  // b6
-  pieces.push(createPiece('king', 'black', 3, 6, 'BL'));   // c6
-  pieces.push(createPiece('bishop', 'black', 4, 6, 'BL')); // d6
+  // White King-side Attack Board (WKL) - Based on move_logic_tests.md Table 1
+  pieces.push(createPiece('rook', 'white', 5, 0, 'WKL')); // e0WKL
+  pieces.push(createPiece('pawn', 'white', 0, 1, 'WKL')); // z1WKL
+  pieces.push(createPiece('pawn', 'white', 5, 1, 'WKL')); // e1WKL
 
-  // Rank 8: Rook, Knight, Bishop, Rook
-  pieces.push(createPiece('rook', 'black', 1, 8, 'BL'));   // a8
-  pieces.push(createPiece('knight', 'black', 2, 8, 'BL')); // b8
-  pieces.push(createPiece('bishop', 'black', 3, 8, 'BL')); // c8
-  pieces.push(createPiece('rook', 'black', 4, 8, 'BL'));   // d8
+  // Black Queen-side Attack Board (BQL) - Based on move_logic_tests.md Table 1
+  pieces.push(createPiece('pawn', 'black', 0, 8, 'BQL')); // z8BQL
+  pieces.push(createPiece('pawn', 'black', 1, 8, 'BQL')); // a8BQL
+  pieces.push(createPiece('rook', 'black', 0, 9, 'BQL')); // z9BQL
 
-  // Rank 9: Pawns
-  pieces.push(createPiece('pawn', 'black', 1, 9, 'BL')); // a9
-  pieces.push(createPiece('pawn', 'black', 2, 9, 'BL')); // b9
-  pieces.push(createPiece('pawn', 'black', 3, 9, 'BL')); // c9
-  pieces.push(createPiece('pawn', 'black', 4, 9, 'BL')); // d9
-
-  // White Queen-side Attack Board (WQL) - Ranks 0-1, Files z-a
-  pieces.push(createPiece('pawn', 'white', 0, 0, 'WQL')); // z0
-  pieces.push(createPiece('rook', 'white', 1, 0, 'WQL')); // a0
-  pieces.push(createPiece('pawn', 'white', 0, 1, 'WQL')); // z1
-  pieces.push(createPiece('rook', 'white', 1, 1, 'WQL')); // a1
-
-  // White King-side Attack Board (WKL) - Ranks 0-1, Files d-e
-  pieces.push(createPiece('rook', 'white', 4, 0, 'WKL')); // d0
-  pieces.push(createPiece('pawn', 'white', 5, 0, 'WKL')); // e0
-  pieces.push(createPiece('rook', 'white', 4, 1, 'WKL')); // d1
-  pieces.push(createPiece('pawn', 'white', 5, 1, 'WKL')); // e1
-
-  // Black Queen-side Attack Board (BQL) - Ranks 8-9, Files z-a
-  pieces.push(createPiece('pawn', 'black', 0, 8, 'BQL')); // z8
-  pieces.push(createPiece('rook', 'black', 1, 8, 'BQL')); // a8 (note: different from BL a8!)
-  pieces.push(createPiece('pawn', 'black', 0, 9, 'BQL')); // z9
-  pieces.push(createPiece('rook', 'black', 1, 9, 'BQL')); // a9
-
-  // Black King-side Attack Board (BKL) - Ranks 8-9, Files d-e
-  pieces.push(createPiece('rook', 'black', 4, 8, 'BKL')); // d8
-  pieces.push(createPiece('pawn', 'black', 5, 8, 'BKL')); // e8
-  pieces.push(createPiece('rook', 'black', 4, 9, 'BKL')); // d9
-  pieces.push(createPiece('pawn', 'black', 5, 9, 'BKL')); // e9
+  // Black King-side Attack Board (BKL) - Based on move_logic_tests.md Table 1
+  pieces.push(createPiece('pawn', 'black', 0, 8, 'BKL')); // z8BKL
+  pieces.push(createPiece('pawn', 'black', 5, 8, 'BKL')); // e8BKL
+  pieces.push(createPiece('rook', 'black', 5, 9, 'BKL')); // e9BKL
 
   return pieces;
 }
@@ -1705,7 +1704,233 @@ pnpm dev
 
 ---
 
+## Phase 5.5: Critical 3D Movement Rules
+
+**⚠️ READ THIS BEFORE IMPLEMENTING PHASE 6**
+
+Before implementing movement logic, you **must** understand the critical 3D-specific rules that distinguish this game from 2D chess. These rules are explicitly documented in `meder-rules.md` and `move_logic_tests.md` and are **non-negotiable** for correct gameplay.
+
+### Rule 1: The "Vertical Shadow" Blocking Principle
+
+**This is the single most important rule distinguishing 3D Chess from 2D chess.**
+
+#### Definition
+
+A piece occupying any square (e.g., c4N) **blocks the entire vertical column** associated with that square's file and rank (in this case, column "c4") for all other pieces on all levels.
+
+#### Effect on Movement
+
+A piece **cannot move THROUGH a blocked column**, even if the path on its own level appears clear.
+
+#### Examples
+
+**Example 1: Bishop Blocked by Vertical Shadow**
+- White Bishop sits at a2W and wants to move to d5N
+- The diagonal path crosses through columns b3 and c4
+- If **ANY piece** (on **ANY level**) occupies b3 or c4, the move is **BLOCKED**
+- This applies even if:
+  - b3W is empty
+  - b3N is empty  
+  - b3B is empty
+  - c4W is empty
+  - c4N is empty
+  - c4B is empty
+- If there's a piece at b3B or c4B (or any other level at those coordinates), the Bishop at a2W **still cannot pass through**
+
+**Example 2: Rook Moving Through Levels**
+- White Rook at b2W wants to move to b5N
+- The path crosses through columns b3 and b4
+- If any piece exists at b3 (any level) OR b4 (any level), the move is blocked
+- The Rook must have a clear vertical "tunnel" through all intermediate columns
+
+#### Implementation Requirements
+
+When validating moves for rooks, bishops, and queens:
+
+1. **Calculate the path** through all intermediate squares (file, rank coordinates)
+2. **For EACH intermediate coordinate**, check **ALL levels** for piece occupation
+3. If **any** intermediate column is occupied (on any level), the move is **BLOCKED**
+
+```typescript
+// Pseudo-code for path validation
+function isPathClear(from: Square, to: Square, world: World, pieces: Piece[]): boolean {
+  const pathCoordinates = calculatePathCoordinates(from, to);
+  
+  for (const coord of pathCoordinates) {
+    // Check ALL levels for this file/rank coordinate
+    const columnsToCheck = [
+      `${coord.file}${coord.rank}W`,
+      `${coord.file}${coord.rank}N`,
+      `${coord.file}${coord.rank}B`,
+      // Also check attack boards if they cover this rank
+    ];
+    
+    for (const squareId of columnsToCheck) {
+      const square = world.squares.get(squareId);
+      if (square && isPieceAt(square, pieces)) {
+        return false; // Path is blocked!
+      }
+    }
+  }
+  
+  return true; // Path is clear
+}
+```
+
+#### Exception: Knights Are Immune
+
+**Knights completely ignore the Vertical Shadow rule.** Knights can jump over any pieces in any configuration. This is their unique 3D advantage.
+
+### Rule 2: Prohibition of Purely Vertical Movement
+
+**Source:** `meder-rules.md` Article 3.1(d)
+
+#### The Rule
+
+A piece **cannot move to a square with the same file and rank on a different level** without horizontal displacement.
+
+In other words: **No pure vertical movement** (moving straight up or down through levels).
+
+#### Why This Rule Exists
+
+This prevents pieces from "teleporting" between levels and maintains the 3D tactical complexity of the game.
+
+#### Invalid Examples
+
+- ❌ Rook at b2W **cannot** move to b2N (same file 'b', same rank 2)
+- ❌ Queen at c5N **cannot** move to c5B (same file 'c', same rank 5)  
+- ❌ King at d4W **cannot** move to d4N (same file 'd', same rank 4)
+
+#### Valid Examples
+
+- ✅ Rook at b2W **can** move to c2N (file changed: b→c, also crosses level)
+- ✅ Rook at b2W **can** move to b3N (rank changed: 2→3, also crosses level)
+- ✅ Bishop at b2W **can** move to c3N (both file and rank changed)
+- ✅ Queen at c5N **can** move to d6B (both file and rank changed)
+
+#### Implementation Check
+
+When validating a move that crosses levels:
+
+```typescript
+function validateMove(from: Square, to: Square): boolean {
+  // If moving between different levels...
+  if (from.level !== to.level) {
+    // At least one of file or rank MUST change
+    const fileChanged = from.file !== to.file;
+    const rankChanged = from.rank !== to.rank;
+    
+    if (!fileChanged && !rankChanged) {
+      return false; // Pure vertical movement is illegal!
+    }
+  }
+  
+  // ... continue with other validation
+}
+```
+
+### Rule 3: Level Transition Mechanics
+
+#### How Pieces Move Between Levels
+
+Pieces move between levels by crossing the **overlapping rank regions**:
+
+**White to Neutral:**
+- Overlap at rank 1 (White attack board overlaps with White main)
+- Overlap at ranks 3-4 (White main overlaps with Neutral)
+
+**Neutral to Black:**
+- Overlap at ranks 5-6 (Neutral overlaps with Black main)
+- Overlap at rank 8 (Black main overlaps with Black attack)
+
+#### Example Transition Paths
+
+**White to Neutral Transition:**
+- Piece at b2W can move to c3N (valid: crosses at overlap rank 3)
+- Piece at b3W can move to c4N (valid: crosses at overlap rank 3-4)
+
+**Neutral to Black Transition:**
+- Piece at c5N can move to d6B (valid: crosses at overlap rank 5-6)
+
+### Testing Your Implementation
+
+Create test cases that validate these rules:
+
+```typescript
+describe('Vertical Shadow Blocking', () => {
+  it('should block bishop diagonal if intermediate column is occupied', () => {
+    // Set up: Bishop at a2W, target d5N, blocking piece at c4B
+    const world = createChessWorld();
+    const pieces = [
+      createPiece('bishop', 'white', 1, 2, 'W'),
+      createPiece('pawn', 'black', 3, 4, 'B'), // Blocker
+    ];
+    
+    const validMoves = calculateValidMoves(pieces[0], world, pieces);
+    const targetSquare = 'd5N';
+    
+    expect(validMoves.includes(targetSquare)).toBe(false);
+  });
+
+  it('should allow knight to jump over blocking pieces', () => {
+    // Knights are immune to vertical shadow
+    const world = createChessWorld();
+    const pieces = [
+      createPiece('knight', 'white', 2, 2, 'W'),
+      createPiece('pawn', 'black', 3, 3, 'N'), // Would block other pieces
+    ];
+    
+    const validMoves = calculateValidMoves(pieces[0], world, pieces);
+    // Knight should still be able to make its L-shaped moves
+    expect(validMoves.length).toBeGreaterThan(0);
+  });
+});
+
+describe('Purely Vertical Movement Prohibition', () => {
+  it('should prevent rook from moving to same file/rank on different level', () => {
+    const world = createChessWorld();
+    const pieces = [createPiece('rook', 'white', 2, 2, 'W')];
+    
+    const validMoves = calculateValidMoves(pieces[0], world, pieces);
+    
+    // b2N would be same file and rank, just different level
+    expect(validMoves.includes('b2N')).toBe(false);
+  });
+
+  it('should allow rook to move diagonally through levels', () => {
+    const world = createChessWorld();
+    const pieces = [createPiece('rook', 'white', 2, 2, 'W')];
+    
+    const validMoves = calculateValidMoves(pieces[0], world, pieces);
+    
+    // c3N has different file AND rank, so it's valid
+    // (assuming path is clear and follows rook movement rules)
+    const c3NIsValid = validMoves.includes('c3N');
+    // This may or may not be true depending on rook rules,
+    // but the PROHIBITION rule won't block it
+  });
+});
+```
+
+### Summary Checklist
+
+Before implementing Phase 6, ensure you understand:
+
+- ✅ **Vertical Shadow Rule**: A piece at any coordinate (file+rank) blocks that column on ALL levels
+- ✅ **Knight Exception**: Knights ignore the Vertical Shadow completely
+- ✅ **No Pure Vertical Movement**: Moving between levels requires file OR rank change
+- ✅ **Level Transitions**: Pieces cross levels through overlapping rank regions
+- ✅ **Implementation Strategy**: Check ALL levels when validating paths
+
+**These rules are mandatory.** Implementing movement logic without them will result in an incorrect game that doesn't match the official rules.
+
+**✅ Phase 5.5 Complete:** Critical 3D movement rules understood.
+
+---
+
 ## Phase 6: Movement Logic
+
+**⚠️ PREREQUISITE:** You must have read and understood Phase 5.5 before proceeding. The Vertical Shadow blocking principle and vertical movement prohibition are fundamental to correct movement validation.
 
 This is a large phase. We'll implement movement for each piece type separately.
 
