@@ -1,16 +1,16 @@
 import type { PinPosition } from './types';
 
 export const Z_WHITE_MAIN = 0;
-export const Z_NEUTRAL_MAIN = 4;
-export const Z_BLACK_MAIN = 8;
-export const ATTACK_OFFSET = 2;
+export const Z_NEUTRAL_MAIN = 5;
+export const Z_BLACK_MAIN = 10;
+export const ATTACK_OFFSET = 2.5;
 
 export const PIN_POSITIONS: Record<string, PinPosition> = {
   QL1: {
     id: 'QL1',
     fileOffset: 0,
     rankOffset: 0,
-    zHeight: Z_WHITE_MAIN - ATTACK_OFFSET,
+    zHeight: Z_WHITE_MAIN + ATTACK_OFFSET,
     adjacentPins: ['QL2', 'QL3'],
     level: 0,
     inverted: false,
@@ -64,7 +64,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
     id: 'KL1',
     fileOffset: 4,
     rankOffset: 0,
-    zHeight: Z_WHITE_MAIN - ATTACK_OFFSET,
+    zHeight: Z_WHITE_MAIN + ATTACK_OFFSET,
     adjacentPins: ['KL2', 'KL3'],
     level: 0,
     inverted: false,
