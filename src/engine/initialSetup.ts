@@ -38,58 +38,82 @@ export function createInitialPieces(): Piece[] {
     hasMoved: false,
   });
 
-  // White Main Board (W) - Based on move_logic_tests.md Table 1
-  // Rank 1: King and Queen
-  pieces.push(createPiece('king', 'white', 2, 1, 'W'));   // b1W
-  pieces.push(createPiece('queen', 'white', 3, 1, 'W'));  // c1W
+  // Align initial positions with reference_docs/piece_placement.json
+  // Helper to map file character to numeric index used internally
+  const fileIndex = (ch: 'z' | 'a' | 'b' | 'c' | 'd' | 'e'): number => {
+    switch (ch) {
+      case 'z': return 0;
+      case 'a': return 1;
+      case 'b': return 2;
+      case 'c': return 3;
+      case 'd': return 4;
+      case 'e': return 5;
+    }
+  };
 
-  // Rank 2: Bishops and Knights
-  pieces.push(createPiece('bishop', 'white', 1, 2, 'W')); // a2W
-  pieces.push(createPiece('knight', 'white', 2, 2, 'W')); // b2W
-  pieces.push(createPiece('knight', 'white', 3, 2, 'W')); // c2W
-  pieces.push(createPiece('bishop', 'white', 4, 2, 'W')); // d2W
+  // Helper to map JSON level (pin/board id) to our board ids
+  const mapLevel = (color: 'white' | 'black', level: 'W' | 'B' | 'QL1' | 'KL1' | 'QL6' | 'KL6'): string => {
+    if (level === 'W' || level === 'B') return level;
+    if (level === 'QL1') return 'WQL';
+    if (level === 'KL1') return 'WKL';
+    if (level === 'QL6') return 'BQL';
+    return 'BKL'; // KL6
+  };
 
-  // Rank 3: Pawns
-  pieces.push(createPiece('pawn', 'white', 2, 3, 'W'));   // b3W
-  pieces.push(createPiece('pawn', 'white', 3, 3, 'W'));   // c3W
+  type JsonPiece = {
+    type: PieceType;
+    color: 'white' | 'black';
+    file: 'z' | 'a' | 'b' | 'c' | 'd' | 'e';
+    rank: number;
+    level: 'W' | 'B' | 'QL1' | 'KL1' | 'QL6' | 'KL6';
+  };
 
-  // Black Main Board (B) - Based on move_logic_tests.md Table 1
-  // Rank 6: Pawns
-  pieces.push(createPiece('pawn', 'black', 2, 6, 'B'));   // b6B
-  pieces.push(createPiece('pawn', 'black', 3, 6, 'B'));   // c6B
+  const jsonPieces: JsonPiece[] = [
+    { type: 'rook',   color: 'white', file: 'z', rank: 0, level: 'QL1' },
+    { type: 'queen',  color: 'white', file: 'a', rank: 0, level: 'QL1' },
+    { type: 'pawn',   color: 'white', file: 'z', rank: 1, level: 'QL1' },
+    { type: 'pawn',   color: 'white', file: 'a', rank: 1, level: 'QL1' },
+    { type: 'king',   color: 'white', file: 'd', rank: 0, level: 'KL1' },
+    { type: 'rook',   color: 'white', file: 'e', rank: 0, level: 'KL1' },
+    { type: 'pawn',   color: 'white', file: 'd', rank: 1, level: 'KL1' },
+    { type: 'pawn',   color: 'white', file: 'e', rank: 1, level: 'KL1' },
+    { type: 'knight', color: 'white', file: 'a', rank: 1, level: 'W'   },
+    { type: 'bishop', color: 'white', file: 'b', rank: 1, level: 'W'   },
+    { type: 'bishop', color: 'white', file: 'c', rank: 1, level: 'W'   },
+    { type: 'knight', color: 'white', file: 'd', rank: 1, level: 'W'   },
+    { type: 'pawn',   color: 'white', file: 'a', rank: 2, level: 'W'   },
+    { type: 'pawn',   color: 'white', file: 'b', rank: 2, level: 'W'   },
+    { type: 'pawn',   color: 'white', file: 'c', rank: 2, level: 'W'   },
+    { type: 'pawn',   color: 'white', file: 'd', rank: 2, level: 'W'   },
+    { type: 'rook',   color: 'black', file: 'z', rank: 9, level: 'QL6' },
+    { type: 'queen',  color: 'black', file: 'a', rank: 9, level: 'QL6' },
+    { type: 'pawn',   color: 'black', file: 'z', rank: 8, level: 'QL6' },
+    { type: 'pawn',   color: 'black', file: 'a', rank: 8, level: 'QL6' },
+    { type: 'king',   color: 'black', file: 'd', rank: 9, level: 'KL6' },
+    { type: 'rook',   color: 'black', file: 'e', rank: 9, level: 'KL6' },
+    { type: 'pawn',   color: 'black', file: 'd', rank: 8, level: 'KL6' },
+    { type: 'pawn',   color: 'black', file: 'e', rank: 8, level: 'KL6' },
+    { type: 'knight', color: 'black', file: 'a', rank: 8, level: 'B'   },
+    { type: 'bishop', color: 'black', file: 'b', rank: 8, level: 'B'   },
+    { type: 'bishop', color: 'black', file: 'c', rank: 8, level: 'B'   },
+    { type: 'knight', color: 'black', file: 'd', rank: 8, level: 'B'   },
+    { type: 'pawn',   color: 'black', file: 'a', rank: 7, level: 'B'   },
+    { type: 'pawn',   color: 'black', file: 'b', rank: 7, level: 'B'   },
+    { type: 'pawn',   color: 'black', file: 'c', rank: 7, level: 'B'   },
+    { type: 'pawn',   color: 'black', file: 'd', rank: 7, level: 'B'   },
+  ];
 
-  // Rank 7: Bishops and Knights
-  pieces.push(createPiece('bishop', 'black', 1, 7, 'B')); // a7B
-  pieces.push(createPiece('knight', 'black', 2, 7, 'B')); // b7B
-  pieces.push(createPiece('knight', 'black', 3, 7, 'B')); // c7B
-  pieces.push(createPiece('bishop', 'black', 4, 7, 'B')); // d7B
-
-  // Rank 8: King and Queen
-  pieces.push(createPiece('queen', 'black', 2, 8, 'B'));  // b8B
-  pieces.push(createPiece('king', 'black', 3, 8, 'B'));   // c8B
-
-  // White Queen-side Attack Board (WQL) - Based on move_logic_tests.md Table 1
-  pieces.push(createPiece('rook', 'white', 0, 0, 'WQL')); // z0WQL
-  pieces.push(createPiece('pawn', 'white', 0, 1, 'WQL')); // z1WQL
-  pieces.push(createPiece('pawn', 'white', 1, 1, 'WQL')); // a1WQL
-
-  // White King-side Attack Board (WKL) - Based on move_logic_tests.md Table 1
-  // WKL board at KL1 covers files 4-5 (d-e), ranks 0-1
-  pieces.push(createPiece('rook', 'white', 5, 0, 'WKL')); // e0WKL
-  pieces.push(createPiece('pawn', 'white', 4, 1, 'WKL')); // d1WKL
-  pieces.push(createPiece('pawn', 'white', 5, 1, 'WKL')); // e1WKL
-
-  // Black Queen-side Attack Board (BQL) - Based on move_logic_tests.md Table 1
-  // BQL board at QL6 covers files 0-1 (z-a), ranks 8-9
-  pieces.push(createPiece('pawn', 'black', 0, 8, 'BQL')); // z8BQL
-  pieces.push(createPiece('pawn', 'black', 1, 8, 'BQL')); // a8BQL
-  pieces.push(createPiece('rook', 'black', 0, 9, 'BQL')); // z9BQL
-
-  // Black King-side Attack Board (BKL) - Based on move_logic_tests.md Table 1
-  // BKL board at KL6 covers files 4-5 (d-e), ranks 8-9
-  pieces.push(createPiece('pawn', 'black', 4, 8, 'BKL')); // d8BKL
-  pieces.push(createPiece('pawn', 'black', 5, 8, 'BKL')); // e8BKL
-  pieces.push(createPiece('rook', 'black', 5, 9, 'BKL')); // e9BKL
+  for (const jp of jsonPieces) {
+    pieces.push(
+      createPiece(
+        jp.type,
+        jp.color,
+        fileIndex(jp.file),
+        jp.rank,
+        mapLevel(jp.color, jp.level)
+      )
+    );
+  }
 
   return pieces;
 }
