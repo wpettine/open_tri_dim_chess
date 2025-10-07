@@ -3075,6 +3075,162 @@ export const THEME = {
 };
 ```
 
+#### 8.5.2: Camera Preset System
+
+Implement a camera preset system that allows users to quickly switch between Top, Side, and Front views of the 3D chess board.
+
+**Camera View Calculations:**
+
+Based on world dimensions (X: 2.1-8.4, Y: 2.1-18.9, Z: 0-12), the camera presets target the world center at approximately `[5, 10, 6]`:
+
+- **Top View**: Position `[5, 10, 25]` looking at `[5, 10, 6]`, tilted 15° forward
+  - Provides overhead perspective while maintaining visibility of piece heights
+  - Good for planning overall board strategy
+  
+- **Side View**: Position `[25, 10, 6]` looking at `[5, 10, 6]`, tilted 10° up
+  - Shows vertical relationships between the three main board levels
+  - Useful for understanding attack board positions relative to main boards
+  
+- **Front View**: Position `[5, -10, 10]` looking at `[5, 10, 6]`, tilted 20° up
+  - Diagonal perspective similar to traditional chess board view
+  - Combines depth perception with piece visibility
+
+**Create `src/store/cameraStore.ts`:**
+
+```typescript
+import { create } from 'zustand';
+
+export type CameraView = 'default' | 'top' | 'side' | 'front';
+
+interface CameraState {
+  currentView: CameraView;
+  setView: (view: CameraView) => void;
+}
+
+export const useCameraStore = create<CameraState>((set) => ({
+  currentView: 'default',
+  setView: (view) => set({ currentView: view }),
+}));
+```
+
+**Update `src/config/theme.ts`:**
+
+Add camera preset configurations to the THEME object:
+
+```typescript
+export const THEME = {
+  // ... existing theme properties
+  
+  cameraPresets: {
+    default: {
+      position: [15, 15, 20] as [number, number, number],
+      target: [5, 10, 4] as [number, number, number],
+    },
+    top: {
+      position: [5, 10, 25] as [number, number, number],
+      target: [5, 10, 6] as [number, number, number],
+    },
+    side: {
+      position: [25, 10, 6] as [number, number, number],
+      target: [5, 10, 6] as [number, number, number],
+    },
+    front: {
+      position: [5, -10, 10] as [number, number, number],
+      target: [5, 10, 6] as [number, number, number],
+    },
+  },
+};
+```
+
+**Update `src/components/Board3D/Board3D.tsx`:**
+
+Add camera animation using gsap:
+
+```typescript
+import { Canvas, useThree } from '@react-three/fiber';
+import { OrbitControls } from '@react-three/drei';
+import { useEffect, useRef } from 'react';
+import gsap from 'gsap';
+import { THEME } from '../../config/theme';
+import { useCameraStore } from '../../store/cameraStore';
+import { BoardRenderer } from './BoardRenderer';
+import { WorldGridVisualizer } from '../Debug/WorldGridVisualizer';
+import { Pieces3D } from './Pieces3D';
+
+function CameraController() {
+  const currentView = useCameraStore(state => state.currentView);
+  const { camera } = useThree();
+  const controlsRef = useRef<any>();
+
+  const preset = THEME.cameraPresets[currentView];
+
+  useEffect(() => {
+    if (controlsRef.current && preset) {
+      // Animate camera position
+      gsap.to(camera.position, {
+        x: preset.position[0],
+        y: preset.position[1],
+        z: preset.position[2],
+        duration: 0.8,
+        ease: 'power2.out',
+      });
+
+      // Animate controls target
+      gsap.to(controlsRef.current.target, {
+        x: preset.target[0],
+        y: preset.target[1],
+        z: preset.target[2],
+        duration: 0.8,
+        ease: 'power2.out',
+        onUpdate: () => controlsRef.current?.update(),
+      });
+    }
+  }, [currentView, camera, preset]);
+
+  return (
+    <OrbitControls
+      ref={controlsRef}
+      target={THEME.camera.lookAt}
+      minDistance={5}
+      maxDistance={50}
+      enablePan={true}
+      enableRotate={true}
+      enableZoom={true}
+    />
+  );
+}
+
+export function Board3D() {
+  return (
+    <Canvas
+      camera={{
+        position: THEME.camera.position,
+        fov: THEME.camera.fov,
+      }}
+      style={{ background: THEME.scene.background }}
+    >
+      <ambientLight
+        intensity={THEME.lighting.ambient.intensity}
+        color={THEME.lighting.ambient.color}
+      />
+      <directionalLight
+        intensity={THEME.lighting.directional.intensity}
+        position={THEME.lighting.directional.position}
+        color={THEME.lighting.directional.color}
+      />
+
+      <CameraController />
+
+      <WorldGridVisualizer />
+      <BoardRenderer />
+      <Pieces3D />
+    </Canvas>
+  );
+}
+```
+
+**Installation Note:** If gsap is not already installed, add it: `npm install gsap`
+
 ### Step 8.6: UI Components for Board Movement
 
 Create UI components for selecting and moving attack boards.
@@ -3260,20 +3416,687 @@ export function BoardMovementPanel() {
 }
 ```
 
-**Add to `src/App.tsx`:**
+#### 8.6.2: Camera View Controls
+
+Create a button group for switching between camera presets.
+
+**Create `src/components/UI/CameraControls.tsx`:**
 
 ```typescript
-import { BoardMovementPanel } from './components/UI/BoardMovementPanel';
+import { useCameraStore } from '../../store/cameraStore';
+import './CameraControls.css';
 
-function App() {
+export function CameraControls() {
+  const { currentView, setView } = useCameraStore();
+
   return (
-    <>
-      <Board3D />
-      <BoardMovementPanel />  {/* Add this */}
-    </>
+    <div className="camera-controls">
+      <h4>Camera View</h4>
+      <div className="camera-buttons">
+        <button
+          className={currentView === 'default' ? 'active' : ''}
+          onClick={() => setView('default')}
+        >
+          Default
+        </button>
+        <button
+          className={currentView === 'top' ? 'active' : ''}
+          onClick={() => setView('top')}
+        >
+          Top
+        </button>
+        <button
+          className={currentView === 'side' ? 'active' : ''}
+          onClick={() => setView('side')}
+        >
+          Side
+        </button>
+        <button
+          className={currentView === 'front' ? 'active' : ''}
+          onClick={() => setView('front')}
+        >
+          Front
+        </button>
+      </div>
+    </div>
   );
 }
 ```
+
+**Create `src/components/UI/CameraControls.css`:**
+
+```css
+.camera-controls {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 15px;
+  border-radius: 8px;
+  z-index: 101;
+}
+
+.camera-controls h4 {
+  margin: 0 0 10px 0;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.camera-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.camera-buttons button {
+  padding: 8px 16px;
+  background: #4a5568;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.camera-buttons button:hover {
+  background: #718096;
+}
+
+.camera-buttons button.active {
+  background: #2a5a8a;
+  font-weight: 600;
+}
+```
+
+#### 8.6.3: Move History with Game Management
+
+Create a collapsible move history panel that displays the current game's moves and provides save/load/new game functionality.
+
+**Create `src/components/UI/MoveHistory.tsx`:**
+
+```typescript
+import { useState } from 'react';
+import { useGameStore } from '../../store/gameStore';
+import './MoveHistory.css';
+
+export function MoveHistory() {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const moveHistory = useGameStore(state => state.moveHistory);
+  const resetGame = useGameStore(state => state.resetGame);
+
+  const handleSaveGame = () => {
+    const gameState = {
+      pieces: useGameStore.getState().pieces,
+      attackBoardPositions: useGameStore.getState().attackBoardPositions,
+      currentTurn: useGameStore.getState().currentTurn,
+      moveHistory: useGameStore.getState().moveHistory,
+      timestamp: Date.now(),
+    };
+
+    const json = JSON.stringify(gameState, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chess-game-${Date.now()}.json`;
+    a.click();
+    
+    URL.revokeObjectURL(url);
+  };
+
+  const handleLoadGame = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    
+    input.onchange = (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const gameState = JSON.parse(event.target?.result as string);
+          
+          useGameStore.setState({
+            pieces: gameState.pieces,
+            attackBoardPositions: gameState.attackBoardPositions,
+            currentTurn: gameState.currentTurn,
+            moveHistory: gameState.moveHistory,
+          });
+        } catch (error) {
+          alert('Failed to load game: Invalid file format');
+        }
+      };
+      
+      reader.readAsText(file);
+    };
+    
+    input.click();
+  };
+
+  const handleNewGame = () => {
+    if (moveHistory.length > 0) {
+      const confirmed = confirm('Start a new game? Current game will be lost.');
+      if (!confirmed) return;
+    }
+    
+    resetGame();
+  };
+
+  return (
+    <div className="move-history-panel">
+      <div 
+        className="move-history-header" 
+        onClick={() => setIsCollapsed(!isCollapsed)}
+      >
+        <h3>Move History</h3>
+        <span className="collapse-icon">{isCollapsed ? '▼' : '▲'}</span>
+      </div>
+      
+      {!isCollapsed && (
+        <>
+          <div className="game-controls">
+            <button onClick={handleNewGame} className="game-button new">
+              New Game
+            </button>
+            <button onClick={handleSaveGame} className="game-button save">
+              Save Game
+            </button>
+            <button onClick={handleLoadGame} className="game-button load">
+              Load Game
+            </button>
+          </div>
+
+          <div className="move-history-list">
+            {moveHistory.length === 0 ? (
+              <p className="no-moves">No moves yet</p>
+            ) : (
+              moveHistory.map((move, idx) => (
+                <MoveEntry key={idx} move={move} number={idx + 1} />
+              ))
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+interface MoveEntryProps {
+  move: any;
+  number: number;
+}
+
+function MoveEntry({ move, number }: MoveEntryProps) {
+  const isBoardMove = move.type === 'board-move';
+  const colorClass = isBoardMove 
+    ? `board-${move.boardId?.startsWith('W') ? 'white' : 'black'}`
+    : move.piece?.color || 'white';
+
+  return (
+    <div className={`move-entry ${colorClass}`}>
+      <span className="move-number">{number}.</span>
+      <span className="move-notation">
+        {isBoardMove 
+          ? `${move.boardId}: ${move.from}-${move.to}${move.rotation === 180 ? '^180' : ''}`
+          : `${move.from}-${move.to}`
+        }
+      </span>
+    </div>
+  );
+}
+```
+
+**Create `src/components/UI/MoveHistory.css`:**
+
+```css
+.move-history-panel {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  width: 300px;
+  max-height: 500px;
+  z-index: 99;
+  color: white;
+}
+
+.move-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.move-history-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.move-history-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.collapse-icon {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.game-controls {
+  display: flex;
+  gap: 8px;
+  padding: 12px 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.game-button {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.game-button:hover {
+  opacity: 0.8;
+}
+
+.game-button.new {
+  background: #4a5568;
+  color: white;
+}
+
+.game-button.save {
+  background: #48bb78;
+  color: white;
+}
+
+.game-button.load {
+  background: #4299e1;
+  color: white;
+}
+
+.move-history-list {
+  max-height: 350px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.move-history-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.move-history-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.move-history-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.no-moves {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+  padding: 20px;
+  margin: 0;
+}
+
+.move-entry {
+  display: flex;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.move-entry:nth-child(even) {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.move-entry.white {
+  border-left: 3px solid #f5f5f5;
+}
+
+.move-entry.black {
+  border-left: 3px solid #2c2c2c;
+}
+
+.move-entry.board-white {
+  border-left: 3px solid #4299e1;
+}
+
+.move-entry.board-black {
+  border-left: 3px solid #9f7aea;
+}
+
+.move-number {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  min-width: 30px;
+}
+
+.move-notation {
+  color: white;
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+```
+
+#### 8.6.4: Enhanced Attack Board Selection UI
+
+Update the BoardMovementPanel to include rotation selection with radio buttons.
+
+**Update `src/components/UI/BoardMovementPanel.tsx`:**
+
+Replace the move option rendering section with enhanced rotation controls:
+
+```typescript
+import { useState } from 'react';
+import { useGameStore } from '../../store/gameStore';
+import './BoardMovementPanel.css';
+
+export function BoardMovementPanel() {
+  const selectedBoard = useGameStore(state => state.selectedBoard);
+  const attackBoardPositions = useGameStore(state => state.attackBoardPositions);
+  const getLegalBoardMoves = useGameStore(state => state.getLegalBoardMoves);
+  const moveBoard = useGameStore(state => state.moveBoard);
+  const selectBoard = useGameStore(state => state.selectBoard);
+  const [selectedRotations, setSelectedRotations] = useState<Record<string, number>>({});
+
+  const handleRotationChange = (pinId: string, rotation: number) => {
+    setSelectedRotations(prev => ({ ...prev, [pinId]: rotation }));
+  };
+
+  if (!selectedBoard) {
+    return (
+      <div className="board-movement-panel">
+        <h3>Attack Board Movement</h3>
+        <p>Click an attack board to select it</p>
+        <div className="board-list">
+          {Object.keys(attackBoardPositions).map(boardId => (
+            <button
+              key={boardId}
+              onClick={() => selectBoard(boardId)}
+              className="board-button"
+            >
+              {boardId} (at {attackBoardPositions[boardId]})
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const currentPin = attackBoardPositions[selectedBoard];
+  const legalMoves = getLegalBoardMoves(selectedBoard);
+
+  return (
+    <div className="board-movement-panel active">
+      <h3>Move {selectedBoard}</h3>
+      <p>Currently at: <strong>{currentPin}</strong></p>
+
+      <div className="legal-moves">
+        <h4>Available Moves:</h4>
+        {legalMoves.length === 0 ? (
+          <p className="no-moves">No legal moves available</p>
+        ) : (
+          <div className="move-options">
+            {legalMoves.map(pinId => (
+              <div key={pinId} className="move-option">
+                <div className="destination-label">
+                  <strong>Move to {pinId}</strong>
+                </div>
+                
+                <div className="rotation-selector">
+                  <label className="rotation-option">
+                    <input
+                      type="radio"
+                      name={`rotation-${pinId}`}
+                      value="0"
+                      checked={selectedRotations[pinId] === 0}
+                      onChange={() => handleRotationChange(pinId, 0)}
+                    />
+                    <span>No Rotation (0°)</span>
+                  </label>
+                  
+                  <label className="rotation-option">
+                    <input
+                      type="radio"
+                      name={`rotation-${pinId}`}
+                      value="180"
+                      checked={selectedRotations[pinId] === 180}
+                      onChange={() => handleRotationChange(pinId, 180)}
+                    />
+                    <span>Rotate 180°</span>
+                  </label>
+                </div>
+
+                <button
+                  onClick={() => {
+                    moveBoard(selectedBoard, pinId, selectedRotations[pinId] === 180);
+                    setSelectedRotations({});
+                  }}
+                  className="move-button"
+                  disabled={selectedRotations[pinId] === undefined}
+                >
+                  Execute Move
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <button onClick={() => selectBoard(null)} className="cancel-button">
+        Cancel
+      </button>
+    </div>
+  );
+}
+```
+
+**Update `src/components/UI/BoardMovementPanel.css`:**
+
+Add styles for the enhanced rotation selector:
+
+```css
+.board-movement-panel {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-width: 300px;
+  z-index: 100;
+}
+
+.board-movement-panel h3 {
+  margin-top: 0;
+  color: #333;
+}
+
+.board-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.board-button {
+  padding: 10px;
+  background: #2a5a8a;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.board-button:hover {
+  background: #1a4a7a;
+}
+
+.legal-moves {
+  margin: 15px 0;
+}
+
+.move-options {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.move-option {
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.destination-label {
+  margin-bottom: 12px;
+  color: #ffa500;
+  font-size: 14px;
+}
+
+.rotation-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.rotation-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.rotation-option:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.rotation-option input[type="radio"] {
+  cursor: pointer;
+}
+
+.rotation-option span {
+  color: white;
+  font-size: 13px;
+}
+
+.move-button {
+  width: 100%;
+  padding: 8px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.move-button:hover {
+  background: #45a049;
+}
+
+.move-button:disabled {
+  background: #666;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.cancel-button {
+  width: 100%;
+  padding: 10px;
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.cancel-button:hover {
+  background: #da190b;
+}
+
+.no-moves {
+  color: #666;
+  font-style: italic;
+}
+```
+
+#### 8.6.5: Component Integration
+
+**Update `src/App.tsx`:**
+
+Import and add all UI components:
+
+```typescript
+import { Board3D } from './components/Board3D/Board3D';
+import { CameraControls } from './components/UI/CameraControls';
+import { BoardMovementPanel } from './components/UI/BoardMovementPanel';
+import { MoveHistory } from './components/UI/MoveHistory';
+import { useGameStore } from './store/gameStore';
+import { logWorldCoordinates } from './utils/debugLogger';
+import { useEffect } from 'react';
+
+function App() {
+  const world = useGameStore(state => state.world);
+
+  useEffect(() => {
+    logWorldCoordinates(world);
+  }, [world]);
+
+  return (
+    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+      <Board3D />
+      <CameraControls />
+      <BoardMovementPanel />
+      <MoveHistory />
+    </div>
+  );
+}
+
+export default App;
+```
+
+**Z-Index Layering:**
+- CameraControls: z-index 101 (top left, highest priority)
+- BoardMovementPanel: z-index 100 (top right when active)
+- MoveHistory: z-index 99 (right side, below BoardMovementPanel)
+
+**Layout Coordination:**
+- CameraControls positioned top-left (20px, 20px)
+- MoveHistory positioned top-right (20px, 20px)
+- BoardMovementPanel positioned top-right (20px, 20px) - only shown when board selected
+- When both MoveHistory and BoardMovementPanel are visible, consider stacking vertically
+
+**Responsive Considerations:**
+For mobile/tablet viewports:
+- Stack panels vertically in bottom sheet
+- Increase button sizes (min 44px touch targets)
+- Reduce panel widths to fit screen
 
 ### Step 8.7: Additional Considerations
 
@@ -3373,6 +4196,93 @@ function isKingSafeAfterBoardMove(context: BoardMoveContext): boolean {
   );
 }
 ```
+
+#### 8.7.6: UI/UX Best Practices
+
+**Camera Persistence:**
+Save user's preferred camera view to localStorage:
+
+```typescript
+// In cameraStore.ts
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+export const useCameraStore = create<CameraState>()(
+  persist(
+    (set) => ({
+      currentView: 'default',
+      setView: (view) => set({ currentView: view }),
+    }),
+    {
+      name: 'camera-view-storage',
+    }
+  )
+);
+```
+
+**Keyboard Shortcuts:**
+Implement hotkeys for common actions:
+
+```typescript
+useEffect(() => {
+  const handleKeyPress = (e: KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey) return;
+    
+    switch (e.key) {
+      case '1': useCameraStore.getState().setView('default'); break;
+      case '2': useCameraStore.getState().setView('top'); break;
+      case '3': useCameraStore.getState().setView('side'); break;
+      case '4': useCameraStore.getState().setView('front'); break;
+      case 'h': toggleHistoryPanel(); break;
+      case 'n': handleNewGame(); break;
+    }
+  };
+  
+  window.addEventListener('keydown', handleKeyPress);
+  return () => window.removeEventListener('keydown', handleKeyPress);
+}, []);
+```
+
+**Accessibility:**
+- Add aria-labels to all interactive buttons
+- Ensure keyboard navigation with tab order
+- Announce state changes to screen readers:
+
+```typescript
+<button
+  onClick={handleNewGame}
+  aria-label="Start a new chess game"
+  className="game-button new"
+>
+  New Game
+</button>
+```
+
+**Performance Optimization:**
+- Debounce camera transitions if user clicks rapidly:
+
+```typescript
+const debouncedSetView = debounce((view: CameraView) => {
+  setView(view);
+}, 200);
+```
+
+- Virtual scrolling for move history if game exceeds 100 moves
+- Memoize move history entries to prevent unnecessary re-renders:
+
+```typescript
+import { memo } from 'react';
+
+const MoveEntry = memo(({ move, number }: MoveEntryProps) => {
+  // ... component implementation
+});
+```
+
+**Error Handling:**
+- Validate loaded game files have correct structure
+- Show user-friendly error messages for file I/O failures
+- Gracefully handle missing or corrupted game state data
+- Confirm before destructive actions (New Game with existing moves)
 
 ### Step 8.8: Testing Strategy
 
