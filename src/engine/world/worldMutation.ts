@@ -145,7 +145,7 @@ function validateVerticalShadow(context: BoardMoveContext): BoardMoveValidation 
     return { isValid: true };
   }
 
-  const boardSquares = getBoardSquares(context.boardId, context.fromPinId, context.world);
+  const boardSquares = getBoardSquaresForBoardAtPin(context.boardId, context.fromPinId);
   
   for (let level = minLevel + 1; level < maxLevel; level++) {
     for (const square of boardSquares) {
@@ -168,6 +168,7 @@ function validateVerticalShadow(context: BoardMoveContext): BoardMoveValidation 
   return { isValid: true };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function validateKingSafety(_context: BoardMoveContext): BoardMoveValidation {
   return { isValid: true };
 }
@@ -188,14 +189,6 @@ function getPassengerPieces(
     const isAtBoardLevel = parseInt(piece.level) === pin.level;
     return isOnBoardSquare && isAtBoardLevel;
   });
-}
-
-function getBoardSquares(
-  boardId: string,
-  pinId: string,
-  world: ChessWorld
-): Array<{ file: number; rank: number }> {
-  return getBoardSquaresForBoardAtPin(boardId, pinId);
 }
 
 function getBoardSquaresForBoardAtPin(
