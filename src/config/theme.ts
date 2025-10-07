@@ -37,18 +37,22 @@ export const THEME = {
     default: {
       position: [15, 15, 20] as [number, number, number],
       target: [5, 10, 4] as [number, number, number],
+      up: [0, 1, 0] as [number, number, number],
     },
     top: {
       position: [5, 10, 25] as [number, number, number],
       target: [5, 10, 6] as [number, number, number],
+      up: [0, 1, 0] as [number, number, number],
     },
     side: {
-      position: [20, -5, 4] as [number, number, number],
+      position: [25, 10, 6] as [number, number, number],
       target: [5, 10, 6] as [number, number, number],
+      up: [0, 0, 1] as [number, number, number],
     },
     front: {
       position: [5, -10, 10] as [number, number, number],
       target: [5, 10, 6] as [number, number, number],
+      up: [0, 1, 0] as [number, number, number],
     },
   },
   scene: {
