@@ -38,16 +38,25 @@ export function validateBoardMove(context: BoardMoveContext): BoardMoveValidatio
 
 function validateAdjacency(fromPinId: string, toPinId: string): BoardMoveValidation {
   const fromPin = PIN_POSITIONS[fromPinId];
+  const toPin = PIN_POSITIONS[toPinId];
   
-  if (!fromPin) {
-    return { isValid: false, reason: 'Invalid source pin' };
+  if (!fromPin || !toPin) {
+    return { isValid: false, reason: 'Invalid source or destination pin' };
   }
 
-  if (!fromPin.adjacentPins.includes(toPinId)) {
-    return { isValid: false, reason: 'Destination pin is not adjacent' };
+  const fromLine = fromPinId.startsWith('QL') ? 'QL' : 'KL';
+  const toLine = toPinId.startsWith('QL') ? 'QL' : 'KL';
+
+  if (fromLine === toLine) {
+    return { isValid: true };
   }
 
-  return { isValid: true };
+  const levelDiff = Math.abs(toPin.level - fromPin.level);
+  if (levelDiff <= 2) {
+    return { isValid: true };
+  }
+
+  return { isValid: false, reason: 'Pins are not adjacent in the network topology' };
 }
 
 function validateOccupancy(context: BoardMoveContext): BoardMoveValidation {
