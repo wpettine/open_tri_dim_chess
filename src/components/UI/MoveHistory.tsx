@@ -1,40 +1,17 @@
 import React, { useState } from 'react';
 import { useGameStore, type Move } from '../../store/gameStore';
 import { LocalStoragePersistence } from '../../persistence/localStoragePersistence';
+import SaveLoadManager from './SaveLoadManager';
 import './MoveHistory.css';
 
 export function MoveHistory() {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [managerOpen, setManagerOpen] = useState(false);
+  const [managerMode, setManagerMode] = useState<'save' | 'load'>('save');
   const moveHistory = useGameStore(state => state.moveHistory);
   const resetGame = useGameStore(state => state.resetGame);
 
-  const handleSaveGame = async () => {
-    await useGameStore.getState().saveCurrentGame('Manual Save');
-    alert('Game saved locally');
-  };
 
-  const handleLoadGame = async () => {
-    const persistence = new LocalStoragePersistence();
-    const saves = await persistence.listSaves();
-    if (saves.length === 0) {
-      alert('No saved games found');
-      return;
-    }
-    let chosen = 0;
-    if (saves.length > 1) {
-      const list = saves.map((s, i) => `${i}: ${s.name} (${new Date(s.updatedAt).toLocaleString()})`).join('\n');
-      const res = prompt(`Select save to load (index):\n${list}`, '0');
-      if (res === null) return;
-      const idx = parseInt(res, 10);
-      if (Number.isNaN(idx) || idx < 0 || idx >= saves.length) {
-        alert('Invalid selection'); return;
-      }
-      chosen = idx;
-    }
-    const id = saves[chosen].id;
-    await useGameStore.getState().loadGameById(id);
-    alert(`Loaded: ${saves[chosen].name}`);
-  };
 
   const handleImportFromFile = () => {
     const input = document.createElement('input');
@@ -98,6 +75,24 @@ export function MoveHistory() {
 
   return (
     <div className="move-history-panel">
+      <div className="game-controls">
+        <button onClick={handleNewGame} className="game-button new">
+          New Game
+        </button>
+        <button onClick={() => { setManagerMode('save'); setManagerOpen(true); }} className="game-button save">
+          Save Game
+        </button>
+        <button onClick={() => { setManagerMode('load'); setManagerOpen(true); }} className="game-button load">
+          Load Game
+        </button>
+        <button onClick={handleExportGame} className="game-button save">
+          Export Save
+        </button>
+        <button onClick={handleImportFromFile} className="game-button load">
+          Import from File
+        </button>
+      </div>
+
       <div 
         className="move-history-header" 
         onClick={() => setIsCollapsed(!isCollapsed)}
@@ -107,36 +102,22 @@ export function MoveHistory() {
       </div>
       
       {!isCollapsed && (
-        <>
-          <div className="game-controls">
-            <button onClick={handleNewGame} className="game-button new">
-              New Game
-            </button>
-            <button onClick={handleSaveGame} className="game-button save">
-              Save Game
-            </button>
-            <button onClick={handleLoadGame} className="game-button load">
-              Load Game
-            </button>
-            <button onClick={handleExportGame} className="game-button save">
-              Export Save
-            </button>
-            <button onClick={handleImportFromFile} className="game-button load">
-              Import from File
-            </button>
-          </div>
-
-          <div className="move-history-list">
-            {moveHistory.length === 0 ? (
-              <p className="no-moves">No moves yet</p>
-            ) : (
-              moveHistory.map((move, idx) => (
-                <MoveEntry key={idx} move={move} number={idx + 1} />
-              ))
-            )}
-          </div>
-        </>
+        <div className="move-history-list">
+          {moveHistory.length === 0 ? (
+            <p className="no-moves">No moves yet</p>
+          ) : (
+            moveHistory.map((move, idx) => (
+              <MoveEntry key={idx} move={move} number={idx + 1} />
+            ))
+          )}
+        </div>
       )}
+
+      <SaveLoadManager
+        open={managerOpen}
+        mode={managerMode}
+        onClose={() => setManagerOpen(false)}
+      />
     </div>
   );
 }
