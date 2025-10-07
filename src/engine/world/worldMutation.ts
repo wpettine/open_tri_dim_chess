@@ -48,7 +48,11 @@ function validateAdjacency(fromPinId: string, toPinId: string): BoardMoveValidat
   const toLine = toPinId.startsWith('QL') ? 'QL' : 'KL';
 
   if (fromLine === toLine) {
-    return { isValid: true };
+    const levelDiff = Math.abs(toPin.level - fromPin.level);
+    if (levelDiff <= 2) {
+      return { isValid: true };
+    }
+    return { isValid: false, reason: 'Destination pin is not adjacent' };
   }
 
   if (fromPin.adjacentPins.includes(toPinId)) {
@@ -157,11 +161,16 @@ function getPassengerPieces(
   pinId: string,
   pieces: Piece[]
 ): Piece[] {
+  const pin = PIN_POSITIONS[pinId];
+  if (!pin) return [];
+  
   const boardSquares = getBoardSquaresForBoardAtPin(boardId, pinId);
   
   return pieces.filter(piece => {
     const pieceSquareId = `${piece.file}-${piece.rank}`;
-    return boardSquares.some(sq => `${sq.file}-${sq.rank}` === pieceSquareId);
+    const isOnBoardSquare = boardSquares.some(sq => `${sq.file}-${sq.rank}` === pieceSquareId);
+    const isAtBoardLevel = parseInt(piece.level) === pin.level;
+    return isOnBoardSquare && isAtBoardLevel;
   });
 }
 
