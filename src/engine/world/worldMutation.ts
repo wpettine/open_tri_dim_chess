@@ -18,7 +18,7 @@ export interface BoardMoveValidation {
 }
 
 export function validateBoardMove(context: BoardMoveContext): BoardMoveValidation {
-  const adjacencyCheck = validateAdjacency(context.fromPinId, context.toPinId);
+  const adjacencyCheck = validateAdjacency(context);
   if (!adjacencyCheck.isValid) return adjacencyCheck;
 
   const occupancyCheck = validateOccupancy(context);
@@ -36,26 +36,35 @@ export function validateBoardMove(context: BoardMoveContext): BoardMoveValidatio
   return { isValid: true };
 }
 
-function validateAdjacency(fromPinId: string, toPinId: string): BoardMoveValidation {
-  const fromPin = PIN_POSITIONS[fromPinId];
-  const toPin = PIN_POSITIONS[toPinId];
+function validateAdjacency(context: BoardMoveContext): BoardMoveValidation {
+  const fromPin = PIN_POSITIONS[context.fromPinId];
+  const toPin = PIN_POSITIONS[context.toPinId];
   
   if (!fromPin || !toPin) {
     return { isValid: false, reason: 'Invalid source or destination pin' };
   }
 
-  const fromLine = fromPinId.startsWith('QL') ? 'QL' : 'KL';
-  const toLine = toPinId.startsWith('QL') ? 'QL' : 'KL';
+  const fromLine = context.fromPinId.startsWith('QL') ? 'QL' : 'KL';
+  const toLine = context.toPinId.startsWith('QL') ? 'QL' : 'KL';
 
   if (fromLine === toLine) {
     const levelDiff = Math.abs(toPin.level - fromPin.level);
-    if (levelDiff <= 3) {
+    
+    if (levelDiff <= 2) {
       return { isValid: true };
     }
+    
+    const passengerPieces = getPassengerPieces(context.boardId, context.fromPinId, context.pieces);
+    const hasKnight = passengerPieces.some(p => p.type === 'knight');
+    
+    if (levelDiff <= 3 && hasKnight) {
+      return { isValid: true };
+    }
+    
     return { isValid: false, reason: 'Destination pin is not adjacent' };
   }
 
-  if (fromPin.adjacentPins.includes(toPinId)) {
+  if (fromPin.adjacentPins.includes(context.toPinId)) {
     return { isValid: true };
   }
 
@@ -119,12 +128,19 @@ function validateVerticalShadow(context: BoardMoveContext): BoardMoveValidation 
     return { isValid: true };
   }
 
+  const passengerPieces = getPassengerPieces(context.boardId, context.fromPinId, context.pieces);
+  const hasKnight = passengerPieces.some(p => p.type === 'knight');
+
+  if (levelDiff > 2 && !hasKnight) {
+    return { 
+      isValid: false, 
+      reason: 'Cannot move more than 2 levels without a knight passenger' 
+    };
+  }
+
   const minLevel = Math.min(fromPin.level, toPin.level);
   const maxLevel = Math.max(fromPin.level, toPin.level);
-
-  const passengerPieces = getPassengerPieces(context.boardId, context.fromPinId, context.pieces);
   
-  const hasKnight = passengerPieces.some(p => p.type === 'knight');
   if (hasKnight) {
     return { isValid: true };
   }
