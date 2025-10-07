@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useGameStore, type Move } from '../../store/gameStore';
-import { LocalStoragePersistence } from '../../persistence/localStoragePersistence';
 import SaveLoadManager from './SaveLoadManager';
 import './MoveHistory.css';
 
@@ -13,56 +12,7 @@ export function MoveHistory() {
 
 
 
-  const handleImportFromFile = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json,application/json';
-    input.onchange = (e: Event) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        try {
-          const json = event.target?.result as string;
-          await useGameStore.getState().importGameFromJson(json);
-          alert('Imported and loaded save');
-        } catch (err) {
-          alert('Failed to import: ' + (err instanceof Error ? err.message : 'Unknown error'));
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
-  };
 
-  const handleExportGame = async () => {
-    const persistence = new LocalStoragePersistence();
-    const saves = await persistence.listSaves();
-    if (saves.length === 0) {
-      alert('No saved games to export');
-      return;
-    }
-    let chosen = 0;
-    if (saves.length > 1) {
-      const list = saves.map((s, i) => `${i}: ${s.name} (${new Date(s.updatedAt).toLocaleString()})`).join('\n');
-      const res = prompt(`Select save to export (index):\n${list}`, '0');
-      if (res === null) return;
-      const idx = parseInt(res, 10);
-      if (Number.isNaN(idx) || idx < 0 || idx >= saves.length) {
-        alert('Invalid selection'); return;
-      }
-      chosen = idx;
-    }
-    const id = saves[chosen].id;
-    const json = await useGameStore.getState().exportGameById(id);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `otdc-save-${id}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   const handleNewGame = () => {
     if (moveHistory.length > 0) {
@@ -84,12 +34,6 @@ export function MoveHistory() {
         </button>
         <button onClick={() => { setManagerMode('load'); setManagerOpen(true); }} className="game-button load">
           Load Game
-        </button>
-        <button onClick={handleExportGame} className="game-button save">
-          Export Save
-        </button>
-        <button onClick={handleImportFromFile} className="game-button load">
-          Import from File
         </button>
       </div>
 
