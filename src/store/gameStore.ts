@@ -41,16 +41,12 @@ export interface GameState {
   isCheckmate: boolean;
   isStalemate: boolean;
   winner: 'white' | 'black' | null;
-  moveHistory: Array<{
-    from: string;
-    to: string;
-    piece: string;
-    captured?: string;
-  }>;
+  gameOver: boolean;
   attackBoardPositions: Record<string, string>;
   selectedBoardId: string | null;
   moveHistory: Move[];
   selectSquare: (squareId: string) => void;
+  movePiece: (piece: Piece, toFile: number, toRank: number, toLevel: string) => void;
   clearSelection: () => void;
   resetGame: () => void;
   getValidMovesForSquare: (squareId: string) => string[];
@@ -67,15 +63,111 @@ export const useGameStore = create<GameState>()((set, get) => ({
   isCheckmate: false,
   isStalemate: false,
   winner: null,
+  gameOver: false,
   attackBoardPositions: getInitialPinPositions(),
   selectedBoardId: null,
   moveHistory: [],
   
   selectSquare: (squareId: string) => {
-    const validMoves = get().getValidMovesForSquare(squareId);
-    set({ 
-      selectedSquareId: squareId,
-      highlightedSquareIds: validMoves,
+    const state = get();
+    
+    if (state.gameOver) {
+      return;
+    }
+    
+    if (!state.selectedSquareId) {
+      const piece = state.pieces.find((p) => {
+        const pieceSquareId = createSquareId(p.file, p.rank, p.level);
+        return pieceSquareId === squareId;
+      });
+      
+      if (piece && piece.color === state.currentTurn) {
+        const validMoves = get().getValidMovesForSquare(squareId);
+        set({ 
+          selectedSquareId: squareId,
+          highlightedSquareIds: validMoves,
+        });
+      }
+    } else {
+      if (state.highlightedSquareIds.includes(squareId)) {
+        const selectedPiece = state.pieces.find((p) => {
+          const pieceSquareId = createSquareId(p.file, p.rank, p.level);
+          return pieceSquareId === state.selectedSquareId;
+        });
+        
+        if (selectedPiece) {
+          const targetSquare = Array.from(state.world.squares.values()).find(
+            (sq) => sq.id === squareId
+          );
+          if (targetSquare) {
+            get().movePiece(selectedPiece, targetSquare.file, targetSquare.rank, targetSquare.boardId);
+          }
+        }
+      } else {
+        const piece = state.pieces.find((p) => {
+          const pieceSquareId = createSquareId(p.file, p.rank, p.level);
+          return pieceSquareId === squareId;
+        });
+        
+        if (piece && piece.color === state.currentTurn) {
+          const validMoves = get().getValidMovesForSquare(squareId);
+          set({ 
+            selectedSquareId: squareId,
+            highlightedSquareIds: validMoves,
+          });
+        } else {
+          set({ selectedSquareId: null, highlightedSquareIds: [] });
+        }
+      }
+    }
+  },
+  
+  movePiece: (piece: Piece, toFile: number, toRank: number, toLevel: string) => {
+    const state = get();
+    
+    const capturedPiece = state.pieces.find(
+      (p) => p.file === toFile && p.rank === toRank && p.level === toLevel
+    );
+    
+    const updatedPieces = state.pieces.filter((p) => p.id !== capturedPiece?.id);
+    
+    const movedPieceIndex = updatedPieces.findIndex((p) => p.id === piece.id);
+    if (movedPieceIndex !== -1) {
+      updatedPieces[movedPieceIndex] = {
+        ...piece,
+        file: toFile,
+        rank: toRank,
+        level: toLevel,
+        hasMoved: true,
+      };
+    }
+    
+    const fromSquare = state.world.squares.get(createSquareId(piece.file, piece.rank, piece.level));
+    const toSquare = state.world.squares.get(createSquareId(toFile, toRank, toLevel));
+    const move: Move = {
+      type: 'piece-move',
+      from: fromSquare?.id || '',
+      to: toSquare?.id || '',
+      piece: { type: piece.type, color: piece.color },
+    };
+    
+    const nextTurn = state.currentTurn === 'white' ? 'black' : 'white';
+    
+    const checkStatus = isInCheck(nextTurn, state.world, updatedPieces);
+    const checkmateStatus = isCheckmate(nextTurn, state.world, updatedPieces);
+    const stalemateStatus = isStalemate(nextTurn, state.world, updatedPieces);
+    
+    set({
+      pieces: updatedPieces,
+      moveHistory: [...state.moveHistory, move],
+      currentTurn: nextTurn,
+      selectedSquareId: null,
+      highlightedSquareIds: [],
+      isCheck: checkStatus,
+      isCheckmate: checkmateStatus,
+      isStalemate: stalemateStatus,
+      gameOver: checkmateStatus || stalemateStatus,
+      winner: checkmateStatus ? state.currentTurn : (stalemateStatus ? null : state.winner),
     });
   },
   
@@ -94,6 +186,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       isCheckmate: false,
       isStalemate: false,
       winner: null,
+      gameOver: false,
       attackBoardPositions: getInitialPinPositions(),
       selectedBoardId: null,
       moveHistory: [],
