@@ -4,6 +4,7 @@ import { createChessWorld } from '../engine/world/worldBuilder';
 import { createInitialPieces } from '../engine/initialSetup';
 import { getLegalMoves } from '../engine/validation/moveValidator';
 import { createSquareId } from '../engine/world/coordinates';
+import { getInitialPinPositions } from '../engine/world/pinPositions';
 
 export interface Piece {
   id: string;
@@ -21,6 +22,8 @@ export interface GameState {
   currentTurn: 'white' | 'black';
   selectedSquareId: string | null;
   highlightedSquareIds: string[];
+  attackBoardPositions: Record<string, string>;
+  selectedBoardId: string | null;
   moveHistory: Array<{
     from: string;
     to: string;
@@ -38,6 +41,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
   currentTurn: 'white',
   selectedSquareId: null,
   highlightedSquareIds: [],
+  attackBoardPositions: getInitialPinPositions(),
+  selectedBoardId: null,
   moveHistory: [],
   
   selectSquare: (squareId: string) => {
@@ -49,7 +54,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
   },
   
   clearSelection: () => {
-    set({ selectedSquareId: null, highlightedSquareIds: [] });
+    set({ selectedSquareId: null, highlightedSquareIds: [], selectedBoardId: null });
   },
   
   resetGame: () => {
@@ -59,6 +64,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
       currentTurn: 'white',
       selectedSquareId: null,
       highlightedSquareIds: [],
+      attackBoardPositions: getInitialPinPositions(),
+      selectedBoardId: null,
       moveHistory: [],
     });
   },
