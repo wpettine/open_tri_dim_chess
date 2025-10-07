@@ -18,6 +18,10 @@ function CameraController() {
 
   useEffect(() => {
     if (controlsRef.current && preset) {
+      if (preset.up) {
+        camera.up.set(preset.up[0], preset.up[1], preset.up[2]);
+      }
+
       gsap.to(camera.position, {
         x: preset.position[0],
         y: preset.position[1],
