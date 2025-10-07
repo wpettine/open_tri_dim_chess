@@ -1,29 +1,53 @@
 import { MoveValidationContext, MoveResult } from './types';
-import { isPathClear } from './pathValidation';
+import { isPathClear, isPieceAt } from './pathValidation';
+import { ChessWorld } from '../world/types';
+import { Piece } from '../../store/gameStore';
 
 function parseLevelFromSquareId(squareId: string): string {
   const match = squareId.match(/^[a-z]\d+(.+)$/);
   return match ? match[1] : '';
 }
 
+function isCoordinateBlockedByAnyLevel(
+  file: number,
+  rank: number,
+  world: ChessWorld,
+  pieces: Piece[]
+): boolean {
+  const squareIds: string[] = [];
+  
+  for (const [squareId, square] of world.squares) {
+    if (square.file === file && square.rank === rank) {
+      squareIds.push(squareId);
+    }
+  }
+  
+  for (const squareId of squareIds) {
+    if (isPieceAt(squareId, pieces)) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 export function validatePawnMove(context: MoveValidationContext): MoveResult {
-  const { piece, fromSquare, toSquare, allPieces } = context;
+  const { piece, fromSquare, toSquare, allPieces, world } = context;
 
   const fileChange = toSquare.file - fromSquare.file;
   const rankChange = toSquare.rank - fromSquare.rank;
   const direction = piece.color === 'white' ? 1 : -1;
 
   const toLevel = parseLevelFromSquareId(toSquare.id);
-  const fromLevel = parseLevelFromSquareId(fromSquare.id);
 
-  const destinationOccupied = allPieces.some(
-    (p) =>
-      p.file === toSquare.file &&
-      p.rank === toSquare.rank &&
-      p.level === toLevel
+  const destinationBlocked = isCoordinateBlockedByAnyLevel(
+    toSquare.file,
+    toSquare.rank,
+    world,
+    allPieces
   );
 
-  const isCapture = destinationOccupied && allPieces.some(
+  const enemyAtDestination = allPieces.some(
     (p) =>
       p.file === toSquare.file &&
       p.rank === toSquare.rank &&
@@ -31,24 +55,25 @@ export function validatePawnMove(context: MoveValidationContext): MoveResult {
       p.color !== piece.color
   );
 
-  if (Math.abs(fileChange) === 1 && rankChange === direction && isCapture) {
+  if (Math.abs(fileChange) === 1 && rankChange === direction && enemyAtDestination) {
     return { valid: true };
   }
 
-  if (fileChange === 0 && rankChange === direction && !destinationOccupied) {
+  if (fileChange === 0 && rankChange === direction && !destinationBlocked) {
     return { valid: true };
   }
 
-  if (fileChange === 0 && rankChange === 2 * direction && !piece.hasMoved && !destinationOccupied) {
+  if (fileChange === 0 && rankChange === 2 * direction && !piece.hasMoved && !destinationBlocked) {
     const intermediateRank = fromSquare.rank + direction;
-    const intermediateOccupied = allPieces.some(
-      (p) =>
-        p.file === fromSquare.file &&
-        p.rank === intermediateRank &&
-        p.level === fromLevel
+    
+    const intermediateBlocked = isCoordinateBlockedByAnyLevel(
+      fromSquare.file,
+      intermediateRank,
+      world,
+      allPieces
     );
 
-    if (!intermediateOccupied) {
+    if (!intermediateBlocked) {
       return { valid: true };
     }
   }
