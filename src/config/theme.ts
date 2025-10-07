@@ -43,7 +43,7 @@ export const THEME = {
       target: [5, 10, 6] as [number, number, number],
     },
     side: {
-      position: [5, 25, 6] as [number, number, number],
+      position: [20, -5, 4] as [number, number, number],
       target: [5, 10, 6] as [number, number, number],
     },
     front: {
