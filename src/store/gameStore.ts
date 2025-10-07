@@ -4,6 +4,7 @@ import { createChessWorld } from '../engine/world/worldBuilder';
 import { createInitialPieces } from '../engine/initialSetup';
 import { getLegalMoves } from '../engine/validation/moveValidator';
 import { createSquareId } from '../engine/world/coordinates';
+import { getInitialPinPositions } from '../engine/world/pinPositions';
 
 export interface Piece {
   id: string;
@@ -15,17 +16,30 @@ export interface Piece {
   hasMoved: boolean;
 }
 
+export type Move = 
+  | {
+      type: 'piece-move';
+      from: string;
+      to: string;
+      piece: { type: string; color: 'white' | 'black' };
+    }
+  | {
+      type: 'board-move';
+      from: string;
+      to: string;
+      boardId: string;
+      rotation?: number;
+    };
+
 export interface GameState {
   world: ChessWorld;
   pieces: Piece[];
   currentTurn: 'white' | 'black';
   selectedSquareId: string | null;
   highlightedSquareIds: string[];
-  moveHistory: Array<{
-    from: string;
-    to: string;
-    piece: string;
-  }>;
+  attackBoardPositions: Record<string, string>;
+  selectedBoardId: string | null;
+  moveHistory: Move[];
   selectSquare: (squareId: string) => void;
   clearSelection: () => void;
   resetGame: () => void;
@@ -38,6 +52,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
   currentTurn: 'white',
   selectedSquareId: null,
   highlightedSquareIds: [],
+  attackBoardPositions: getInitialPinPositions(),
+  selectedBoardId: null,
   moveHistory: [],
   
   selectSquare: (squareId: string) => {
@@ -49,7 +65,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
   },
   
   clearSelection: () => {
-    set({ selectedSquareId: null, highlightedSquareIds: [] });
+    set({ selectedSquareId: null, highlightedSquareIds: [], selectedBoardId: null });
   },
   
   resetGame: () => {
@@ -59,6 +75,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
       currentTurn: 'white',
       selectedSquareId: null,
       highlightedSquareIds: [],
+      attackBoardPositions: getInitialPinPositions(),
+      selectedBoardId: null,
       moveHistory: [],
     });
   },

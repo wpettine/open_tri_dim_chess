@@ -1,73 +1,136 @@
-# React + TypeScript + Vite
+# Open Tri-Dimensional Chess
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A web-based implementation of 3D Chess (Tri-Dimensional Chess) based on the Meder rules, built with React, TypeScript, Three.js, and Vite.
 
-Currently, two official plugins are available:
+## About
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+This project implements a fully functional 3D chess game with:
+- **3D board visualization** using Three.js
+- **Complete rule validation** for piece movements across multiple levels
+- **Attack board movement** system with passenger piece handling
+- **Path validation** including vertical shadow constraints
+- **Check and checkmate detection** (in progress)
 
-## React Compiler
+The game follows the Meder rules for Tri-Dimensional Chess, featuring a main board with 64 squares across three levels and four movable attack boards that can transport pieces between different positions in 3D space.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Getting Started
 
-## Expanding the ESLint configuration
+### Prerequisites
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- Node.js (v18 or higher recommended)
+- npm or pnpm
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Installation
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+```bash
+# Clone the repository
+git clone https://github.com/wpettine/open_tri_dim_chess.git
+cd open_tri_dim_chess
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Install dependencies
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Running the Game
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Start the development server:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev
 ```
+
+The game will be available at `http://localhost:5173` (or the next available port). The development server supports hot module reloading, so changes will be reflected automatically.
+
+### Running Tests
+
+Run all tests:
+
+```bash
+npm test
+```
+
+Run tests in watch mode:
+
+```bash
+npm test -- --watch
+```
+
+Run a specific test file:
+
+```bash
+npm test -- boardMovement.test.ts
+```
+
+### Code Quality
+
+Lint the codebase:
+
+```bash
+npm run lint
+```
+
+Build for production:
+
+```bash
+npm run build
+```
+
+## Project Structure
+
+```
+src/
+├── components/          # React components
+│   ├── Board3D/        # 3D board rendering with Three.js
+│   └── UI/             # User interface components
+├── engine/             # Chess game logic
+│   ├── validation/     # Move and path validation
+│   ├── world/          # World grid and board positions
+│   └── initialSetup.ts # Initial piece placement
+├── store/              # Zustand state management
+└── config/             # Configuration and constants
+
+reference_docs/         # Implementation guides and rules
+├── ATTACK_BOARD_RULES.md      # Attack board movement rules
+├── IMPLIMENTATION_GUIDE.md    # Detailed implementation guide
+└── DEVIN_SCRATCH.md           # Development notes
+```
+
+## Implementation Progress
+
+- ✅ **Phase 1-5**: World grid, piece initialization, coordinate system
+- ✅ **Phase 6**: Move validation system (27 tests)
+- ✅ **Phase 7**: Check & checkmate detection (15 tests)
+- ✅ **Phase 8**: Attack board movement (20 tests) - Core game mechanics
+- 🚧 **Phase 8**: Visual rendering and UI components (in progress)
+
+Current test coverage: **58 passing tests**
+
+## Technologies
+
+- **React 19** - UI framework
+- **TypeScript** - Type-safe development
+- **Three.js** - 3D graphics rendering
+- **Zustand** - State management
+- **Vitest** - Testing framework
+- **Vite** - Build tool and dev server
+
+## Documentation
+
+Detailed documentation is available in the `reference_docs/` directory:
+
+- `ATTACK_BOARD_RULES.md` - Complete rules for attack board movement
+- `IMPLIMENTATION_GUIDE.md` - Step-by-step implementation guide
+- `DEVIN_SCRATCH.md` - Development notes and gotchas
+
+## Contributing
+
+1. Create a feature branch: `git checkout -b feature/your-feature`
+2. Make your changes and add tests
+3. Ensure all tests pass: `npm test`
+4. Ensure lint passes: `npm run lint`
+5. Commit your changes with descriptive messages
+6. Push and create a pull request
+
+## License
+
+This project is open source and available under the MIT License.
