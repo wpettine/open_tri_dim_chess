@@ -1,5 +1,5 @@
 import { MoveValidationContext, MoveResult } from './types';
-import { isPathClear, isPieceAt } from './pathValidation';
+import { isPathClear, isPieceAt, isDestinationBlockedByVerticalShadow } from './pathValidation';
 import { ChessWorld } from '../world/types';
 import { Piece } from '../../store/gameStore';
 
@@ -107,6 +107,10 @@ export function validateRookMove(context: MoveValidationContext): MoveResult {
     return { valid: false, reason: 'path blocked by vertical shadow' };
   }
 
+  if (isDestinationBlockedByVerticalShadow(toSquare, world, allPieces)) {
+    return { valid: false, reason: 'destination blocked by vertical shadow' };
+  }
+
   return { valid: true };
 }
 
@@ -192,6 +196,10 @@ export function validateBishopMove(context: MoveValidationContext): MoveResult {
 
   if (!isPathClear(fromSquare, toSquare, world, allPieces)) {
     return { valid: false, reason: 'path blocked by vertical shadow' };
+  }
+
+  if (isDestinationBlockedByVerticalShadow(toSquare, world, allPieces)) {
+    return { valid: false, reason: 'destination blocked by vertical shadow' };
   }
 
   return { valid: true };

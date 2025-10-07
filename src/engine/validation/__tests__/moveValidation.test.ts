@@ -458,5 +458,33 @@ describe('moveValidation', () => {
       expect(validMoves.includes('b4W')).toBe(false);
       expect(validMoves.includes('d2W')).toBe(false);
     });
+
+    it('should block queen from moving to destination with piece on different level (vertical shadow)', () => {
+      const world = createChessWorld();
+      const pieces: Piece[] = [
+        {
+          id: 'queen',
+          type: 'queen',
+          color: 'white',
+          file: 1,
+          rank: 0,
+          level: 'WQL',
+          hasMoved: false,
+        },
+        {
+          id: 'pawn',
+          type: 'pawn',
+          color: 'white',
+          file: 1,
+          rank: 3,
+          level: 'N',
+          hasMoved: false,
+        },
+      ];
+
+      const validMoves = getLegalMoves(pieces[0], world, pieces);
+
+      expect(validMoves.includes('a3W')).toBe(false);
+    });
   });
 });
