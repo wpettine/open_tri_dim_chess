@@ -53,6 +53,13 @@ export interface GameState {
   updateGameState: () => void;
 }
 
+function boardIdToLevel(boardId: string): string {
+  if (boardId === 'WL') return 'W';
+  if (boardId === 'NL') return 'N';
+  if (boardId === 'BL') return 'B';
+  return boardId;
+}
+
 export const useGameStore = create<GameState>()((set, get) => ({
   world: createChessWorld(),
   pieces: createInitialPieces(),
@@ -100,7 +107,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
             (sq) => sq.id === squareId
           );
           if (targetSquare) {
-            get().movePiece(selectedPiece, targetSquare.file, targetSquare.rank, targetSquare.boardId);
+            get().movePiece(selectedPiece, targetSquare.file, targetSquare.rank, boardIdToLevel(targetSquare.boardId));
           }
         }
       } else {
