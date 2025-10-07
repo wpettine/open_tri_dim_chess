@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useGameStore, type Move } from '../../store/gameStore';
+import { LocalStoragePersistence } from '../../persistence/localStoragePersistence';
 import './MoveHistory.css';
 
 export function MoveHistory() {
@@ -7,56 +8,83 @@ export function MoveHistory() {
   const moveHistory = useGameStore(state => state.moveHistory);
   const resetGame = useGameStore(state => state.resetGame);
 
-  const handleSaveGame = () => {
-    const gameState = {
-      pieces: useGameStore.getState().pieces,
-      attackBoardPositions: useGameStore.getState().attackBoardPositions,
-      currentTurn: useGameStore.getState().currentTurn,
-      moveHistory: useGameStore.getState().moveHistory,
-      timestamp: Date.now(),
-    };
-
-    const json = JSON.stringify(gameState, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `chess-game-${Date.now()}.json`;
-    a.click();
-    
-    URL.revokeObjectURL(url);
+  const handleSaveGame = async () => {
+    await useGameStore.getState().saveCurrentGame('Manual Save');
+    alert('Game saved locally');
   };
 
-  const handleLoadGame = () => {
+  const handleLoadGame = async () => {
+    const persistence = new LocalStoragePersistence();
+    const saves = await persistence.listSaves();
+    if (saves.length === 0) {
+      alert('No saved games found');
+      return;
+    }
+    let chosen = 0;
+    if (saves.length > 1) {
+      const list = saves.map((s, i) => `${i}: ${s.name} (${new Date(s.updatedAt).toLocaleString()})`).join('\n');
+      const res = prompt(`Select save to load (index):\n${list}`, '0');
+      if (res === null) return;
+      const idx = parseInt(res, 10);
+      if (Number.isNaN(idx) || idx < 0 || idx >= saves.length) {
+        alert('Invalid selection'); return;
+      }
+      chosen = idx;
+    }
+    const id = saves[chosen].id;
+    await useGameStore.getState().loadGameById(id);
+    alert(`Loaded: ${saves[chosen].name}`);
+  };
+
+  const handleImportFromFile = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json';
-    
+    input.accept = '.json,application/json';
     input.onchange = (e: Event) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         try {
-          const gameState = JSON.parse(event.target?.result as string);
-          
-          useGameStore.setState({
-            pieces: gameState.pieces,
-            attackBoardPositions: gameState.attackBoardPositions,
-            currentTurn: gameState.currentTurn,
-            moveHistory: gameState.moveHistory,
-          });
-        } catch {
-          alert('Failed to load game: Invalid file format');
+          const json = event.target?.result as string;
+          await useGameStore.getState().importGameFromJson(json);
+          alert('Imported and loaded save');
+        } catch (err) {
+          alert('Failed to import: ' + (err instanceof Error ? err.message : 'Unknown error'));
         }
       };
-      
       reader.readAsText(file);
     };
-    
     input.click();
+  };
+
+  const handleExportGame = async () => {
+    const persistence = new LocalStoragePersistence();
+    const saves = await persistence.listSaves();
+    if (saves.length === 0) {
+      alert('No saved games to export');
+      return;
+    }
+    let chosen = 0;
+    if (saves.length > 1) {
+      const list = saves.map((s, i) => `${i}: ${s.name} (${new Date(s.updatedAt).toLocaleString()})`).join('\n');
+      const res = prompt(`Select save to export (index):\n${list}`, '0');
+      if (res === null) return;
+      const idx = parseInt(res, 10);
+      if (Number.isNaN(idx) || idx < 0 || idx >= saves.length) {
+        alert('Invalid selection'); return;
+      }
+      chosen = idx;
+    }
+    const id = saves[chosen].id;
+    const json = await useGameStore.getState().exportGameById(id);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `otdc-save-${id}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleNewGame = () => {
@@ -89,6 +117,12 @@ export function MoveHistory() {
             </button>
             <button onClick={handleLoadGame} className="game-button load">
               Load Game
+            </button>
+            <button onClick={handleExportGame} className="game-button save">
+              Export Save
+            </button>
+            <button onClick={handleImportFromFile} className="game-button load">
+              Import from File
             </button>
           </div>
 
