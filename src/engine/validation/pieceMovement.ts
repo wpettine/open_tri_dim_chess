@@ -1,5 +1,5 @@
 import { MoveValidationContext, MoveResult } from './types';
-import { isPathClear, isPieceAt } from './pathValidation';
+import { isPathClear, isPieceAt, isDestinationBlockedByVerticalShadow } from './pathValidation';
 import { ChessWorld } from '../world/types';
 import { Piece } from '../../store/gameStore';
 
@@ -107,6 +107,10 @@ export function validateRookMove(context: MoveValidationContext): MoveResult {
     return { valid: false, reason: 'path blocked by vertical shadow' };
   }
 
+  if (isDestinationBlockedByVerticalShadow(toSquare, world, allPieces)) {
+    return { valid: false, reason: 'destination blocked by vertical shadow' };
+  }
+
   return { valid: true };
 }
 
@@ -134,12 +138,18 @@ export function validateKnightMove(context: MoveValidationContext): MoveResult {
   );
 
   const validLShape =
-    (fileChange === 2 && rankChange === 1) ||
-    (fileChange === 1 && rankChange === 2) ||
-    (fileChange === 2 && levelChange === 1) ||
-    (fileChange === 1 && levelChange === 2) ||
-    (rankChange === 2 && levelChange === 1) ||
-    (rankChange === 1 && levelChange === 2);
+    (fileChange === 2 && rankChange === 1 && levelChange === 0) ||
+    (fileChange === 1 && rankChange === 2 && levelChange === 0) ||
+    (fileChange === 2 && levelChange === 1 && rankChange === 0) ||
+    (fileChange === 1 && levelChange === 2 && rankChange === 0) ||
+    (rankChange === 2 && levelChange === 1 && fileChange === 0) ||
+    (rankChange === 1 && levelChange === 2 && fileChange === 0) ||
+    (fileChange === 2 && rankChange === 1 && levelChange === 1) ||
+    (fileChange === 1 && rankChange === 2 && levelChange === 1) ||
+    (fileChange === 2 && rankChange === 0 && levelChange === 1) ||
+    (fileChange === 0 && rankChange === 2 && levelChange === 1) ||
+    (fileChange === 1 && rankChange === 0 && levelChange === 2) ||
+    (rankChange === 1 && fileChange === 0 && levelChange === 2);
 
   if (!validLShape) {
     return { valid: false, reason: 'invalid knight move' };
@@ -186,6 +196,10 @@ export function validateBishopMove(context: MoveValidationContext): MoveResult {
 
   if (!isPathClear(fromSquare, toSquare, world, allPieces)) {
     return { valid: false, reason: 'path blocked by vertical shadow' };
+  }
+
+  if (isDestinationBlockedByVerticalShadow(toSquare, world, allPieces)) {
+    return { valid: false, reason: 'destination blocked by vertical shadow' };
   }
 
   return { valid: true };

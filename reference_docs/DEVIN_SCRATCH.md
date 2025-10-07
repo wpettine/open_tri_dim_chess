@@ -1,11 +1,11 @@
 # DEVIN_SCRATCH.md - Session Handoff Notes
 
-**Last Updated:** October 7, 2025 (17:43 UTC)  
-**Current Branch:** `main`  
-**Latest PR:** #5 (MERGED) - https://github.com/wpettine/open_tri_dim_chess/pull/5  
-**Status:** Phases 1-9 Complete ✅ | 74/74 Tests Passing ✅ | CI Passing ✅
+**Last Updated:** October 7, 2025 (19:46 UTC)  
+**Current Branch:** `devin/1759861034-fix-knight-check-detection-bug`  
+**Latest PR:** #7 (PENDING) - Vertical Shadow Blocking Fix  
+**Status:** Phases 1-9 Complete ✅ | 76/76 Tests Passing ✅ | Bug Fixes Complete ✅
 
-**Latest Session:** https://app.devin.ai/sessions/9fc04180cbb1475bbc400b927ad480e4
+**Latest Session:** https://app.devin.ai/sessions/88a388ef9e914d0e99412ea053661d68
 
 ---
 
@@ -201,6 +201,56 @@ This is a 3D Chess implementation following the Meder rules for Tri-Dimensional 
 
 ## What Was Accomplished This Session
 
+**Session 4 - October 7, 2025 (19:46 UTC):**
+
+### Bug Fix: Vertical Shadow Blocking for Sliding Pieces
+
+**Issue Reported by User:**
+- Queen could move from a0WQL to a3W even when a white pawn was on a3N
+- This violated the vertical shadow blocking rule - pieces on different levels at the same coordinate should block destinations
+
+**Root Cause Analysis:**
+- Path validation checked intermediate squares for vertical shadows, but NOT the destination square
+- Rook, bishop, and queen validation only checked `isPathClear()` but didn't verify destination wasn't blocked by vertical shadow
+- This allowed sliding pieces to land on coordinates occupied by pieces on different levels
+
+**Solution Implemented:**
+1. Created `isDestinationBlockedByVerticalShadow()` function in `pathValidation.ts`
+   - Takes destination square and checks all levels at that (file, rank) coordinate
+   - Returns true if any piece exists on a different level at the same coordinate
+   
+2. Updated `validateRookMove()` in `pieceMovement.ts`
+   - Added call to `isDestinationBlockedByVerticalShadow()` after path validation
+   - Returns invalid with reason 'destination blocked by vertical shadow' if blocked
+
+3. Updated `validateBishopMove()` in `pieceMovement.ts`
+   - Added same vertical shadow destination check
+   - Ensures bishops respect vertical shadow blocking
+
+4. Queen validation automatically inherits fix
+   - `validateQueenMove()` delegates to rook and bishop validators
+   - No additional changes needed for queen
+
+5. Added comprehensive test case
+   - Test: queen at a1WQL (file=1, rank=0) cannot move to a3W when pawn is at a3N (file=1, rank=3)
+   - Validates the exact scenario reported by user
+   - Note: File 'a' maps to index 1, not 0 ('z' is index 0)
+
+**Files Modified:**
+- `src/engine/validation/pathValidation.ts` - Added `isDestinationBlockedByVerticalShadow()`
+- `src/engine/validation/pieceMovement.ts` - Updated rook and bishop validation
+- `src/engine/validation/__tests__/moveValidation.test.ts` - Added test case
+
+**Test Results:**
+- All 76 tests passing (1 new test added)
+- Linter clean (no errors)
+- Verified fix resolves user-reported scenario
+
+**Commits:**
+- `43bb238` - "Fix vertical shadow blocking for queen moves"
+
+---
+
 **Session 3 - October 7, 2025:**
 
 1. **Core Phase 8 Implementation (Steps 8.1-8.4)** ✅
@@ -261,20 +311,25 @@ This is a 3D Chess implementation following the Meder rules for Tri-Dimensional 
 
 ## Next Steps (Priority Order)
 
-### Phase 8 Complete! 🎉
+### Current Status: All Core Features Complete! 🎉
 
-**All Phase 8 steps (8.1-8.7) have been successfully implemented and tested.**
+**Phases 1-9 Complete + Bug Fixes:**
+- ✅ All gameplay mechanics working correctly
+- ✅ Vertical shadow blocking properly enforced for all sliding pieces
+- ✅ Knight movement validation fixed (3D L-shape patterns)
+- ✅ Check/checkmate detection working
+- ✅ Interactive gameplay with turn management
+- ✅ 76/76 tests passing
+- ✅ All linters passing
 
-What's ready:
-- ✅ Attack board movement mechanics with full validation
-- ✅ Camera preset system (Top/Side/Front views)
-- ✅ Collapsible move history with save/load/new game
-- ✅ All UI components integrated and styled
-- ✅ 58/58 tests passing
-- ✅ CI passing
-- ✅ Visual testing complete
+**PR #7 Ready for Review:**
+Branch: `devin/1759861034-fix-knight-check-detection-bug`
+Contains:
+1. Knight movement validation fixes
+2. Vertical shadow blocking destination check
+3. Comprehensive test coverage
 
-### Potential Future Enhancements (Phase 9+)
+### Potential Future Enhancements
 
 **Attack Board Selection UI Enhancement:**
 - Add radio button rotation toggle to BoardMovementPanel

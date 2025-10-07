@@ -19,6 +19,29 @@ export function isPathClear(
   return true;
 }
 
+function parseLevelFromSquareId(squareId: string): string {
+  const match = squareId.match(/^[a-z]\d+(.+)$/);
+  return match ? match[1] : '';
+}
+
+export function isDestinationBlockedByVerticalShadow(
+  toSquare: WorldSquare,
+  world: ChessWorld,
+  pieces: Piece[]
+): boolean {
+  const toLevel = parseLevelFromSquareId(toSquare.id);
+  const squareIdsAtCoordinate = getSquareIdsForCoordinate(toSquare.file, toSquare.rank, world);
+  
+  for (const squareId of squareIdsAtCoordinate) {
+    const squareLevel = parseLevelFromSquareId(squareId);
+    if (squareLevel !== toLevel && isPieceAt(squareId, pieces)) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 export function getPathCoordinates(from: WorldSquare, to: WorldSquare): PathCoordinate[] {
   const path: PathCoordinate[] = [];
 
