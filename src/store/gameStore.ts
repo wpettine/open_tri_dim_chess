@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { ChessWorld } from '../engine/world/types';
 import { createChessWorld } from '../engine/world/worldBuilder';
 import { createInitialPieces } from '../engine/initialSetup';
-import { getLegalMoves } from '../engine/validation/moveValidator';
+import { getLegalMovesAvoidingCheck, isInCheck, isCheckmate, isStalemate } from '../engine/validation/checkDetection';
 import { createSquareId } from '../engine/world/coordinates';
 import { getInitialPinPositions } from '../engine/world/pinPositions';
 
@@ -37,6 +37,16 @@ export interface GameState {
   currentTurn: 'white' | 'black';
   selectedSquareId: string | null;
   highlightedSquareIds: string[];
+  isCheck: boolean;
+  isCheckmate: boolean;
+  isStalemate: boolean;
+  winner: 'white' | 'black' | null;
+  moveHistory: Array<{
+    from: string;
+    to: string;
+    piece: string;
+    captured?: string;
+  }>;
   attackBoardPositions: Record<string, string>;
   selectedBoardId: string | null;
   moveHistory: Move[];
@@ -44,6 +54,7 @@ export interface GameState {
   clearSelection: () => void;
   resetGame: () => void;
   getValidMovesForSquare: (squareId: string) => string[];
+  updateGameState: () => void;
 }
 
 export const useGameStore = create<GameState>()((set, get) => ({
@@ -52,6 +63,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
   currentTurn: 'white',
   selectedSquareId: null,
   highlightedSquareIds: [],
+  isCheck: false,
+  isCheckmate: false,
+  isStalemate: false,
+  winner: null,
   attackBoardPositions: getInitialPinPositions(),
   selectedBoardId: null,
   moveHistory: [],
@@ -75,6 +90,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
       currentTurn: 'white',
       selectedSquareId: null,
       highlightedSquareIds: [],
+      isCheck: false,
+      isCheckmate: false,
+      isStalemate: false,
+      winner: null,
       attackBoardPositions: getInitialPinPositions(),
       selectedBoardId: null,
       moveHistory: [],
@@ -93,6 +112,24 @@ export const useGameStore = create<GameState>()((set, get) => ({
       return [];
     }
 
-    return getLegalMoves(piece, state.world, state.pieces);
+    return getLegalMovesAvoidingCheck(piece, state.world, state.pieces);
+  },
+
+  updateGameState: () => {
+    const state = get();
+    const currentPlayer = state.currentTurn;
+
+    const checkStatus = isInCheck(currentPlayer, state.world, state.pieces);
+    const checkmateStatus = isCheckmate(currentPlayer, state.world, state.pieces);
+    const stalemateStatus = isStalemate(currentPlayer, state.world, state.pieces);
+
+    set({
+      isCheck: checkStatus,
+      isCheckmate: checkmateStatus,
+      isStalemate: stalemateStatus,
+      winner: checkmateStatus 
+        ? (currentPlayer === 'white' ? 'black' : 'white')
+        : (stalemateStatus ? null : state.winner),
+    });
   },
 }));
