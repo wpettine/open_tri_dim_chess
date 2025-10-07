@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import type { ChessWorld } from '../engine/world/types';
 import { createChessWorld } from '../engine/world/worldBuilder';
 import { createInitialPieces } from '../engine/initialSetup';
+import { getLegalMoves } from '../engine/validation/moveValidator';
+import { createSquareId } from '../engine/world/coordinates';
 
 export interface Piece {
   id: string;
@@ -18,6 +20,7 @@ export interface GameState {
   pieces: Piece[];
   currentTurn: 'white' | 'black';
   selectedSquareId: string | null;
+  highlightedSquareIds: string[];
   moveHistory: Array<{
     from: string;
     to: string;
@@ -26,21 +29,27 @@ export interface GameState {
   selectSquare: (squareId: string) => void;
   clearSelection: () => void;
   resetGame: () => void;
+  getValidMovesForSquare: (squareId: string) => string[];
 }
 
-export const useGameStore = create<GameState>()((set) => ({
+export const useGameStore = create<GameState>()((set, get) => ({
   world: createChessWorld(),
   pieces: createInitialPieces(),
   currentTurn: 'white',
   selectedSquareId: null,
+  highlightedSquareIds: [],
   moveHistory: [],
   
   selectSquare: (squareId: string) => {
-    set({ selectedSquareId: squareId });
+    const validMoves = get().getValidMovesForSquare(squareId);
+    set({ 
+      selectedSquareId: squareId,
+      highlightedSquareIds: validMoves,
+    });
   },
   
   clearSelection: () => {
-    set({ selectedSquareId: null });
+    set({ selectedSquareId: null, highlightedSquareIds: [] });
   },
   
   resetGame: () => {
@@ -49,7 +58,23 @@ export const useGameStore = create<GameState>()((set) => ({
       pieces: createInitialPieces(),
       currentTurn: 'white',
       selectedSquareId: null,
+      highlightedSquareIds: [],
       moveHistory: [],
     });
+  },
+
+  getValidMovesForSquare: (squareId: string) => {
+    const state = get();
+    
+    const piece = state.pieces.find((p) => {
+      const pieceSquareId = createSquareId(p.file, p.rank, p.level);
+      return pieceSquareId === squareId;
+    });
+
+    if (!piece || piece.color !== state.currentTurn) {
+      return [];
+    }
+
+    return getLegalMoves(piece, state.world, state.pieces);
   },
 }));
