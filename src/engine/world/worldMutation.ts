@@ -49,7 +49,7 @@ function validateAdjacency(fromPinId: string, toPinId: string): BoardMoveValidat
 
   if (fromLine === toLine) {
     const levelDiff = Math.abs(toPin.level - fromPin.level);
-    if (levelDiff <= 2) {
+    if (levelDiff <= 3) {
       return { isValid: true };
     }
     return { isValid: false, reason: 'Destination pin is not adjacent' };
