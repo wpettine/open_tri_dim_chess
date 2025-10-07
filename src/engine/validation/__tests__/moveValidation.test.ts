@@ -259,6 +259,63 @@ describe('moveValidation', () => {
 
       expect(validMoves.includes('b2W')).toBe(false);
     });
+
+    it('should not allow rook to move diagonally across levels', () => {
+      const world = createChessWorld();
+      const pieces: Piece[] = [
+        {
+          id: 'rook',
+          type: 'rook',
+          color: 'white',
+          file: 0,
+          rank: 0,
+          level: 'WQL',
+          hasMoved: false,
+        },
+      ];
+
+      const validMoves = getLegalMoves(pieces[0], world, pieces);
+
+      expect(validMoves.includes('a1W')).toBe(false);
+    });
+
+    it('should allow rook to move horizontally across levels', () => {
+      const world = createChessWorld();
+      const pieces: Piece[] = [
+        {
+          id: 'rook',
+          type: 'rook',
+          color: 'white',
+          file: 1,
+          rank: 1,
+          level: 'WQL',
+          hasMoved: false,
+        },
+      ];
+
+      const validMoves = getLegalMoves(pieces[0], world, pieces);
+
+      expect(validMoves.includes('b1W')).toBe(true);
+    });
+
+    it('should allow rook to move vertically across levels', () => {
+      const world = createChessWorld();
+      const pieces: Piece[] = [
+        {
+          id: 'rook',
+          type: 'rook',
+          color: 'white',
+          file: 1,
+          rank: 1,
+          level: 'W',
+          hasMoved: false,
+        },
+      ];
+
+      const validMoves = getLegalMoves(pieces[0], world, pieces);
+
+      expect(validMoves.includes('a3N')).toBe(true);
+    });
   });
 
   describe('Knight Movement', () => {

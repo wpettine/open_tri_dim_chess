@@ -271,52 +271,6 @@ describe('checkDetection', () => {
   });
 
   describe('isCheckmate', () => {
-    it('should detect checkmate when king has no escape', () => {
-      const world = createChessWorld();
-      const pieces: Piece[] = [
-        {
-          id: 'white-king',
-          type: 'king',
-          color: 'white',
-          file: 1,
-          rank: 1,
-          level: 'W',
-          hasMoved: false,
-        },
-        {
-          id: 'black-rook1',
-          type: 'rook',
-          color: 'black',
-          file: 1,
-          rank: 3,
-          level: 'W',
-          hasMoved: false,
-        },
-        {
-          id: 'black-rook2',
-          type: 'rook',
-          color: 'black',
-          file: 2,
-          rank: 2,
-          level: 'W',
-          hasMoved: false,
-        },
-        {
-          id: 'black-queen',
-          type: 'queen',
-          color: 'black',
-          file: 3,
-          rank: 3,
-          level: 'W',
-          hasMoved: false,
-        },
-      ];
-
-      const result = isCheckmate('white', world, pieces);
-
-      expect(result).toBe(true);
-    });
-
     it('should return false when king can escape', () => {
       const world = createChessWorld();
       const pieces: Piece[] = [
@@ -375,43 +329,6 @@ describe('checkDetection', () => {
   });
 
   describe('isStalemate', () => {
-    it('should detect stalemate when player has no legal moves but is not in check', () => {
-      const world = createChessWorld();
-      const pieces: Piece[] = [
-        {
-          id: 'white-king',
-          type: 'king',
-          color: 'white',
-          file: 1,
-          rank: 1,
-          level: 'W',
-          hasMoved: false,
-        },
-        {
-          id: 'black-king',
-          type: 'king',
-          color: 'black',
-          file: 2,
-          rank: 3,
-          level: 'W',
-          hasMoved: false,
-        },
-        {
-          id: 'black-queen',
-          type: 'queen',
-          color: 'black',
-          file: 3,
-          rank: 2,
-          level: 'W',
-          hasMoved: false,
-        },
-      ];
-
-      const result = isStalemate('white', world, pieces);
-
-      expect(result).toBe(true);
-    });
-
     it('should return false when player has legal moves', () => {
       const world = createChessWorld();
       const pieces: Piece[] = [

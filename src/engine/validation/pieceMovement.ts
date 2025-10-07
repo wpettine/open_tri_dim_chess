@@ -96,8 +96,7 @@ export function validateRookMove(context: MoveValidationContext): MoveResult {
 
   const movesOnOneAxis =
     (fileChange !== 0 && rankChange === 0) ||
-    (fileChange === 0 && rankChange !== 0) ||
-    (fileChange !== 0 && rankChange !== 0 && levelChange);
+    (fileChange === 0 && rankChange !== 0);
 
   if (!movesOnOneAxis) {
     return { valid: false, reason: 'rook must move in straight line' };
