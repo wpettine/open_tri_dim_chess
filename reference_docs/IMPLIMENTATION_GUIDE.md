@@ -2081,29 +2081,2288 @@ function getKingDirections(): Direction3D[] {
 }
 ```
 
-**Note:** This implementation guide is already getting very long. I'll continue with the key remaining steps in a condensed format to stay within reasonable length. The full implementation would include all steps in detail similar to what we've done so far.
+**Note:** This implementation guide is already getting very long. Phase 6 provides detailed movement logic patterns. Phases 7-10 follow similar detailed approaches. Phase 8 (Attack Board Movement) is documented below with comprehensive implementation strategy.
 
-### Continuation Note
+---
 
-This guide has covered the critical foundational phases in detail:
-1. Project setup
-2. World grid system (THE most important part)
-3. Validation framework
-4. 3D rendering
-5. Game state management
-6. Beginning of movement logic
+## Phase 7: Check & Checkmate Detection
 
-The remaining phases (6-10) would follow the same detailed pattern covering:
-- Complete movement validation for all pieces
-- Check/checkmate detection
-- Attack board movement
-- UI components
-- Testing and polish
+**⚠️ NOTE:** Phase 7 implementation details to be added. This phase should implement check detection, checkmate validation, and king safety rules before proceeding to Phase 8.
 
-Each of these phases would have similar detail level with code examples, test files, validation steps, and troubleshooting guidance.
+**Required deliverables:**
+- Check detection system
+- Checkmate validation
+- Stalemate detection
+- King safety validation for all moves
+
+---
+
+## Phase 8: Attack Board Movement
+
+**⚠️ PREREQUISITE:** Phase 6 (Movement Logic) and Phase 7 (Check & Checkmate) must be complete before implementing attack board movement. Attack boards are subject to king safety rules just like piece moves.
+
+### Overview
+
+Attack boards are movable 2×2 platforms that can transport pieces between different positions in the 3D chess space. This phase implements the complete attack board movement system including:
+
+- Board movement between adjacent pins
+- Board rotation (0° or 180°)
+- Passenger piece handling
+- Vertical shadow constraint enforcement
+- King safety validation for board moves
+- Visual rendering of board movements
+- UI for board selection and movement
+
+**Estimated Time:** 12-20 hours for experienced developer
+
+**Critical Reading:**
+- `reference_docs/ATTACK_BOARD_RULES.md` - Complete attack board rules (REQUIRED)
+- `reference_docs/meder-rules.md` - Article 3 for board movement rules
+- Current implementation: `src/engine/world/pinPositions.ts` - Pin adjacency infrastructure
+
+### Step 8.1: Fix Pin Adjacency Data
+
+**⚠️ CRITICAL FIX REQUIRED FIRST**
+
+The current `pinPositions.ts` has **incomplete adjacency lists**. They only include vertical connections within the same line (QL1→QL2) but are missing **cross-line connections** (QL1→KL1, KL2).
+
+**Update `src/engine/world/pinPositions.ts`:**
+
+```typescript
+export const PIN_POSITIONS: Record<string, PinPosition> = {
+  QL1: {
+    id: 'QL1',
+    fileOffset: 0,
+    rankOffset: 0,
+    zHeight: Z_WHITE_MAIN + ATTACK_OFFSET,
+    adjacentPins: ['QL2', 'KL1', 'KL2'],  // Added KL1, KL2
+    level: 0,
+    inverted: false,
+  },
+  QL2: {
+    id: 'QL2',
+    fileOffset: 0,
+    rankOffset: 2,
+    zHeight: Z_WHITE_MAIN,
+    adjacentPins: ['QL1', 'QL3', 'KL1', 'KL2', 'KL3'],  // Added KL connections
+    level: 1,
+    inverted: false,
+  },
+  QL3: {
+    id: 'QL3',
+    fileOffset: 0,
+    rankOffset: 4,
+    zHeight: Z_NEUTRAL_MAIN,
+    adjacentPins: ['QL2', 'QL4', 'KL2', 'KL3', 'KL4'],  // Added KL connections
+    level: 2,
+    inverted: false,
+  },
+  QL4: {
+    id: 'QL4',
+    fileOffset: 0,
+    rankOffset: 6,
+    zHeight: Z_BLACK_MAIN,
+    adjacentPins: ['QL3', 'QL5', 'KL3', 'KL4', 'KL5'],  // Added KL connections
+    level: 3,
+    inverted: false,
+  },
+  QL5: {
+    id: 'QL5',
+    fileOffset: 0,
+    rankOffset: 8,
+    zHeight: Z_BLACK_MAIN,
+    adjacentPins: ['QL4', 'QL6', 'KL4', 'KL5', 'KL6'],  // Added KL connections
+    level: 4,
+    inverted: false,
+  },
+  QL6: {
+    id: 'QL6',
+    fileOffset: 0,
+    rankOffset: 8,
+    zHeight: Z_BLACK_MAIN + ATTACK_OFFSET,
+    adjacentPins: ['QL5', 'KL5', 'KL6'],  // Added KL5, KL6
+    level: 5,
+    inverted: true,
+  },
+  KL1: {
+    id: 'KL1',
+    fileOffset: 4,
+    rankOffset: 0,
+    zHeight: Z_WHITE_MAIN + ATTACK_OFFSET,
+    adjacentPins: ['KL2', 'QL1', 'QL2'],  // Added QL1, QL2
+    level: 0,
+    inverted: false,
+  },
+  KL2: {
+    id: 'KL2',
+    fileOffset: 4,
+    rankOffset: 2,
+    zHeight: Z_WHITE_MAIN,
+    adjacentPins: ['KL1', 'KL3', 'QL1', 'QL2', 'QL3'],  // Added QL connections
+    level: 1,
+    inverted: false,
+  },
+  KL3: {
+    id: 'KL3',
+    fileOffset: 4,
+    rankOffset: 4,
+    zHeight: Z_NEUTRAL_MAIN,
+    adjacentPins: ['KL2', 'KL4', 'QL2', 'QL3', 'QL4'],  // Added QL connections
+    level: 2,
+    inverted: false,
+  },
+  KL4: {
+    id: 'KL4',
+    fileOffset: 4,
+    rankOffset: 6,
+    zHeight: Z_BLACK_MAIN,
+    adjacentPins: ['KL3', 'KL5', 'QL3', 'QL4', 'QL5'],  // Added QL connections
+    level: 3,
+    inverted: false,
+  },
+  KL5: {
+    id: 'KL5',
+    fileOffset: 4,
+    rankOffset: 8,
+    zHeight: Z_BLACK_MAIN,
+    adjacentPins: ['KL4', 'KL6', 'QL4', 'QL5', 'QL6'],  // Added QL connections
+    level: 4,
+    inverted: false,
+  },
+  KL6: {
+    id: 'KL6',
+    fileOffset: 4,
+    rankOffset: 8,
+    zHeight: Z_BLACK_MAIN + ATTACK_OFFSET,
+    adjacentPins: ['KL5', 'QL5', 'QL6'],  // Added QL5, QL6
+    level: 5,
+    inverted: true,
+  },
+};
+```
+
+**Verification:** Create test to validate adjacency symmetry:
+
+```typescript
+// src/engine/world/__tests__/pinAdjacency.test.ts
+import { describe, it, expect } from 'vitest';
+import { PIN_POSITIONS } from '../pinPositions';
+
+describe('Pin Adjacency', () => {
+  it('should have symmetric adjacency relationships', () => {
+    for (const [pinId, pin] of Object.entries(PIN_POSITIONS)) {
+      for (const adjacentId of pin.adjacentPins) {
+        const adjacentPin = PIN_POSITIONS[adjacentId];
+        expect(adjacentPin.adjacentPins).toContain(pinId);
+      }
+    }
+  });
+
+  it('should match ATTACK_BOARD_RULES.md adjacency map', () => {
+    expect(PIN_POSITIONS.QL1.adjacentPins.sort()).toEqual(['KL1', 'KL2', 'QL2'].sort());
+    expect(PIN_POSITIONS.QL6.adjacentPins.sort()).toEqual(['KL5', 'KL6', 'QL5'].sort());
+  });
+});
+```
+
+### Step 8.2: Extend Game State for Board Positions
+
+Attack boards need to track their current pin positions. Extend the game state to include this information.
+
+**Update `src/store/gameStore.ts`:**
+
+```typescript
+export interface GameState {
+  world: ChessWorld;
+  pieces: Piece[];
+  currentTurn: 'white' | 'black';
+  selectedSquare: string | null;
+  highlightedSquares: string[];
+  moveHistory: Move[];
+
+  // NEW: Track attack board positions
+  attackBoardPositions: Record<string, string>;  // boardId -> pinId
+  selectedBoard: string | null;  // Currently selected board for movement
+
+  // Actions
+  selectSquare: (squareId: string | null) => void;
+  clearSelection: () => void;
+  makeMove: (from: string, to: string) => void;
+  resetGame: () => void;
+  getLegalMoves: (squareId: string) => string[];
+
+  // NEW: Board movement actions
+  selectBoard: (boardId: string | null) => void;
+  getLegalBoardMoves: (boardId: string) => string[];  // Returns legal pin IDs
+  moveBoard: (boardId: string, toPinId: string, rotate: boolean) => void;
+}
+
+export const useGameStore = create<GameState>((set, get) => ({
+  world: createChessWorld(),
+  pieces: createInitialPieces(),
+  currentTurn: 'white',
+  selectedSquare: null,
+  highlightedSquares: [],
+  moveHistory: [],
+  attackBoardPositions: getInitialPinPositions(),  // WQL: QL1, WKL: KL1, etc.
+  selectedBoard: null,
+
+  // ... existing actions ...
+
+  selectBoard: (boardId) => {
+    set({ selectedBoard: boardId });
+  },
+
+  getLegalBoardMoves: (boardId) => {
+    const state = get();
+    return getLegalBoardMoves(boardId, state.attackBoardPositions, state.pieces, state.world);
+  },
+
+  moveBoard: (boardId, toPinId, rotate) => {
+    const state = get();
+    const result = executeBoardMove(
+      boardId,
+      toPinId,
+      rotate,
+      state.attackBoardPositions,
+      state.pieces,
+      state.world
+    );
+
+    if (result.success) {
+      set({
+        attackBoardPositions: result.newPositions,
+        pieces: result.updatedPieces,
+        world: result.updatedWorld,
+        selectedBoard: null,
+        moveHistory: [...state.moveHistory, result.move],
+      });
+    }
+  },
+}));
+```
+
+### Step 8.3: Create World Mutation System
+
+Create the core system for validating and executing board movements.
+
+**Create `src/engine/world/worldMutation.ts`:**
+
+```typescript
+import { ChessWorld, BoardLayout, WorldSquare, PinPosition } from './types';
+import { PIN_POSITIONS } from './pinPositions';
+import { Piece } from '../../store/gameStore';
+import { fileToWorldX, rankToWorldY } from './coordinates';
+
+export interface BoardMoveContext {
+  boardId: string;
+  fromPinId: string;
+  toPinId: string;
+  rotate: boolean;  // true = 180°, false = 0°
+  pieces: Piece[];
+  world: ChessWorld;
+  currentPositions: Record<string, string>;
+}
+
+export interface BoardMoveResult {
+  valid: boolean;
+  reason?: string;
+  newPosition?: string;
+  newRotation?: number;
+  affectedPieces?: Piece[];
+}
+
+/**
+ * Validate if a board can move to a target pin.
+ * Checks: adjacency, occupancy, direction, vertical shadow, king safety.
+ */
+export function validateBoardMove(context: BoardMoveContext): BoardMoveResult {
+  const { boardId, fromPinId, toPinId, pieces, world, currentPositions } = context;
+
+  // 1. Check adjacency
+  const fromPin = PIN_POSITIONS[fromPinId];
+  if (!fromPin.adjacentPins.includes(toPinId)) {
+    return { valid: false, reason: 'Target pin is not adjacent' };
+  }
+
+  // 2. Check occupancy (≤1 piece on board)
+  const piecesOnBoard = pieces.filter(p => p.level === boardId);
+  if (piecesOnBoard.length > 1) {
+    return { valid: false, reason: 'Board has more than 1 piece' };
+  }
+
+  // 3. Check directional limits (occupied = forward/side only)
+  const toPin = PIN_POSITIONS[toPinId];
+  const direction = getDirection(fromPin, toPin);
+
+  if (piecesOnBoard.length === 1) {
+    // Occupied board: no backward moves
+    if (direction === 'backward') {
+      return { valid: false, reason: 'Occupied boards cannot move backward' };
+    }
+  }
+  // Empty boards can move in any direction (forward/side/backward)
+
+  // 4. Check vertical shadow constraint
+  const destQuadrants = getBoardQuadrantCoordinates(boardId, toPinId, world);
+  if (hasVerticalShadow(destQuadrants, pieces)) {
+    return { valid: false, reason: 'Blocked by Vertical Shadow (non-knight piece below/above)' };
+  }
+
+  // 5. Check king safety (board move must not create/leave check)
+  if (!isKingSafeAfterBoardMove(context)) {
+    return { valid: false, reason: 'Board move would leave king in check' };
+  }
+
+  return {
+    valid: true,
+    newPosition: toPinId,
+    newRotation: context.rotate ? 180 : 0,
+    affectedPieces: piecesOnBoard,
+  };
+}
+
+/**
+ * Get the four (file, rank) coordinates for a board's quadrants at a given pin.
+ */
+function getBoardQuadrantCoordinates(
+  boardId: string,
+  pinId: string,
+  world: ChessWorld
+): Array<{ file: number; rank: number }> {
+  const pin = PIN_POSITIONS[pinId];
+  const board = world.boards.get(boardId);
+  if (!board) return [];
+
+  // Attack boards are 2×2, quadrants are at:
+  // q1: (pin.file, pin.rank), q2: (pin.file+1, pin.rank)
+  // q3: (pin.file, pin.rank+1), q4: (pin.file+1, pin.rank+1)
+
+  const baseFile = pin.fileOffset;
+  const baseRank = pin.rankOffset;
+
+  return [
+    { file: baseFile, rank: baseRank },       // q1
+    { file: baseFile + 1, rank: baseRank },   // q2
+    { file: baseFile, rank: baseRank + 1 },   // q3
+    { file: baseFile + 1, rank: baseRank + 1 }, // q4
+  ];
+}
+
+/**
+ * Check if any destination quadrant is vertically blocked by a non-knight piece.
+ */
+function hasVerticalShadow(
+  quadrants: Array<{ file: number; rank: number }>,
+  pieces: Piece[]
+): boolean {
+  for (const quad of quadrants) {
+    // Check if any non-knight piece shares this file+rank on a different level
+    const blockingPiece = pieces.find(
+      p => p.type !== 'knight' && p.file === quad.file && p.rank === quad.rank
+    );
+    if (blockingPiece) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Determine movement direction between pins.
+ */
+function getDirection(fromPin: PinPosition, toPin: PinPosition): 'forward' | 'backward' | 'side' {
+  const levelDiff = toPin.level - fromPin.level;
+
+  if (levelDiff > 0) {
+    // Moving up the stack
+    return fromPin.inverted ? 'backward' : 'forward';
+  } else if (levelDiff < 0) {
+    // Moving down the stack
+    return fromPin.inverted ? 'forward' : 'backward';
+  } else {
+    // Same level (QL to KL or vice versa)
+    return 'side';
+  }
+}
+
+/**
+ * Validate that board move doesn't violate king safety.
+ * This requires check detection from Phase 7.
+ */
+function isKingSafeAfterBoardMove(context: BoardMoveContext): boolean {
+  // TODO: Integrate with Phase 7 check detection
+  // Simulate the board move and check if king is in check
+  // For now, return true (implement after Phase 7)
+  return true;
+}
+
+/**
+ * Execute a validated board move, updating world state and piece positions.
+ */
+export function executeBoardMove(
+  boardId: string,
+  toPinId: string,
+  rotate: boolean,
+  currentPositions: Record<string, string>,
+  pieces: Piece[],
+  world: ChessWorld
+): {
+  success: boolean;
+  newPositions: Record<string, string>;
+  updatedPieces: Piece[];
+  updatedWorld: ChessWorld;
+  move: any;
+} {
+  const fromPinId = currentPositions[boardId];
+  const context: BoardMoveContext = {
+    boardId,
+    fromPinId,
+    toPinId,
+    rotate,
+    pieces,
+    world,
+    currentPositions,
+  };
+
+  const validation = validateBoardMove(context);
+  if (!validation.valid) {
+    return {
+      success: false,
+      newPositions: currentPositions,
+      updatedPieces: pieces,
+      updatedWorld: world,
+      move: null,
+    };
+  }
+
+  // Update board position
+  const newPositions = {
+    ...currentPositions,
+    [boardId]: toPinId,
+  };
+
+  // Update board in world
+  const updatedWorld = updateBoardInWorld(world, boardId, toPinId, rotate ? 180 : 0);
+
+  // Update passenger pieces (if any)
+  const updatedPieces = updatePassengerPieces(pieces, boardId, fromPinId, toPinId, rotate);
+
+  // Create move record
+  const move = {
+    type: 'board-move',
+    boardId,
+    from: fromPinId,
+    to: toPinId,
+    rotation: rotate ? 180 : 0,
+    timestamp: Date.now(),
+  };
+
+  return {
+    success: true,
+    newPositions,
+    updatedPieces,
+    updatedWorld,
+    move,
+  };
+}
+
+/**
+ * Update board layout in world with new pin position.
+ */
+function updateBoardInWorld(
+  world: ChessWorld,
+  boardId: string,
+  newPinId: string,
+  rotation: number
+): ChessWorld {
+  const pin = PIN_POSITIONS[newPinId];
+  const board = world.boards.get(boardId);
+  if (!board) return world;
+
+  // Calculate new center position based on pin
+  const newCenterX = fileToWorldX(pin.fileOffset + 0.5);  // Center of 2×2 board
+  const newCenterY = rankToWorldY(pin.rankOffset + 0.5);
+  const newCenterZ = pin.zHeight;
+
+  // Update board
+  const updatedBoard: BoardLayout = {
+    ...board,
+    centerX: newCenterX,
+    centerY: newCenterY,
+    centerZ: newCenterZ,
+    rotation,
+  };
+
+  const newBoards = new Map(world.boards);
+  newBoards.set(boardId, updatedBoard);
+
+  // Update squares on this board
+  const newSquares = updateSquaresForBoard(world.squares, boardId, pin, rotation);
+
+  return {
+    ...world,
+    boards: newBoards,
+    squares: newSquares,
+  };
+}
+
+/**
+ * Update world squares when board moves to new pin.
+ */
+function updateSquaresForBoard(
+  squares: Map<string, WorldSquare>,
+  boardId: string,
+  pin: PinPosition,
+  rotation: number
+): Map<string, WorldSquare> {
+  const newSquares = new Map(squares);
+
+  for (const [squareId, square] of squares) {
+    if (square.boardId === boardId) {
+      // Recalculate world position for this square
+      // Account for rotation if needed (quadrants swap)
+      let file = square.file;
+      let rank = square.rank;
+
+      if (rotation === 180) {
+        // Swap quadrants: q1↔q3, q2↔q4
+        const relFile = file - pin.fileOffset;
+        const relRank = rank - pin.rankOffset;
+        file = pin.fileOffset + (1 - relFile);
+        rank = pin.rankOffset + (1 - relRank);
+      }
+
+      const updatedSquare: WorldSquare = {
+        ...square,
+        worldX: fileToWorldX(file),
+        worldY: rankToWorldY(rank),
+        worldZ: pin.zHeight,
+      };
+
+      newSquares.set(squareId, updatedSquare);
+    }
+  }
+
+  return newSquares;
+}
+
+/**
+ * Update pieces on the board after it moves.
+ * Passenger pieces lose special movement abilities.
+ */
+function updatePassengerPieces(
+  pieces: Piece[],
+  boardId: string,
+  fromPinId: string,
+  toPinId: string,
+  rotate: boolean
+): Piece[] {
+  const fromPin = PIN_POSITIONS[fromPinId];
+  const toPin = PIN_POSITIONS[toPinId];
+
+  return pieces.map(piece => {
+    if (piece.level !== boardId) {
+      return piece;
+    }
+
+    // This piece is on the moving board
+    const relFile = piece.file - fromPin.fileOffset;
+    const relRank = piece.rank - fromPin.rankOffset;
+
+    let newFile = toPin.fileOffset + relFile;
+    let newRank = toPin.rankOffset + relRank;
+
+    if (rotate) {
+      // Rotate 180°: swap quadrants
+      newFile = toPin.fileOffset + (1 - relFile);
+      newRank = toPin.rankOffset + (1 - relRank);
+    }
+
+    return {
+      ...piece,
+      file: newFile,
+      rank: newRank,
+      hasMoved: true,  // Passenger loses special abilities
+    };
+  });
+}
+
+/**
+ * Get all legal pins a board can move to.
+ */
+export function getLegalBoardMoves(
+  boardId: string,
+  currentPositions: Record<string, string>,
+  pieces: Piece[],
+  world: ChessWorld
+): string[] {
+  const currentPinId = currentPositions[boardId];
+  const currentPin = PIN_POSITIONS[currentPinId];
+
+  const legalPins: string[] = [];
+
+  for (const adjacentPinId of currentPin.adjacentPins) {
+    // Try without rotation
+    const context: BoardMoveContext = {
+      boardId,
+      fromPinId: currentPinId,
+      toPinId: adjacentPinId,
+      rotate: false,
+      pieces,
+      world,
+      currentPositions,
+    };
+
+    const result = validateBoardMove(context);
+    if (result.valid) {
+      legalPins.push(adjacentPinId);
+    }
+  }
+
+  return legalPins;
+}
+```
+
+### Step 8.4: Create Board Movement Tests
+
+**Create `src/engine/world/__tests__/boardMovement.test.ts`:**
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { validateBoardMove, getLegalBoardMoves } from '../worldMutation';
+import { createChessWorld } from '../worldBuilder';
+import { getInitialPinPositions } from '../pinPositions';
+import { Piece } from '../../../store/gameStore';
+
+describe('Board Movement Validation', () => {
+  it('should allow empty board to move to adjacent pin', () => {
+    const world = createChessWorld();
+    const pieces: Piece[] = [];
+    const currentPositions = getInitialPinPositions();
+
+    const result = validateBoardMove({
+      boardId: 'WQL',
+      fromPinId: 'QL1',
+      toPinId: 'QL2',
+      rotate: false,
+      pieces,
+      world,
+      currentPositions,
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it('should allow board with 1 piece to move forward', () => {
+    const world = createChessWorld();
+    const pieces: Piece[] = [
+      {
+        id: 'pawn1',
+        type: 'pawn',
+        color: 'white',
+        file: 0,
+        rank: 0,
+        level: 'WQL',
+        hasMoved: false,
+      },
+    ];
+    const currentPositions = getInitialPinPositions();
+
+    const result = validateBoardMove({
+      boardId: 'WQL',
+      fromPinId: 'QL1',
+      toPinId: 'QL2',
+      rotate: false,
+      pieces,
+      world,
+      currentPositions,
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it('should prevent board with >1 piece from moving', () => {
+    const world = createChessWorld();
+    const pieces: Piece[] = [
+      {
+        id: 'pawn1',
+        type: 'pawn',
+        color: 'white',
+        file: 0,
+        rank: 0,
+        level: 'WQL',
+        hasMoved: false,
+      },
+      {
+        id: 'pawn2',
+        type: 'pawn',
+        color: 'white',
+        file: 1,
+        rank: 0,
+        level: 'WQL',
+        hasMoved: false,
+      },
+    ];
+    const currentPositions = getInitialPinPositions();
+
+    const result = validateBoardMove({
+      boardId: 'WQL',
+      fromPinId: 'QL1',
+      toPinId: 'QL2',
+      rotate: false,
+      pieces,
+      world,
+      currentPositions,
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.reason).toContain('more than 1 piece');
+  });
+
+  it('should prevent occupied board from moving backward', () => {
+    const world = createChessWorld();
+    const pieces: Piece[] = [
+      {
+        id: 'pawn1',
+        type: 'pawn',
+        color: 'white',
+        file: 0,
+        rank: 2,
+        level: 'WQL',
+        hasMoved: false,
+      },
+    ];
+    const currentPositions = { ...getInitialPinPositions(), WQL: 'QL2' };
+
+    const result = validateBoardMove({
+      boardId: 'WQL',
+      fromPinId: 'QL2',
+      toPinId: 'QL1',  // backward move
+      rotate: false,
+      pieces,
+      world,
+      currentPositions,
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.reason).toContain('backward');
+  });
+
+  it('should block move due to vertical shadow (non-knight piece)', () => {
+    const world = createChessWorld();
+    const pieces: Piece[] = [
+      {
+        id: 'bishop1',
+        type: 'bishop',
+        color: 'white',
+        file: 0,
+        rank: 4,
+        level: 'W',  // On main board, same file/rank as QL3 quadrant
+        hasMoved: false,
+      },
+    ];
+    const currentPositions = getInitialPinPositions();
+
+    const result = validateBoardMove({
+      boardId: 'WQL',
+      fromPinId: 'QL1',
+      toPinId: 'QL3',  // Would place board over bishop
+      rotate: false,
+      pieces,
+      world,
+      currentPositions,
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.reason).toContain('Vertical Shadow');
+  });
+
+  it('should allow move over knight (knights do not cast shadow)', () => {
+    const world = createChessWorld();
+    const pieces: Piece[] = [
+      {
+        id: 'knight1',
+        type: 'knight',
+        color: 'white',
+        file: 0,
+        rank: 4,
+        level: 'W',
+        hasMoved: false,
+      },
+    ];
+    const currentPositions = getInitialPinPositions();
+
+    const result = validateBoardMove({
+      boardId: 'WQL',
+      fromPinId: 'QL1',
+      toPinId: 'QL3',
+      rotate: false,
+      pieces,
+      world,
+      currentPositions,
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it('should allow side movement (QL to KL)', () => {
+    const world = createChessWorld();
+    const pieces: Piece[] = [];
+    const currentPositions = getInitialPinPositions();
+
+    const result = validateBoardMove({
+      boardId: 'WQL',
+      fromPinId: 'QL1',
+      toPinId: 'KL1',  // Side move
+      rotate: false,
+      pieces,
+      world,
+      currentPositions,
+    });
+
+    expect(result.valid).toBe(true);
+  });
+});
+
+describe('Legal Board Moves', () => {
+  it('should return all adjacent pins for empty board', () => {
+    const world = createChessWorld();
+    const pieces: Piece[] = [];
+    const currentPositions = getInitialPinPositions();
+
+    const legalMoves = getLegalBoardMoves('WQL', currentPositions, pieces, world);
+
+    // QL1 should connect to QL2, KL1, KL2 (after adjacency fix)
+    expect(legalMoves.length).toBeGreaterThanOrEqual(2);
+    expect(legalMoves).toContain('QL2');
+  });
+});
+```
+
+### Step 8.5: Visual Rendering Updates
+
+Update the 3D renderer to handle board movements and rotations.
+
+**Update `src/components/Board3D/BoardRenderer.tsx`:**
+
+```typescript
+import { useGameStore } from '../../store/gameStore';
+import type { BoardLayout, WorldSquare } from '../../engine/world/types';
+import { THEME } from '../../config/theme';
+import { useSpring, animated } from '@react-spring/three';
+
+export function BoardRenderer() {
+  const world = useGameStore(state => state.world);
+  const attackBoardPositions = useGameStore(state => state.attackBoardPositions);
+
+  return (
+    <group>
+      {Array.from(world.boards.values()).map(board => (
+        <SingleBoard
+          key={board.id}
+          board={board}
+          isAttackBoard={board.type === 'attack'}
+          currentPin={board.type === 'attack' ? attackBoardPositions[board.id] : undefined}
+        />
+      ))}
+    </group>
+  );
+}
+
+interface SingleBoardProps {
+  board: BoardLayout;
+  isAttackBoard: boolean;
+  currentPin?: string;
+}
+
+function SingleBoard({ board, isAttackBoard, currentPin }: SingleBoardProps) {
+  const world = useGameStore(state => state.world);
+  const selectedBoard = useGameStore(state => state.selectedBoard);
+  const isSelected = isAttackBoard && selectedBoard === board.id;
+
+  // Animate board position changes
+  const { position, rotation } = useSpring({
+    position: [board.centerX, board.centerY, board.centerZ] as [number, number, number],
+    rotation: [0, 0, (board.rotation * Math.PI) / 180] as [number, number, number],
+    config: { tension: 170, friction: 26 },
+  });
+
+  const squares = Array.from(world.squares.values()).filter(
+    (sq: WorldSquare) => sq.boardId === board.id
+  );
+
+  return (
+    <group>
+      {/* Animated board platform */}
+      <animated.group position={position} rotation={rotation}>
+        <mesh
+          position={[0, 0, -0.15]}
+          onClick={() => isAttackBoard && useGameStore.getState().selectBoard(board.id)}
+        >
+          <boxGeometry
+            args={[
+              board.size.width * 2.1,
+              board.size.height * 2.1,
+              THEME.platforms.thickness,
+            ]}
+          />
+          <meshStandardMaterial
+            color={isSelected ? THEME.platforms.selected :
+                   board.type === 'main' ? THEME.platforms.main : THEME.platforms.attack}
+            transparent
+            opacity={THEME.platforms.opacity}
+          />
+        </mesh>
+
+        {/* Visual indicator for selected board */}
+        {isSelected && (
+          <lineSegments>
+            <edgesGeometry attach="geometry" args={[
+              new THREE.BoxGeometry(
+                board.size.width * 2.1,
+                board.size.height * 2.1,
+                THEME.platforms.thickness
+              )
+            ]} />
+            <lineBasicMaterial attach="material" color="yellow" linewidth={2} />
+          </lineSegments>
+        )}
+      </animated.group>
+
+      {/* Squares with animated positions */}
+      {squares.map((square) => (
+        <AnimatedSquare key={square.id} square={square} />
+      ))}
+    </group>
+  );
+}
+
+function AnimatedSquare({ square }: { square: WorldSquare }) {
+  const { position } = useSpring({
+    position: [square.worldX, square.worldY, square.worldZ] as [number, number, number],
+    config: { tension: 170, friction: 26 },
+  });
+
+  return (
+    <animated.mesh
+      position={position}
+      onClick={() => console.log('Clicked square:', square.id)}
+    >
+      <boxGeometry args={[THEME.squares.size, THEME.squares.size, 0.1]} />
+      <meshStandardMaterial
+        color={square.color === 'light' ? THEME.squares.light : THEME.squares.dark}
+        transparent
+        opacity={THEME.squares.opacity}
+      />
+    </animated.mesh>
+  );
+}
+```
+
+**Update `src/config/theme.ts`:**
+
+```typescript
+export const THEME = {
+  platforms: {
+    main: '#4a4a4a',
+    attack: '#2a5a8a',
+    selected: '#ffa500',  // NEW: Selected board color
+    thickness: 0.3,
+    opacity: 0.8,
+  },
+  // ... rest of theme
+};
+```
+
+#### 8.5.2: Camera Preset System
+
+Implement a camera preset system that allows users to quickly switch between Top, Side, and Front views of the 3D chess board.
+
+**Camera View Calculations:**
+
+Based on world dimensions (X: 2.1-8.4, Y: 2.1-18.9, Z: 0-12), the camera presets target the world center at approximately `[5, 10, 6]`:
+
+- **Top View**: Position `[5, 10, 25]` looking at `[5, 10, 6]`, tilted 15° forward
+  - Provides overhead perspective while maintaining visibility of piece heights
+  - Good for planning overall board strategy
+  
+- **Side View**: Position `[25, 10, 6]` looking at `[5, 10, 6]`, tilted 10° up
+  - Shows vertical relationships between the three main board levels
+  - Useful for understanding attack board positions relative to main boards
+  
+- **Front View**: Position `[5, -10, 10]` looking at `[5, 10, 6]`, tilted 20° up
+  - Diagonal perspective similar to traditional chess board view
+  - Combines depth perception with piece visibility
+
+**Create `src/store/cameraStore.ts`:**
+
+```typescript
+import { create } from 'zustand';
+
+export type CameraView = 'default' | 'top' | 'side' | 'front';
+
+interface CameraState {
+  currentView: CameraView;
+  setView: (view: CameraView) => void;
+}
+
+export const useCameraStore = create<CameraState>((set) => ({
+  currentView: 'default',
+  setView: (view) => set({ currentView: view }),
+}));
+```
+
+**Update `src/config/theme.ts`:**
+
+Add camera preset configurations to the THEME object:
+
+```typescript
+export const THEME = {
+  // ... existing theme properties
+  
+  cameraPresets: {
+    default: {
+      position: [15, 15, 20] as [number, number, number],
+      target: [5, 10, 4] as [number, number, number],
+    },
+    top: {
+      position: [5, 10, 25] as [number, number, number],
+      target: [5, 10, 6] as [number, number, number],
+    },
+    side: {
+      position: [25, 10, 6] as [number, number, number],
+      target: [5, 10, 6] as [number, number, number],
+    },
+    front: {
+      position: [5, -10, 10] as [number, number, number],
+      target: [5, 10, 6] as [number, number, number],
+    },
+  },
+};
+```
+
+**Update `src/components/Board3D/Board3D.tsx`:**
+
+Add camera animation using gsap:
+
+```typescript
+import { Canvas, useThree } from '@react-three/fiber';
+import { OrbitControls } from '@react-three/drei';
+import { useEffect, useRef } from 'react';
+import gsap from 'gsap';
+import { THEME } from '../../config/theme';
+import { useCameraStore } from '../../store/cameraStore';
+import { BoardRenderer } from './BoardRenderer';
+import { WorldGridVisualizer } from '../Debug/WorldGridVisualizer';
+import { Pieces3D } from './Pieces3D';
+
+function CameraController() {
+  const currentView = useCameraStore(state => state.currentView);
+  const { camera } = useThree();
+  const controlsRef = useRef<any>();
+
+  const preset = THEME.cameraPresets[currentView];
+
+  useEffect(() => {
+    if (controlsRef.current && preset) {
+      // Animate camera position
+      gsap.to(camera.position, {
+        x: preset.position[0],
+        y: preset.position[1],
+        z: preset.position[2],
+        duration: 0.8,
+        ease: 'power2.out',
+      });
+
+      // Animate controls target
+      gsap.to(controlsRef.current.target, {
+        x: preset.target[0],
+        y: preset.target[1],
+        z: preset.target[2],
+        duration: 0.8,
+        ease: 'power2.out',
+        onUpdate: () => controlsRef.current?.update(),
+      });
+    }
+  }, [currentView, camera, preset]);
+
+  return (
+    <OrbitControls
+      ref={controlsRef}
+      target={THEME.camera.lookAt}
+      minDistance={5}
+      maxDistance={50}
+      enablePan={true}
+      enableRotate={true}
+      enableZoom={true}
+    />
+  );
+}
+
+export function Board3D() {
+  return (
+    <Canvas
+      camera={{
+        position: THEME.camera.position,
+        fov: THEME.camera.fov,
+      }}
+      style={{ background: THEME.scene.background }}
+    >
+      <ambientLight
+        intensity={THEME.lighting.ambient.intensity}
+        color={THEME.lighting.ambient.color}
+      />
+      <directionalLight
+        intensity={THEME.lighting.directional.intensity}
+        position={THEME.lighting.directional.position}
+        color={THEME.lighting.directional.color}
+      />
+
+      <CameraController />
+
+      <WorldGridVisualizer />
+      <BoardRenderer />
+      <Pieces3D />
+    </Canvas>
+  );
+}
+```
+
+**Installation Note:** If gsap is not already installed, add it: `npm install gsap`
+
+### Step 8.6: UI Components for Board Movement
+
+Create UI components for selecting and moving attack boards.
+
+**Create `src/components/UI/BoardMovementPanel.tsx`:**
+
+```typescript
+import { useGameStore } from '../../store/gameStore';
+import './BoardMovementPanel.css';
+
+export function BoardMovementPanel() {
+  const selectedBoard = useGameStore(state => state.selectedBoard);
+  const attackBoardPositions = useGameStore(state => state.attackBoardPositions);
+  const getLegalBoardMoves = useGameStore(state => state.getLegalBoardMoves);
+  const moveBoard = useGameStore(state => state.moveBoard);
+  const selectBoard = useGameStore(state => state.selectBoard);
+
+  if (!selectedBoard) {
+    return (
+      <div className="board-movement-panel">
+        <h3>Attack Board Movement</h3>
+        <p>Click an attack board to select it</p>
+        <div className="board-list">
+          {Object.keys(attackBoardPositions).map(boardId => (
+            <button
+              key={boardId}
+              onClick={() => selectBoard(boardId)}
+              className="board-button"
+            >
+              {boardId} (at {attackBoardPositions[boardId]})
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const currentPin = attackBoardPositions[selectedBoard];
+  const legalMoves = getLegalBoardMoves(selectedBoard);
+
+  return (
+    <div className="board-movement-panel active">
+      <h3>Move {selectedBoard}</h3>
+      <p>Currently at: <strong>{currentPin}</strong></p>
+
+      <div className="legal-moves">
+        <h4>Available Moves:</h4>
+        {legalMoves.length === 0 ? (
+          <p className="no-moves">No legal moves available</p>
+        ) : (
+          <div className="move-buttons">
+            {legalMoves.map(pinId => (
+              <div key={pinId} className="move-option">
+                <button
+                  onClick={() => {
+                    moveBoard(selectedBoard, pinId, false);
+                  }}
+                  className="move-button"
+                >
+                  Move to {pinId}
+                </button>
+                <button
+                  onClick={() => {
+                    moveBoard(selectedBoard, pinId, true);
+                  }}
+                  className="move-button rotate"
+                >
+                  Move to {pinId} + Rotate 180°
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <button onClick={() => selectBoard(null)} className="cancel-button">
+        Cancel
+      </button>
+    </div>
+  );
+}
+```
+
+**Create `src/components/UI/BoardMovementPanel.css`:**
+
+```css
+.board-movement-panel {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-width: 300px;
+  z-index: 100;
+}
+
+.board-movement-panel h3 {
+  margin-top: 0;
+  color: #333;
+}
+
+.board-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.board-button {
+  padding: 10px;
+  background: #2a5a8a;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.board-button:hover {
+  background: #1a4a7a;
+}
+
+.legal-moves {
+  margin: 15px 0;
+}
+
+.move-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.move-option {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.move-button {
+  padding: 8px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.move-button:hover {
+  background: #45a049;
+}
+
+.move-button.rotate {
+  background: #ff9800;
+}
+
+.move-button.rotate:hover {
+  background: #e68900;
+}
+
+.cancel-button {
+  width: 100%;
+  padding: 10px;
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.cancel-button:hover {
+  background: #da190b;
+}
+
+.no-moves {
+  color: #666;
+  font-style: italic;
+}
+```
+
+#### 8.6.2: Camera View Controls
+
+Create a button group for switching between camera presets.
+
+**Create `src/components/UI/CameraControls.tsx`:**
+
+```typescript
+import { useCameraStore } from '../../store/cameraStore';
+import './CameraControls.css';
+
+export function CameraControls() {
+  const { currentView, setView } = useCameraStore();
+
+  return (
+    <div className="camera-controls">
+      <h4>Camera View</h4>
+      <div className="camera-buttons">
+        <button
+          className={currentView === 'default' ? 'active' : ''}
+          onClick={() => setView('default')}
+        >
+          Default
+        </button>
+        <button
+          className={currentView === 'top' ? 'active' : ''}
+          onClick={() => setView('top')}
+        >
+          Top
+        </button>
+        <button
+          className={currentView === 'side' ? 'active' : ''}
+          onClick={() => setView('side')}
+        >
+          Side
+        </button>
+        <button
+          className={currentView === 'front' ? 'active' : ''}
+          onClick={() => setView('front')}
+        >
+          Front
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+**Create `src/components/UI/CameraControls.css`:**
+
+```css
+.camera-controls {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 15px;
+  border-radius: 8px;
+  z-index: 101;
+}
+
+.camera-controls h4 {
+  margin: 0 0 10px 0;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.camera-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.camera-buttons button {
+  padding: 8px 16px;
+  background: #4a5568;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.camera-buttons button:hover {
+  background: #718096;
+}
+
+.camera-buttons button.active {
+  background: #2a5a8a;
+  font-weight: 600;
+}
+```
+
+#### 8.6.3: Move History with Game Management
+
+Create a collapsible move history panel that displays the current game's moves and provides save/load/new game functionality.
+
+**Create `src/components/UI/MoveHistory.tsx`:**
+
+```typescript
+import { useState } from 'react';
+import { useGameStore } from '../../store/gameStore';
+import './MoveHistory.css';
+
+export function MoveHistory() {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const moveHistory = useGameStore(state => state.moveHistory);
+  const resetGame = useGameStore(state => state.resetGame);
+
+  const handleSaveGame = () => {
+    const gameState = {
+      pieces: useGameStore.getState().pieces,
+      attackBoardPositions: useGameStore.getState().attackBoardPositions,
+      currentTurn: useGameStore.getState().currentTurn,
+      moveHistory: useGameStore.getState().moveHistory,
+      timestamp: Date.now(),
+    };
+
+    const json = JSON.stringify(gameState, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chess-game-${Date.now()}.json`;
+    a.click();
+    
+    URL.revokeObjectURL(url);
+  };
+
+  const handleLoadGame = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    
+    input.onchange = (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const gameState = JSON.parse(event.target?.result as string);
+          
+          useGameStore.setState({
+            pieces: gameState.pieces,
+            attackBoardPositions: gameState.attackBoardPositions,
+            currentTurn: gameState.currentTurn,
+            moveHistory: gameState.moveHistory,
+          });
+        } catch (error) {
+          alert('Failed to load game: Invalid file format');
+        }
+      };
+      
+      reader.readAsText(file);
+    };
+    
+    input.click();
+  };
+
+  const handleNewGame = () => {
+    if (moveHistory.length > 0) {
+      const confirmed = confirm('Start a new game? Current game will be lost.');
+      if (!confirmed) return;
+    }
+    
+    resetGame();
+  };
+
+  return (
+    <div className="move-history-panel">
+      <div 
+        className="move-history-header" 
+        onClick={() => setIsCollapsed(!isCollapsed)}
+      >
+        <h3>Move History</h3>
+        <span className="collapse-icon">{isCollapsed ? '▼' : '▲'}</span>
+      </div>
+      
+      {!isCollapsed && (
+        <>
+          <div className="game-controls">
+            <button onClick={handleNewGame} className="game-button new">
+              New Game
+            </button>
+            <button onClick={handleSaveGame} className="game-button save">
+              Save Game
+            </button>
+            <button onClick={handleLoadGame} className="game-button load">
+              Load Game
+            </button>
+          </div>
+
+          <div className="move-history-list">
+            {moveHistory.length === 0 ? (
+              <p className="no-moves">No moves yet</p>
+            ) : (
+              moveHistory.map((move, idx) => (
+                <MoveEntry key={idx} move={move} number={idx + 1} />
+              ))
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+interface MoveEntryProps {
+  move: any;
+  number: number;
+}
+
+function MoveEntry({ move, number }: MoveEntryProps) {
+  const isBoardMove = move.type === 'board-move';
+  const colorClass = isBoardMove 
+    ? `board-${move.boardId?.startsWith('W') ? 'white' : 'black'}`
+    : move.piece?.color || 'white';
+
+  return (
+    <div className={`move-entry ${colorClass}`}>
+      <span className="move-number">{number}.</span>
+      <span className="move-notation">
+        {isBoardMove 
+          ? `${move.boardId}: ${move.from}-${move.to}${move.rotation === 180 ? '^180' : ''}`
+          : `${move.from}-${move.to}`
+        }
+      </span>
+    </div>
+  );
+}
+```
+
+**Create `src/components/UI/MoveHistory.css`:**
+
+```css
+.move-history-panel {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  width: 300px;
+  max-height: 500px;
+  z-index: 99;
+  color: white;
+}
+
+.move-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.move-history-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.move-history-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.collapse-icon {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.game-controls {
+  display: flex;
+  gap: 8px;
+  padding: 12px 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.game-button {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.game-button:hover {
+  opacity: 0.8;
+}
+
+.game-button.new {
+  background: #4a5568;
+  color: white;
+}
+
+.game-button.save {
+  background: #48bb78;
+  color: white;
+}
+
+.game-button.load {
+  background: #4299e1;
+  color: white;
+}
+
+.move-history-list {
+  max-height: 350px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.move-history-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.move-history-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.move-history-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.no-moves {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+  padding: 20px;
+  margin: 0;
+}
+
+.move-entry {
+  display: flex;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.move-entry:nth-child(even) {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.move-entry.white {
+  border-left: 3px solid #f5f5f5;
+}
+
+.move-entry.black {
+  border-left: 3px solid #2c2c2c;
+}
+
+.move-entry.board-white {
+  border-left: 3px solid #4299e1;
+}
+
+.move-entry.board-black {
+  border-left: 3px solid #9f7aea;
+}
+
+.move-number {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  min-width: 30px;
+}
+
+.move-notation {
+  color: white;
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+```
+
+#### 8.6.4: Enhanced Attack Board Selection UI
+
+Update the BoardMovementPanel to include rotation selection with radio buttons.
+
+**Update `src/components/UI/BoardMovementPanel.tsx`:**
+
+Replace the move option rendering section with enhanced rotation controls:
+
+```typescript
+import { useState } from 'react';
+import { useGameStore } from '../../store/gameStore';
+import './BoardMovementPanel.css';
+
+export function BoardMovementPanel() {
+  const selectedBoard = useGameStore(state => state.selectedBoard);
+  const attackBoardPositions = useGameStore(state => state.attackBoardPositions);
+  const getLegalBoardMoves = useGameStore(state => state.getLegalBoardMoves);
+  const moveBoard = useGameStore(state => state.moveBoard);
+  const selectBoard = useGameStore(state => state.selectBoard);
+  const [selectedRotations, setSelectedRotations] = useState<Record<string, number>>({});
+
+  const handleRotationChange = (pinId: string, rotation: number) => {
+    setSelectedRotations(prev => ({ ...prev, [pinId]: rotation }));
+  };
+
+  if (!selectedBoard) {
+    return (
+      <div className="board-movement-panel">
+        <h3>Attack Board Movement</h3>
+        <p>Click an attack board to select it</p>
+        <div className="board-list">
+          {Object.keys(attackBoardPositions).map(boardId => (
+            <button
+              key={boardId}
+              onClick={() => selectBoard(boardId)}
+              className="board-button"
+            >
+              {boardId} (at {attackBoardPositions[boardId]})
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const currentPin = attackBoardPositions[selectedBoard];
+  const legalMoves = getLegalBoardMoves(selectedBoard);
+
+  return (
+    <div className="board-movement-panel active">
+      <h3>Move {selectedBoard}</h3>
+      <p>Currently at: <strong>{currentPin}</strong></p>
+
+      <div className="legal-moves">
+        <h4>Available Moves:</h4>
+        {legalMoves.length === 0 ? (
+          <p className="no-moves">No legal moves available</p>
+        ) : (
+          <div className="move-options">
+            {legalMoves.map(pinId => (
+              <div key={pinId} className="move-option">
+                <div className="destination-label">
+                  <strong>Move to {pinId}</strong>
+                </div>
+                
+                <div className="rotation-selector">
+                  <label className="rotation-option">
+                    <input
+                      type="radio"
+                      name={`rotation-${pinId}`}
+                      value="0"
+                      checked={selectedRotations[pinId] === 0}
+                      onChange={() => handleRotationChange(pinId, 0)}
+                    />
+                    <span>No Rotation (0°)</span>
+                  </label>
+                  
+                  <label className="rotation-option">
+                    <input
+                      type="radio"
+                      name={`rotation-${pinId}`}
+                      value="180"
+                      checked={selectedRotations[pinId] === 180}
+                      onChange={() => handleRotationChange(pinId, 180)}
+                    />
+                    <span>Rotate 180°</span>
+                  </label>
+                </div>
+
+                <button
+                  onClick={() => {
+                    moveBoard(selectedBoard, pinId, selectedRotations[pinId] === 180);
+                    setSelectedRotations({});
+                  }}
+                  className="move-button"
+                  disabled={selectedRotations[pinId] === undefined}
+                >
+                  Execute Move
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <button onClick={() => selectBoard(null)} className="cancel-button">
+        Cancel
+      </button>
+    </div>
+  );
+}
+```
+
+**Update `src/components/UI/BoardMovementPanel.css`:**
+
+Add styles for the enhanced rotation selector:
+
+```css
+.board-movement-panel {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-width: 300px;
+  z-index: 100;
+}
+
+.board-movement-panel h3 {
+  margin-top: 0;
+  color: #333;
+}
+
+.board-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.board-button {
+  padding: 10px;
+  background: #2a5a8a;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.board-button:hover {
+  background: #1a4a7a;
+}
+
+.legal-moves {
+  margin: 15px 0;
+}
+
+.move-options {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.move-option {
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.destination-label {
+  margin-bottom: 12px;
+  color: #ffa500;
+  font-size: 14px;
+}
+
+.rotation-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.rotation-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.rotation-option:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.rotation-option input[type="radio"] {
+  cursor: pointer;
+}
+
+.rotation-option span {
+  color: white;
+  font-size: 13px;
+}
+
+.move-button {
+  width: 100%;
+  padding: 8px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.move-button:hover {
+  background: #45a049;
+}
+
+.move-button:disabled {
+  background: #666;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.cancel-button {
+  width: 100%;
+  padding: 10px;
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.cancel-button:hover {
+  background: #da190b;
+}
+
+.no-moves {
+  color: #666;
+  font-style: italic;
+}
+```
+
+#### 8.6.5: Component Integration
+
+**Update `src/App.tsx`:**
+
+Import and add all UI components:
+
+```typescript
+import { Board3D } from './components/Board3D/Board3D';
+import { CameraControls } from './components/UI/CameraControls';
+import { BoardMovementPanel } from './components/UI/BoardMovementPanel';
+import { MoveHistory } from './components/UI/MoveHistory';
+import { useGameStore } from './store/gameStore';
+import { logWorldCoordinates } from './utils/debugLogger';
+import { useEffect } from 'react';
+
+function App() {
+  const world = useGameStore(state => state.world);
+
+  useEffect(() => {
+    logWorldCoordinates(world);
+  }, [world]);
+
+  return (
+    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+      <Board3D />
+      <CameraControls />
+      <BoardMovementPanel />
+      <MoveHistory />
+    </div>
+  );
+}
+
+export default App;
+```
+
+**Z-Index Layering:**
+- CameraControls: z-index 101 (top left, highest priority)
+- BoardMovementPanel: z-index 100 (top right when active)
+- MoveHistory: z-index 99 (right side, below BoardMovementPanel)
+
+**Layout Coordination:**
+- CameraControls positioned top-left (20px, 20px)
+- MoveHistory positioned top-right (20px, 20px)
+- BoardMovementPanel positioned top-right (20px, 20px) - only shown when board selected
+- When both MoveHistory and BoardMovementPanel are visible, consider stacking vertically
+
+**Responsive Considerations:**
+For mobile/tablet viewports:
+- Stack panels vertically in bottom sheet
+- Increase button sizes (min 44px touch targets)
+- Reduce panel widths to fit screen
+
+### Step 8.7: Additional Considerations
+
+#### 8.7.1: Move Notation
+
+Implement proper notation for board moves per ATTACK_BOARD_RULES.md:
+
+```typescript
+// src/engine/notation/boardNotation.ts
+export function formatBoardMove(
+  boardId: string,
+  fromPin: string,
+  toPin: string,
+  rotation: number
+): string {
+  const rotationStr = rotation === 180 ? '^180' : '';
+  return `${boardId}: ${fromPin}-${toPin}${rotationStr}`;
+}
+
+// Example: "WQL: QL1-QL3^180"
+```
+
+#### 8.7.2: Undo/Redo Support
+
+Extend move history to support board moves:
+
+```typescript
+export interface Move {
+  type: 'piece-move' | 'board-move';
+  from: string;
+  to: string;
+  piece?: Piece;
+  boardId?: string;
+  rotation?: number;
+  capturedPiece?: Piece;
+  timestamp: number;
+}
+```
+
+#### 8.7.3: Performance Optimization
+
+Board moves update many pieces and squares at once. Consider:
+
+```typescript
+// Batch updates to avoid multiple re-renders
+const updateWorldAndPieces = useCallback((updates) => {
+  set(state => ({
+    ...state,
+    world: updates.world,
+    pieces: updates.pieces,
+    attackBoardPositions: updates.positions,
+  }));
+}, []);
+```
+
+#### 8.7.4: Edge Cases
+
+**Test these scenarios thoroughly:**
+
+1. Board moves that would place king in check (should be illegal)
+2. Board with exactly 1 piece rotating 180° (passenger loses special abilities)
+3. Multiple non-knight pieces creating complex vertical shadows
+4. Board moves during endgame (few pieces remaining)
+5. Rapid successive board moves (animation handling)
+6. Board at inverted pin (QL6/KL6) moving backward
+
+#### 8.7.5: Integration with Phase 7 (Check Detection)
+
+```typescript
+// In worldMutation.ts, update isKingSafeAfterBoardMove:
+function isKingSafeAfterBoardMove(context: BoardMoveContext): boolean {
+  // Simulate board move
+  const tempState = {
+    pieces: updatePassengerPieces(
+      context.pieces,
+      context.boardId,
+      context.fromPinId,
+      context.toPinId,
+      context.rotate
+    ),
+    // ... other state
+  };
+
+  // Check if friendly king is in check after the move
+  const friendlyKing = tempState.pieces.find(
+    p => p.type === 'king' && p.color === getCurrentTurn()
+  );
+
+  if (!friendlyKing) return true;
+
+  return !isSquareUnderAttack(
+    friendlyKing.file,
+    friendlyKing.rank,
+    friendlyKing.level,
+    tempState.pieces,
+    context.world
+  );
+}
+```
+
+#### 8.7.6: UI/UX Best Practices
+
+**Camera Persistence:**
+Save user's preferred camera view to localStorage:
+
+```typescript
+// In cameraStore.ts
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+export const useCameraStore = create<CameraState>()(
+  persist(
+    (set) => ({
+      currentView: 'default',
+      setView: (view) => set({ currentView: view }),
+    }),
+    {
+      name: 'camera-view-storage',
+    }
+  )
+);
+```
+
+**Keyboard Shortcuts:**
+Implement hotkeys for common actions:
+
+```typescript
+useEffect(() => {
+  const handleKeyPress = (e: KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey) return;
+    
+    switch (e.key) {
+      case '1': useCameraStore.getState().setView('default'); break;
+      case '2': useCameraStore.getState().setView('top'); break;
+      case '3': useCameraStore.getState().setView('side'); break;
+      case '4': useCameraStore.getState().setView('front'); break;
+      case 'h': toggleHistoryPanel(); break;
+      case 'n': handleNewGame(); break;
+    }
+  };
+  
+  window.addEventListener('keydown', handleKeyPress);
+  return () => window.removeEventListener('keydown', handleKeyPress);
+}, []);
+```
+
+**Accessibility:**
+- Add aria-labels to all interactive buttons
+- Ensure keyboard navigation with tab order
+- Announce state changes to screen readers:
+
+```typescript
+<button
+  onClick={handleNewGame}
+  aria-label="Start a new chess game"
+  className="game-button new"
+>
+  New Game
+</button>
+```
+
+**Performance Optimization:**
+- Debounce camera transitions if user clicks rapidly:
+
+```typescript
+const debouncedSetView = debounce((view: CameraView) => {
+  setView(view);
+}, 200);
+```
+
+- Virtual scrolling for move history if game exceeds 100 moves
+- Memoize move history entries to prevent unnecessary re-renders:
+
+```typescript
+import { memo } from 'react';
+
+const MoveEntry = memo(({ move, number }: MoveEntryProps) => {
+  // ... component implementation
+});
+```
+
+**Error Handling:**
+- Validate loaded game files have correct structure
+- Show user-friendly error messages for file I/O failures
+- Gracefully handle missing or corrupted game state data
+- Confirm before destructive actions (New Game with existing moves)
+
+### Step 8.8: Testing Strategy
+
+**Create comprehensive test suite:**
+
+```bash
+src/engine/world/__tests__/
+  ├── boardMovement.test.ts         # Core movement validation (created above)
+  ├── boardRotation.test.ts         # Rotation mechanics
+  ├── verticalShadow.test.ts        # Shadow blocking
+  ├── passengerPieces.test.ts       # Piece transport
+  └── boardKingSafety.test.ts       # Check validation
+```
+
+**Test coverage goals:**
+- All adjacency rules (12 pins × adjacency)
+- All occupancy scenarios (0, 1, 2+ pieces)
+- All direction rules (forward/side/backward)
+- Vertical shadow with various piece configurations
+- King safety edge cases
+- Rotation quadrant swapping
+- Passenger piece coordinate updates
+
+### Step 8.9: Verification Checklist
+
+Before considering Phase 8 complete:
+
+- [ ] Pin adjacency includes cross-line connections (QL↔KL)
+- [ ] Game state tracks attack board positions
+- [ ] worldMutation.ts validates all 5 board movement rules
+- [ ] Vertical shadow correctly blocks non-knight pieces
+- [ ] Board moves respect king safety (integration with Phase 7)
+- [ ] Visual rendering animates board movements smoothly
+- [ ] UI allows selecting boards and choosing destination pins
+- [ ] Rotation (180°) swaps quadrants correctly
+- [ ] Passenger pieces update coordinates and lose special abilities
+- [ ] All tests pass (aim for 15+ new tests for Phase 8)
+- [ ] Move notation follows ATTACK_BOARD_RULES.md format
+- [ ] Undo/redo works for board moves
+- [ ] Performance is acceptable (board moves < 100ms)
+
+### Summary
+
+Phase 8 adds the most unique feature of 3D chess: movable attack boards. The implementation requires:
+
+1. **Foundation fixes:** Update pin adjacency to include cross-line connections
+2. **State management:** Track board positions and selection
+3. **Validation system:** Enforce all 5 movement rules (adjacency, occupancy, direction, shadow, king safety)
+4. **World mutation:** Update board positions, squares, and passenger pieces
+5. **Visual rendering:** Animate board movements with smooth transitions
+6. **UI components:** Provide intuitive board selection and movement controls
+7. **Testing:** Comprehensive coverage of all movement scenarios
+
+**Critical Integration Points:**
+- Phase 7 check detection for king safety validation
+- Existing move validation for piece movements
+- World grid system for coordinate updates
+- 3D renderer for visual feedback
+
+**Time Estimate:** 12-20 hours for experienced developer
+
+**Next Steps:** After Phase 8, proceed to Phase 9 (UI Polish) and Phase 10 (Testing & Deployment).
+
+---
+
+## Phase 9: UI Components
+
+*Content to be added with detailed UI/UX implementation...*
+
+---
+
+## Phase 10: Testing & Polish
+
+*Content to be added with comprehensive testing strategy...*
+
+---
 
 **Key Principle for All Remaining Work:**
 Always use the world grid as the single source of truth. Never calculate coordinates at render time. Test extensively before moving to the next phase.
 
-**✅ Phases 1-5 Complete with High Detail**
-**Phases 6-10 would continue with same approach**
+**✅ Phases 1-6 Complete with High Detail**
+**✅ Phase 8 Strategy Complete**
+**Phases 7, 9-10 to be detailed similarly**

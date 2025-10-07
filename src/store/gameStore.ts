@@ -4,6 +4,7 @@ import { createChessWorld } from '../engine/world/worldBuilder';
 import { createInitialPieces } from '../engine/initialSetup';
 import { getLegalMovesAvoidingCheck, isInCheck, isCheckmate, isStalemate } from '../engine/validation/checkDetection';
 import { createSquareId } from '../engine/world/coordinates';
+import { getInitialPinPositions } from '../engine/world/pinPositions';
 
 export interface Piece {
   id: string;
@@ -14,6 +15,21 @@ export interface Piece {
   level: string;
   hasMoved: boolean;
 }
+
+export type Move = 
+  | {
+      type: 'piece-move';
+      from: string;
+      to: string;
+      piece: { type: string; color: 'white' | 'black' };
+    }
+  | {
+      type: 'board-move';
+      from: string;
+      to: string;
+      boardId: string;
+      rotation?: number;
+    };
 
 export interface GameState {
   world: ChessWorld;
@@ -31,6 +47,9 @@ export interface GameState {
     piece: string;
     captured?: string;
   }>;
+  attackBoardPositions: Record<string, string>;
+  selectedBoardId: string | null;
+  moveHistory: Move[];
   selectSquare: (squareId: string) => void;
   clearSelection: () => void;
   resetGame: () => void;
@@ -48,6 +67,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
   isCheckmate: false,
   isStalemate: false,
   winner: null,
+  attackBoardPositions: getInitialPinPositions(),
+  selectedBoardId: null,
   moveHistory: [],
   
   selectSquare: (squareId: string) => {
@@ -59,7 +80,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
   },
   
   clearSelection: () => {
-    set({ selectedSquareId: null, highlightedSquareIds: [] });
+    set({ selectedSquareId: null, highlightedSquareIds: [], selectedBoardId: null });
   },
   
   resetGame: () => {
@@ -73,6 +94,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
       isCheckmate: false,
       isStalemate: false,
       winner: null,
+      attackBoardPositions: getInitialPinPositions(),
+      selectedBoardId: null,
       moveHistory: [],
     });
   },

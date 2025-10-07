@@ -1,4 +1,6 @@
 import { Board3D } from './components/Board3D/Board3D';
+import { CameraControls } from './components/UI/CameraControls';
+import { MoveHistory } from './components/UI/MoveHistory';
 import { useGameStore } from './store/gameStore';
 import { logWorldCoordinates } from './utils/debugLogger';
 import { useEffect } from 'react';
@@ -11,8 +13,10 @@ function App() {
   }, [world]);
 
   return (
-    <div style={{ width: '100vw', height: '100vh' }}>
+    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       <Board3D />
+      <CameraControls />
+      <MoveHistory />
     </div>
   );
 }
