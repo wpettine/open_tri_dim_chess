@@ -284,7 +284,7 @@ describe('moveValidation', () => {
       expect(validMoves.includes('d1W')).toBe(true);
     });
 
-    it('should not allow knight to move in 3 dimensions simultaneously', () => {
+    it('should allow knight to move in 3 dimensions when forming valid L-shape', () => {
       const world = createChessWorld();
       const pieces: Piece[] = [
         {
@@ -300,9 +300,9 @@ describe('moveValidation', () => {
 
       const validMoves = getLegalMoves(pieces[0], world, pieces);
 
-      expect(validMoves.includes('a4N')).toBe(false);
-      expect(validMoves.includes('c4B')).toBe(false);
-      expect(validMoves.includes('d3N')).toBe(false);
+      expect(validMoves.includes('a4N')).toBe(true);
+      expect(validMoves.includes('c4N')).toBe(true);
+      expect(validMoves.includes('d3N')).toBe(true);
     });
 
     it('should allow knight to move in exactly 2 dimensions (L-shape across levels)', () => {

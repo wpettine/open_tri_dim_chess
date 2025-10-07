@@ -139,7 +139,13 @@ export function validateKnightMove(context: MoveValidationContext): MoveResult {
     (fileChange === 2 && levelChange === 1 && rankChange === 0) ||
     (fileChange === 1 && levelChange === 2 && rankChange === 0) ||
     (rankChange === 2 && levelChange === 1 && fileChange === 0) ||
-    (rankChange === 1 && levelChange === 2 && fileChange === 0);
+    (rankChange === 1 && levelChange === 2 && fileChange === 0) ||
+    (fileChange === 2 && rankChange === 1 && levelChange === 1) ||
+    (fileChange === 1 && rankChange === 2 && levelChange === 1) ||
+    (fileChange === 2 && rankChange === 0 && levelChange === 1) ||
+    (fileChange === 0 && rankChange === 2 && levelChange === 1) ||
+    (fileChange === 1 && rankChange === 0 && levelChange === 2) ||
+    (rankChange === 1 && fileChange === 0 && levelChange === 2);
 
   if (!validLShape) {
     return { valid: false, reason: 'invalid knight move' };
