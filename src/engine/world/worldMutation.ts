@@ -51,12 +51,11 @@ function validateAdjacency(fromPinId: string, toPinId: string): BoardMoveValidat
     return { isValid: true };
   }
 
-  const levelDiff = Math.abs(toPin.level - fromPin.level);
-  if (levelDiff <= 2) {
+  if (fromPin.adjacentPins.includes(toPinId)) {
     return { isValid: true };
   }
 
-  return { isValid: false, reason: 'Pins are not adjacent in the network topology' };
+  return { isValid: false, reason: 'Destination pin is not adjacent' };
 }
 
 function validateOccupancy(context: BoardMoveContext): BoardMoveValidation {

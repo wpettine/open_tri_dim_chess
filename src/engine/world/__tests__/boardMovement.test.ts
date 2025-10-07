@@ -38,7 +38,10 @@ describe('Board Movement Validation', () => {
         rotate: false,
         pieces: basePieces,
         world: mockWorld,
-        attackBoardPositions: basePositions,
+        attackBoardPositions: {
+          ...basePositions,
+          WKL: 'KL3',
+        },
       };
 
       const result = validateBoardMove(context);
