@@ -19,7 +19,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "three": "^0.169.0",
-    "zustand": "^5.0.0"
+    "zustand": "^5.0.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

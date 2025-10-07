@@ -1,3 +1,6 @@
+import { LocalStoragePersistence } from '../persistence/localStoragePersistence';
+import { SCHEMA_VERSION } from '../persistence/schema';
+
 import { create } from 'zustand';
 import type { ChessWorld } from '../engine/world/types';
 import { createChessWorld } from '../engine/world/worldBuilder';
@@ -51,7 +54,14 @@ export interface GameState {
   resetGame: () => void;
   getValidMovesForSquare: (squareId: string) => string[];
   updateGameState: () => void;
+  saveCurrentGame: (name?: string) => Promise<void>;
+  loadGameById: (id: string) => Promise<void>;
+  deleteGameById: (id: string) => Promise<void>;
+  exportGameById: (id: string) => Promise<string>;
+  importGameFromJson: (json: string) => Promise<void>;
 }
+const __persistence = new LocalStoragePersistence();
+
 
 function boardIdToLevel(boardId: string): string {
   if (boardId === 'WL') return 'W';
@@ -232,4 +242,70 @@ export const useGameStore = create<GameState>()((set, get) => ({
         : (stalemateStatus ? null : state.winner),
     });
   },
+
+  saveCurrentGame: async (name?: string) => {
+    const state = get();
+    await __persistence.saveGame({
+      version: SCHEMA_VERSION,
+      id: undefined,
+      name: name ?? 'Manual Save',
+      payload: buildPersistablePayload(state),
+      integrity: { schemaVersion: SCHEMA_VERSION },
+      meta: { source: 'local' },
+    });
+  },
+
+  loadGameById: async (id: string) => {
+    const doc = await __persistence.loadGame(id);
+    if (!doc) return;
+    hydrateFromPersisted(set, get, doc.payload);
+  },
+
+  deleteGameById: async (id: string) => {
+    await __persistence.deleteGame(id);
+  },
+
+  exportGameById: async (id: string) => {
+    return await __persistence.exportGame(id);
+  },
+
+  importGameFromJson: async (json: string) => {
+    const doc = await __persistence.importGame(json);
+    hydrateFromPersisted(set, get, doc.payload);
+  },
 }));
+export function buildPersistablePayload(state: GameState) {
+  return {
+    pieces: state.pieces,
+    currentTurn: state.currentTurn,
+    isCheck: state.isCheck,
+    isCheckmate: state.isCheckmate,
+    isStalemate: state.isStalemate,
+    winner: state.winner,
+    gameOver: state.gameOver,
+    attackBoardPositions: state.attackBoardPositions,
+    moveHistory: state.moveHistory,
+  };
+}
+
+export function hydrateFromPersisted(
+  set: (partial: Partial<GameState>) => void,
+  get: () => GameState,
+  payload: ReturnType<typeof buildPersistablePayload>
+) {
+  set({
+    pieces: payload.pieces,
+    currentTurn: payload.currentTurn,
+    isCheck: payload.isCheck,
+    isCheckmate: payload.isCheckmate,
+    isStalemate: payload.isStalemate,
+    winner: payload.winner,
+    gameOver: payload.gameOver,
+    attackBoardPositions: payload.attackBoardPositions,
+    moveHistory: payload.moveHistory,
+    selectedSquareId: null,
+    highlightedSquareIds: [],
+    selectedBoardId: null,
+  });
+  get().updateGameState();
+}
