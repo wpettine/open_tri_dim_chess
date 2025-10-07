@@ -16,6 +16,9 @@ export function BoardRenderer() {
 
 function SingleBoard({ board }: { board: BoardLayout }) {
   const world = useGameStore(state => state.world);
+  const selectSquare = useGameStore(state => state.selectSquare);
+  const selectedSquareId = useGameStore(state => state.selectedSquareId);
+  const highlightedSquareIds = useGameStore(state => state.highlightedSquareIds);
 
   const squares = Array.from(world.squares.values()).filter(
     (sq: WorldSquare) => sq.boardId === board.id
@@ -43,20 +46,29 @@ function SingleBoard({ board }: { board: BoardLayout }) {
         </mesh>
       </group>
 
-      {squares.map((square) => (
-        <mesh
-          key={square.id}
-          position={[square.worldX, square.worldY, square.worldZ]}
-          onClick={() => console.log('Clicked square:', square.id)}
-        >
-          <boxGeometry args={[THEME.squares.size, THEME.squares.size, 0.1]} />
-          <meshStandardMaterial
-            color={square.color === 'light' ? THEME.squares.light : THEME.squares.dark}
-            transparent
-            opacity={THEME.squares.opacity}
-          />
-        </mesh>
-      ))}
+      {squares.map((square) => {
+        const isSelected = square.id === selectedSquareId;
+        const isLegalMove = highlightedSquareIds.includes(square.id);
+        
+        return (
+          <mesh
+            key={square.id}
+            position={[square.worldX, square.worldY, square.worldZ]}
+            onClick={() => selectSquare(square.id)}
+          >
+            <boxGeometry args={[THEME.squares.size, THEME.squares.size, 0.1]} />
+            <meshStandardMaterial
+              color={
+                isSelected ? '#ffff00' :
+                isLegalMove ? '#00ff00' :
+                square.color === 'light' ? THEME.squares.light : THEME.squares.dark
+              }
+              transparent
+              opacity={isLegalMove ? 0.7 : THEME.squares.opacity}
+            />
+          </mesh>
+        );
+      })}
     </group>
   );
 }
