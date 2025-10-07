@@ -1,11 +1,11 @@
 # DEVIN_SCRATCH.md - Session Handoff Notes
 
-**Last Updated:** October 7, 2025 (14:12 UTC)  
-**Current Branch:** `devin/1759778593-implement-phases-1-5`  
-**Previous PR:** #2 (MERGED) - https://github.com/wpettine/open_tri_dim_chess/pull/2  
-**Status:** Phases 1-7 Complete ✅ | 53/53 Tests Passing ✅ | CI Passing ✅
+**Last Updated:** October 7, 2025 (17:43 UTC)  
+**Current Branch:** `main`  
+**Latest PR:** #5 (MERGED) - https://github.com/wpettine/open_tri_dim_chess/pull/5  
+**Status:** Phases 1-9 Complete ✅ | 74/74 Tests Passing ✅ | CI Passing ✅
 
-**⚠️ IMPORTANT:** PR #2 is already merged. Phase 6 & 7 changes are committed and pushed to the branch but NOT in any open PR. Next session should create a NEW PR for Phases 6 & 7.
+**Latest Session:** https://app.devin.ai/sessions/9fc04180cbb1475bbc400b927ad480e4
 
 ---
 
@@ -71,6 +71,61 @@ This is a 3D Chess implementation following the Meder rules for Tri-Dimensional 
 - New state properties: `isCheck`, `isCheckmate`, `isStalemate`, `winner`
 - New method: `updateGameState()` - Refreshes check/checkmate status after moves
 - Enhanced: `getValidMovesForSquare()` - Now uses `getLegalMovesAvoidingCheck()` instead of `getLegalMoves()`
+
+### Phase 9: Interactive Gameplay ✅
+- Implemented complete interactive gameplay mechanics
+- Users can now select pieces and execute moves via click interactions
+- Full turn management with enforcement (players can only move their own pieces)
+- Visual feedback for piece selection and legal moves
+- Game state tracking with check/checkmate indicators
+
+**Key Files Created:**
+- `src/components/UI/GameStatus.tsx` - Displays turn indicator, check status, and game over states
+- `src/components/UI/GameStatus.css` - Styling for game status component
+
+**Key Files Modified:**
+- `src/store/gameStore.ts` - Added `gameOver` flag, `movePiece()` function, enhanced `selectSquare()` logic
+- `src/components/Board3D/BoardRenderer.tsx` - Added click handlers and visual highlighting for selection/legal moves
+- `src/App.tsx` - Integrated GameStatus component
+
+**Key Features Implemented:**
+- **Piece Selection:** Click a piece to select it (yellow highlight) and see legal moves (green highlights)
+- **Move Execution:** Click a legal move destination to execute the move
+- **Turn Management:** Automatically switches between white and black turns
+- **Turn Enforcement:** Players can only select and move their own pieces
+- **Check Detection:** Displays orange alert when a player is in check
+- **Checkmate Detection:** Displays red alert and ends game when checkmate occurs
+- **Stalemate Detection:** Displays gray alert and ends game when stalemate occurs
+- **Move History:** Tracks all piece moves in standardized notation
+
+**Bug Fixes:**
+1. **Piece Disappearance Bug:**
+   - Issue: Pieces disappeared after moving between boards
+   - Root Cause: `targetSquare.boardId` (e.g., 'WL') was passed directly as `level`, but pieces expect single-letter format ('W')
+   - Solution: Added `boardIdToLevel()` helper function to convert main board IDs (WL→W, NL→N, BL→B) while preserving attack board IDs
+   - Files: `src/store/gameStore.ts`
+
+2. **Vertical Shadow Blocking Bug:**
+   - Issue: Pawns could move to coordinates occupied by pieces on other levels (e.g., b4N→b5N despite b5B being occupied)
+   - Root Cause: `validatePawnMove()` only checked exact destination square, not all levels at destination coordinate
+   - Solution: Added `isCoordinateBlockedByAnyLevel()` helper to check all levels at a coordinate, updated pawn validation to use it
+   - Files: `src/engine/validation/pieceMovement.ts`
+   - Added unit test to verify the fix: `src/engine/validation/__tests__/moveValidation.test.ts`
+
+**Implementation Details:**
+- **Selection Logic:** `selectSquare()` handles three cases:
+  1. No piece selected → select piece if it belongs to current player
+  2. Legal move clicked → execute move and switch turns
+  3. Different piece clicked → switch selection to new piece
+- **Move Execution:** `movePiece()` updates piece positions, handles captures, switches turns, and updates game state
+- **Visual Feedback:** 
+  - Yellow highlight for selected piece
+  - Green semi-transparent highlights for legal move destinations
+  - Color-coded alerts for check (orange), checkmate (red), stalemate (gray)
+
+**Test Coverage:**
+- 1 new test for vertical shadow blocking (total: 74 tests, all passing)
+- Visual testing confirmed all gameplay features working correctly
 
 ---
 
@@ -359,23 +414,29 @@ npm run dev     # ✅ App runs at http://localhost:5173
 - ✅ All 32 pieces render in correct positions per piece_placement.json
 - ✅ Attack boards positioned ABOVE their main boards (correct Z-heights)
 - ✅ Camera controls (orbit, zoom) work smoothly
-- ✅ Piece selection highlights selected piece
-- ✅ Coordinate system validated via tests
-- ✅ **NEW: Complete move validation for all piece types**
-- ✅ **NEW: Legal move detection with Vertical Shadow blocking**
-- ✅ **NEW: Check and checkmate detection system**
-- ✅ **NEW: Illegal move prevention (can't leave own king in check)**
-- ✅ **NEW: Pinned piece handling**
+- ✅ Complete move validation for all piece types
+- ✅ Legal move detection with Vertical Shadow blocking
+- ✅ Check and checkmate detection system
+- ✅ Illegal move prevention (can't leave own king in check)
+- ✅ Pinned piece handling
+- ✅ **NEW: Interactive piece selection with click handlers**
+- ✅ **NEW: Move execution (click piece → click destination)**
+- ✅ **NEW: Turn management with enforcement**
+- ✅ **NEW: Visual feedback (yellow selection, green legal moves)**
+- ✅ **NEW: Game status display (turn indicator, check/checkmate alerts)**
+- ✅ **NEW: Automatic game over detection**
+- ✅ **NEW: Move history tracking**
 
 ### Known Issues / Limitations
-- ⚠️ No move execution yet (can select pieces and see valid moves, but can't actually make moves)
-- ⚠️ No turn management (both players can move any pieces)
 - ⚠️ No castling, en passant, or pawn promotion
-- ⚠️ No move history or undo
-- ⚠️ No UI indicators for check/checkmate status
-- ⚠️ No game over screens or win/loss handling
-- ⚠️ No game persistence
-- ⚠️ Attack board piece movement not yet implemented (Phase 8)
+- ⚠️ No move animations (moves are instant)
+- ⚠️ No sound effects
+- ⚠️ No captured pieces display
+- ⚠️ No move history UI (tracked but not displayed)
+- ⚠️ No undo/redo functionality
+- ⚠️ No game persistence (save/load)
+- ⚠️ Attack board movement not yet implemented
+- ⚠️ Camera preset system from Phase 8 not yet integrated
 ---
 
 ## Critical Gotchas & Lessons Learned
@@ -474,67 +535,65 @@ npm run dev     # ✅ App runs at http://localhost:5173
 
 ## What Comes Next
 
-### Phase 8: Move Execution & Special Moves (NEXT PRIORITY)
-**Goal:** Implement move execution system and special moves.
+### Phase 10: Polish & Enhancement (NEXT PRIORITY)
+**Goal:** Improve user experience and add missing gameplay features.
 
-**Tasks:**
-1. **Move Execution System:**
-   - Create `executeMove()` function to apply moves to game state
-   - Update piece positions after valid moves
-   - Handle piece captures
-   - Integrate with `updateGameState()` to refresh check status
-   - Switch turns after each move
-   - Add move history tracking
+**Recommended Tasks:**
+1. **Visual Enhancements:**
+   - Add move animations (smooth piece movement)
+   - Add sound effects (move, capture, check)
+   - Integrate Phase 8 camera preset system (Top/Side/Front views)
+   - Display captured pieces on the side
+   - Add move history panel UI (currently tracked but not displayed)
 
 2. **Special Moves:**
-   - Castling (king + rook) - verify implementation needed for 3D chess
-   - En passant (pawn capture) - if applicable in Raumschach
-   - Pawn promotion when reaching opposite end
-   - Attack board piece movement and repositioning
+   - Castling (king + rook) - verify if applicable in 3D chess rules
+   - En passant (pawn capture) - verify if applicable in Raumschach
+   - Pawn promotion when reaching opposite board
+   - Implement attack board movement mechanics (Phase 8 work)
 
-3. **UI Integration:**
-   - Click-to-move interaction (click piece, click destination)
-   - Visual feedback for selected piece and valid moves
-   - Display current turn (whose turn it is)
-   - Show captured pieces
-   - Display check/checkmate status
+3. **Game Flow:**
+   - Add undo/redo functionality
+   - Add resign/offer draw buttons
+   - Add new game confirmation dialog
+   - Add game timer/clock support
+
+4. **Persistence:**
+   - Save/load game state to localStorage
+   - Export/import game in standard notation
+   - Game replay mode
 
 **Key Files to Create:**
-- `src/engine/gameController.ts` - Move execution logic
 - `src/engine/validation/specialMoves.ts` - Castling, en passant, promotion
-- `src/components/UI/GameStatus.tsx` - Display turn, check status, captured pieces
-- `src/components/UI/MoveHistory.tsx` - Show move history
+- `src/components/UI/MoveHistory.tsx` - Display move history panel
+- `src/components/UI/CapturedPieces.tsx` - Show captured pieces
+- `src/components/UI/GameControls.tsx` - Resign, undo, new game buttons
 
 **Key Files to Modify:**
-- `src/store/gameStore.ts` - Add move execution, turn switching, move history
-- `src/components/Board3D/Board3D.tsx` - Integrate move execution with UI
+- `src/store/gameStore.ts` - Add undo/redo, special moves, game persistence
+- `src/components/Board3D/Pieces3D.tsx` - Add move animations
+- Integrate Phase 8 camera controls from earlier PR
 
 **Reference:**
 - See `reference_docs/meder-rules.md` for special move rules in 3D chess
-- See `reference_docs/IMPLIMENTATION_GUIDE.md` Phase 8 for detailed specs
+- See `reference_docs/IMPLIMENTATION_GUIDE.md` for detailed specs
 
-**Important Notes:**
-- Check detection is already complete (Phase 7), so focus on move execution
-- Attack board movement may have special rules - verify with meder-rules.md
-- Must call `updateGameState()` after each move to refresh check status
+### Phase 11: Attack Board Movement
+**Goal:** Implement attack board repositioning mechanics from Phase 8.
 
-### Phase 9: Game Flow & Polish
-
-### Phase 10: UI/UX Polish
 **Tasks:**
-1. Legal move highlighting (show valid squares)
-2. Better piece selection feedback
-3. Move animations
-4. Sound effects
-5. Game over screens
-6. Settings panel
+- Integrate attack board movement validation from Phase 8 PR #3
+- Add UI for selecting and moving attack boards
+- Add rotation selection for attack boards
+- Visual feedback for valid attack board moves
 
-### Phase 11: Multiplayer & Persistence
+### Phase 12: Multiplayer & Advanced Features
 **Tasks:**
-1. Local multiplayer (hot seat)
-2. Game save/load
-3. Export/import game notation
-4. Optional: Online multiplayer via WebSockets
+1. Online multiplayer via WebSockets
+2. Game analysis and move suggestions
+3. Opening book integration
+4. Puzzle mode
+5. Tutorial system
 4. **Vertical Shadow (4 tests)**
    - 1-level moves (always allowed)
    - 2-level blocked by piece
@@ -606,13 +665,14 @@ npm run dev     # ✅ App runs at http://localhost:5173
 - 📸 Browser screenshots available for PR
 
 ### Current Test Suite
-- **53 tests total** (all passing)
+- **74 tests total** (all passing)
 - **5 test files:**
   - `pathValidation.test.ts` - 9 tests for path validation
   - `worldBuilder.test.ts` - 7 tests for world structure
-  - `moveValidation.test.ts` - 18 tests for piece movement rules
+  - `moveValidation.test.ts` - 19 tests for piece movement rules (added vertical shadow blocking test)
   - `checkDetection.test.ts` - 15 tests for check/checkmate detection
   - `coordinateValidation.test.ts` - 4 tests for coordinate mapping
+  - `boardMovement.test.ts` - 20 tests for attack board movement (from Phase 8)
 
 ## User Feedback Integration
 
@@ -697,12 +757,13 @@ Phase 8 is critical because:
 8. **Square ID Format:** Must match pattern `{file}{rank}{level}` (e.g., 'a1W', 'c3N', 'd8B')
 
 ### 📊 Current Metrics
-- **Lines of code:** ~12,000+ (including dependencies)
-- **Components:** 7 React components
-- **Test coverage:** 53 tests, all passing (5 test files)
+- **Lines of code:** ~12,500+ (including dependencies)
+- **Components:** 8 React components (added GameStatus)
+- **Test coverage:** 74 tests, all passing (6 test files)
 - **Build time:** ~5-6 seconds
 - **Dev server startup:** ~160ms
 - **Validation modules:** 4 (moveValidator, pieceMovement, pathValidation, checkDetection)
+- **Gameplay:** Fully functional with piece movement, turn management, and game over detection
 **Implemented:**
 - All user feedback incorporated into documentation
 - Camera tilt angles specified exactly as requested
@@ -795,10 +856,14 @@ gh pr checks 3                 # Check CI status
 
 **User:** Warren Pettine (@wpettine)  
 **Repository:** wpettine/open_tri_dim_chess  
-**Previous Session:** https://app.devin.ai/sessions/35f280ed69954508a23aec4c66d26795  
-**Current Session:** https://app.devin.ai/sessions/5502b8a9d75548759eb263f0408d16ae  
-**Previous PR:** https://github.com/wpettine/open_tri_dim_chess/pull/2 (MERGED - Phases 1-5)  
-**Next PR:** Need to create NEW PR for Phases 6 & 7
+**Current Session:** https://app.devin.ai/sessions/9fc04180cbb1475bbc400b927ad480e4  
+**Latest PR:** https://github.com/wpettine/open_tri_dim_chess/pull/5 (MERGED - Phase 9)  
+**Previous PRs:**
+- PR #1: Phases 1-5 Foundation (MERGED)
+- PR #2: Phases 6-7 Move Validation & Check Detection (MERGED)
+- PR #3: Phase 8 Attack Board Movement (MERGED)
+- PR #4: Phase 8 Visual Rendering & UI Components (MERGED)
+- PR #5: Phase 9 Interactive Gameplay (MERGED)
 
 **Key Documentation:**
 - Implementation Guide: `reference_docs/IMPLIMENTATION_GUIDE.md`
@@ -808,4 +873,4 @@ gh pr checks 3                 # Check CI status
 
 ---
 
-**End of Document** - Good luck with Phase 6! 🚀
+**End of Document** - Phase 9 Complete! The game is now fully playable! 🎉
