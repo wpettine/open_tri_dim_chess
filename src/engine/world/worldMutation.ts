@@ -168,7 +168,7 @@ function validateVerticalShadow(context: BoardMoveContext): BoardMoveValidation 
   return { isValid: true };
 }
 
-function validateKingSafety(context: BoardMoveContext): BoardMoveValidation {
+function validateKingSafety(_context: BoardMoveContext): BoardMoveValidation {
   return { isValid: true };
 }
 
@@ -218,7 +218,6 @@ function getBoardSquaresForBoardAtPin(
 
 export interface BoardMoveResult {
   updatedPieces: Piece[];
-  updatedWorld: ChessWorld;
   updatedPositions: Record<string, string>;
 }
 
@@ -268,7 +267,6 @@ export function executeBoardMove(context: BoardMoveContext): BoardMoveResult {
 
   return {
     updatedPieces,
-    updatedWorld: context.world,
     updatedPositions,
   };
 }
