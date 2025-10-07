@@ -233,3 +233,38 @@ export const useGameStore = create<GameState>()((set, get) => ({
     });
   },
 }));
+export function buildPersistablePayload(state: GameState) {
+  return {
+    pieces: state.pieces,
+    currentTurn: state.currentTurn,
+    isCheck: state.isCheck,
+    isCheckmate: state.isCheckmate,
+    isStalemate: state.isStalemate,
+    winner: state.winner,
+    gameOver: state.gameOver,
+    attackBoardPositions: state.attackBoardPositions,
+    moveHistory: state.moveHistory,
+  };
+}
+
+export function hydrateFromPersisted(
+  set: (partial: Partial<GameState>) => void,
+  get: () => GameState,
+  payload: ReturnType<typeof buildPersistablePayload>
+) {
+  set({
+    pieces: payload.pieces,
+    currentTurn: payload.currentTurn,
+    isCheck: payload.isCheck,
+    isCheckmate: payload.isCheckmate,
+    isStalemate: payload.isStalemate,
+    winner: payload.winner,
+    gameOver: payload.gameOver,
+    attackBoardPositions: payload.attackBoardPositions,
+    moveHistory: payload.moveHistory,
+    selectedSquareId: null,
+    highlightedSquareIds: [],
+    selectedBoardId: null,
+  });
+  get().updateGameState();
+}
