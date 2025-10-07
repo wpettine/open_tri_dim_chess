@@ -1,0 +1,41 @@
+.camera-controls {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 15px;
+  border-radius: 8px;
+  z-index: 101;
+}
+
+.camera-controls h4 {
+  margin: 0 0 10px 0;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.camera-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.camera-buttons button {
+  padding: 8px 16px;
+  background: #4a5568;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.camera-buttons button:hover {
+  background: #718096;
+}
+
+.camera-buttons button.active {
+  background: #2a5a8a;
+  font-weight: 600;
+}

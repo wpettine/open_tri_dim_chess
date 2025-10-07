@@ -33,6 +33,24 @@ export const THEME = {
     fov: 50,
     lookAt: [5, 10, 4] as [number, number, number],
   },
+  cameraPresets: {
+    default: {
+      position: [15, 15, 20] as [number, number, number],
+      target: [5, 10, 4] as [number, number, number],
+    },
+    top: {
+      position: [5, 10, 25] as [number, number, number],
+      target: [5, 10, 6] as [number, number, number],
+    },
+    side: {
+      position: [25, 10, 6] as [number, number, number],
+      target: [5, 10, 6] as [number, number, number],
+    },
+    front: {
+      position: [5, -10, 10] as [number, number, number],
+      target: [5, 10, 6] as [number, number, number],
+    },
+  },
   scene: {
     background: '#1a1a2e',
   },

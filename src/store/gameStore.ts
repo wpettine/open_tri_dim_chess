@@ -16,6 +16,21 @@ export interface Piece {
   hasMoved: boolean;
 }
 
+export type Move = 
+  | {
+      type: 'piece-move';
+      from: string;
+      to: string;
+      piece: { type: string; color: 'white' | 'black' };
+    }
+  | {
+      type: 'board-move';
+      from: string;
+      to: string;
+      boardId: string;
+      rotation?: number;
+    };
+
 export interface GameState {
   world: ChessWorld;
   pieces: Piece[];
@@ -24,11 +39,7 @@ export interface GameState {
   highlightedSquareIds: string[];
   attackBoardPositions: Record<string, string>;
   selectedBoardId: string | null;
-  moveHistory: Array<{
-    from: string;
-    to: string;
-    piece: string;
-  }>;
+  moveHistory: Move[];
   selectSquare: (squareId: string) => void;
   clearSelection: () => void;
   resetGame: () => void;
