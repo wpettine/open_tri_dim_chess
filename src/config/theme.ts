@@ -45,7 +45,7 @@ export const THEME = {
       up: [0, 1, 0] as [number, number, number],
     },
     side: {
-      position: [25, 10, 6] as [number, number, number],
+      position: [28, 18, 6] as [number, number, number],
       target: [5, 10, 6] as [number, number, number],
       up: [0, 0, 1] as [number, number, number],
     },
