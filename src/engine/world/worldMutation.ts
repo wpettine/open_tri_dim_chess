@@ -1,7 +1,7 @@
 import type { ChessWorld } from './types';
 import type { Piece } from '../../store/gameStore';
 import { PIN_POSITIONS } from './pinPositions';
-import { ATTACK_BOARD_ADJACENCY } from './attackBoardAdjacency';
+import { ATTACK_BOARD_ADJACENCY, classifyDirection } from './attackBoardAdjacency';
 
 export interface BoardMoveContext {
   boardId: string;
@@ -52,22 +52,22 @@ function validateRotation(context: BoardMoveContext): BoardMoveValidation {
   return { isValid: true };
 }
 
-function getBoardColor(boardId: string): 'white' | 'black' {
+function getBoardOwner(boardId: string): 'white' | 'black' {
   return boardId.startsWith('W') ? 'white' : 'black';
 }
 
-function getRelativeDirection(
-  absoluteDirection: string[],
-  boardColor: 'white' | 'black'
-): string[] {
-  if (boardColor === 'black') {
-    return absoluteDirection.map(dir => {
-      if (dir === 'forward') return 'backward';
-      if (dir === 'backward') return 'forward';
-      return dir; // 'side' stays the same
-    });
+function getBoardController(
+  boardId: string,
+  fromPinId: string,
+  pieces: Piece[]
+): 'white' | 'black' {
+  const passengerPieces = getPassengerPieces(boardId, fromPinId, pieces);
+  
+  if (passengerPieces.length > 0) {
+    return passengerPieces[0].color;
   }
-  return absoluteDirection;
+  
+  return getBoardOwner(boardId);
 }
 
 function validateAdjacency(context: BoardMoveContext): BoardMoveValidation {
@@ -77,25 +77,21 @@ function validateAdjacency(context: BoardMoveContext): BoardMoveValidation {
     return { isValid: false, reason: 'Invalid source pin' };
   }
 
-  const edge = adjacencyList.find(e => e.to === context.toPinId);
-  
-  if (!edge) {
+  if (!adjacencyList.includes(context.toPinId)) {
     return { isValid: false, reason: 'Destination pin is not adjacent' };
   }
 
-  const boardColor = getBoardColor(context.boardId);
-  const relativeDirection = getRelativeDirection(edge.dir, boardColor);
+  const controller = getBoardController(context.boardId, context.fromPinId, context.pieces);
+  const direction = classifyDirection(context.fromPinId, context.toPinId, controller);
   
-  const isBackwardForPlayer = relativeDirection.includes('backward');
-
-  if (edge.requiresEmpty && isBackwardForPlayer) {
-    const passengerPieces = getPassengerPieces(context.boardId, context.fromPinId, context.pieces);
-    if (passengerPieces.length > 0) {
-      return { 
-        isValid: false, 
-        reason: 'Cannot move backward or backward+side while occupied' 
-      };
-    }
+  const passengerPieces = getPassengerPieces(context.boardId, context.fromPinId, context.pieces);
+  const isOccupied = passengerPieces.length > 0;
+  
+  if (isOccupied && direction === 'backward') {
+    return { 
+      isValid: false, 
+      reason: 'Cannot move backward while occupied' 
+    };
   }
 
   return { isValid: true };
