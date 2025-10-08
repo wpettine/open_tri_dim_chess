@@ -71,4 +71,7 @@ export const THEME = {
     background: '#3C3C3C',
     backgroundEdge: '#1E1E1E',
   },
+  typography: {
+    fontFamily: 'Microgramma, sans-serif',
+  },
 };
