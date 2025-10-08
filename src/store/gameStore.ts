@@ -551,24 +551,65 @@ function updateAttackBoardWorld(
   const pin = PIN_POSITIONS[pinId];
   if (!board || !pin) return;
   
-  const attackBoardZ = pin.zHeight;
+  const isQueenLine = pinId.startsWith('QL');
+  const baseFile = isQueenLine ? 0 : 4;
+  
+  const files = [baseFile, baseFile + 1];
+  const ranks = [pin.rankOffset, pin.rankOffset + 1];
+  
+  const minFile = Math.min(...files);
+  const maxFile = Math.max(...files);
+  const minRank = Math.min(...ranks);
+  const maxRank = Math.max(...ranks);
+  
+  const fileToWorldX = (file: number) => {
+    const SQUARE_SIZE = 10;
+    const SQUARE_GAP = 1;
+    const SPACING = SQUARE_SIZE + SQUARE_GAP;
+    const FILE_OFFSET = 0;
+    return FILE_OFFSET + file * SPACING;
+  };
+  
+  const rankToWorldY = (rank: number) => {
+    const SQUARE_SIZE = 10;
+    const SQUARE_GAP = 1;
+    const SPACING = SQUARE_SIZE + SQUARE_GAP;
+    const RANK_OFFSET = 0;
+    return RANK_OFFSET + rank * SPACING;
+  };
+  
+  const centerX = (fileToWorldX(minFile) + fileToWorldX(maxFile)) / 2;
+  const centerY = (rankToWorldY(minRank) + rankToWorldY(maxRank)) / 2;
+  const centerZ = pin.zHeight;
   
   console.log('[updateAttackBoardWorld]:', {
     boardId,
     pinId,
     pinLevel: pin.level,
     pinZHeight: pin.zHeight,
-    computedZ: attackBoardZ,
+    baseFile,
+    files,
+    ranks,
+    centerX,
+    centerY,
+    centerZ,
     rotation,
   });
   
-  board.centerZ = attackBoardZ;
+  board.centerX = centerX;
+  board.centerY = centerY;
+  board.centerZ = centerZ;
   board.rotation = rotation;
+  board.files = files;
+  board.ranks = ranks;
   world.boards.set(boardId, board);
+  
   Array.from(world.squares.values())
     .filter((sq) => sq.boardId === boardId)
     .forEach((sq) => {
-      sq.worldZ = attackBoardZ;
+      sq.worldX = fileToWorldX(sq.file);
+      sq.worldY = rankToWorldY(sq.rank);
+      sq.worldZ = centerZ;
       world.squares.set(sq.id, sq);
     });
 }
