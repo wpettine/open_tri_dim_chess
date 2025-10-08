@@ -382,6 +382,14 @@ export const useGameStore = create<GameState>()((set, get) => ({
     const fromPinId = state.attackBoardPositions[boardId];
     if (!fromPinId) return;
 
+    console.log('[moveAttackBoard] BEFORE:', {
+      boardId,
+      fromPinId,
+      toPinId,
+      rotate,
+      currentTurn: state.currentTurn,
+    });
+
     const validation = validateBoardMove({
       boardId,
       fromPinId,
@@ -403,6 +411,13 @@ export const useGameStore = create<GameState>()((set, get) => ({
       attackBoardPositions: state.attackBoardPositions,
     });
 
+    const kingPieceBefore = state.pieces.find(p => p.type === 'king' && p.level === boardId);
+    const kingPieceAfter = result.updatedPieces.find(p => p.type === 'king' && p.level === boardId);
+    console.log('[moveAttackBoard] King before/after:', {
+      before: kingPieceBefore ? { file: kingPieceBefore.file, rank: kingPieceBefore.rank, level: kingPieceBefore.level } : 'not found',
+      after: kingPieceAfter ? { file: kingPieceAfter.file, rank: kingPieceAfter.rank, level: kingPieceAfter.level } : 'not found',
+    });
+
     updateAttackBoardWorld(state.world, boardId, toPinId, state.world.boards.get(boardId)?.rotation ?? 0);
 
     const move: Move = {
@@ -413,13 +428,23 @@ export const useGameStore = create<GameState>()((set, get) => ({
       rotation: rotate ? 180 : undefined,
     };
 
+    const nextTurn = state.currentTurn === 'white' ? 'black' : 'white';
+
+    console.log('[moveAttackBoard] AFTER:', {
+      nextTurn,
+      moveHistoryLength: state.moveHistory.length + 1,
+    });
+
     __snapshots.push(takeSnapshot(state));
     set({
       pieces: result.updatedPieces,
       attackBoardPositions: result.updatedPositions,
       moveHistory: [...state.moveHistory, move],
       selectedBoardId: boardId,
+      currentTurn: nextTurn,
     });
+
+    get().updateGameState();
   },
 
   canRotate: (boardId: string, angle: 0 | 180) => {
@@ -484,13 +509,18 @@ export const useGameStore = create<GameState>()((set, get) => ({
       rotation: 180,
     };
 
+    const nextTurn = state.currentTurn === 'white' ? 'black' : 'white';
+
     __snapshots.push(takeSnapshot(state));
     set({
       pieces: result.updatedPieces,
       attackBoardPositions: result.updatedPositions,
       moveHistory: [...state.moveHistory, move],
       selectedBoardId: boardId,
+      currentTurn: nextTurn,
     });
+
+    get().updateGameState();
   },
   importGameFromJson: async (json: string) => {
     const doc = await __persistence.importGame(json);
@@ -521,29 +551,65 @@ function updateAttackBoardWorld(
   const pin = PIN_POSITIONS[pinId];
   if (!board || !pin) return;
   
-  const Z_WHITE_MAIN = 0;
-  const Z_NEUTRAL_MAIN = 5;
-  const Z_BLACK_MAIN = 10;
-  const ATTACK_OFFSET = 2.5;
+  const isQueenLine = pinId.startsWith('QL');
+  const baseFile = isQueenLine ? 0 : 4;
   
-  let mainBoardZ: number;
-  if (pin.level <= 1) {
-    mainBoardZ = Z_WHITE_MAIN;
-  } else if (pin.level === 2) {
-    mainBoardZ = Z_NEUTRAL_MAIN;
-  } else {
-    mainBoardZ = Z_BLACK_MAIN;
-  }
+  const files = [baseFile, baseFile + 1];
+  const ranks = [pin.rankOffset, pin.rankOffset + 1];
   
-  const attackBoardZ = mainBoardZ + ATTACK_OFFSET;
+  const minFile = Math.min(...files);
+  const maxFile = Math.max(...files);
+  const minRank = Math.min(...ranks);
+  const maxRank = Math.max(...ranks);
   
-  board.centerZ = attackBoardZ;
+  const fileToWorldX = (file: number) => {
+    const SQUARE_SIZE = 10;
+    const SQUARE_GAP = 1;
+    const SPACING = SQUARE_SIZE + SQUARE_GAP;
+    const FILE_OFFSET = 0;
+    return FILE_OFFSET + file * SPACING;
+  };
+  
+  const rankToWorldY = (rank: number) => {
+    const SQUARE_SIZE = 10;
+    const SQUARE_GAP = 1;
+    const SPACING = SQUARE_SIZE + SQUARE_GAP;
+    const RANK_OFFSET = 0;
+    return RANK_OFFSET + rank * SPACING;
+  };
+  
+  const centerX = (fileToWorldX(minFile) + fileToWorldX(maxFile)) / 2;
+  const centerY = (rankToWorldY(minRank) + rankToWorldY(maxRank)) / 2;
+  const centerZ = pin.zHeight;
+  
+  console.log('[updateAttackBoardWorld]:', {
+    boardId,
+    pinId,
+    pinLevel: pin.level,
+    pinZHeight: pin.zHeight,
+    baseFile,
+    files,
+    ranks,
+    centerX,
+    centerY,
+    centerZ,
+    rotation,
+  });
+  
+  board.centerX = centerX;
+  board.centerY = centerY;
+  board.centerZ = centerZ;
   board.rotation = rotation;
+  board.files = files;
+  board.ranks = ranks;
   world.boards.set(boardId, board);
+  
   Array.from(world.squares.values())
     .filter((sq) => sq.boardId === boardId)
     .forEach((sq) => {
-      sq.worldZ = attackBoardZ;
+      sq.worldX = fileToWorldX(sq.file);
+      sq.worldY = rankToWorldY(sq.rank);
+      sq.worldZ = centerZ;
       world.squares.set(sq.id, sq);
     });
 }

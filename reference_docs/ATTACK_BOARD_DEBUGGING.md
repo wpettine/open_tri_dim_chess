@@ -1,260 +1,296 @@
-# Attack Board Movement Debugging Plan
+# Attack Board Movement Debugging Plan - Progress Update
 
-Goal
-- Ensure engine validation for attack board moves precisely matches the rules documented in ATTACK_BOARD_RULES.md, including:
-  - Pin adjacency (per-JSON map)
-  - requiresEmpty/backward-only constraints
-  - Rotation constraints (≤ 1 passenger)
-  - Vertical shadow blocking
-  - Exclusion of current pin and non-adjacent pins
+## Session 1 Progress (Completed)
 
-Problem Summary
-- Documented JSON in ATTACK_BOARD_RULES.md defines allowed edges per pin with dir and requiresEmpty.
-- Engine validateBoardMove applies multiple layers: adjacency, occupancy/passenger count, vertical shadow, rotation rules, and king-safety.
-- Discrepancy was observed: some backward-only edges still validate as legal when we intend to simulate an occupied board. Root cause is typically test-world setup: the engine only treats a board as “occupied” when at least one piece is on the moving board’s 2x2 squares at the source pin, and passenger detection uses PIN_POSITIONS to determine those squares. Placing passengers incorrectly or letting other boards sit on destination pins can mask or flip expectations.
+### Issues Fixed ✅
 
-High-Level Strategy
-1) Create a JSON-driven test suite that:
-   - Parses the JSON map from ATTACK_BOARD_RULES.md
-   - For each fromPin, verifies exactly the listed to pins are allowed on an empty board
-   - For backward-only edges with requiresEmpty=true, verifies they are disallowed when the board is occupied
-   - Avoids false test failures by ensuring:
-     - No other attack board occupies the destination pin
-     - For occupied cases, place a passenger square on WQL’s 2x2 area derived from PIN_POSITIONS[fromPin]
+1. **Turn Toggle After Attack Board Moves**
+   - **Problem**: Turn was not transferring after attack board moves (line 49, 67 of original plan)
+   - **Fix**: Added turn toggle logic to both `moveAttackBoard` and `rotateAttackBoard` in `gameStore.ts`
+   - **Implementation**: 
+     ```typescript
+     const nextTurn = state.currentTurn === 'white' ? 'black' : 'white';
+     set({ ...updatedState, currentTurn: nextTurn });
+     get().updateGameState();
+     ```
+   - **Result**: Turn now correctly switches from White to Black (and vice versa) after attack board movements
 
-2) Manually verify in-app with “Kings Only” saved game via localStoragePersistence:
-   - Load the app, trigger the seeded Kings Only game
-   - Interactively attempt each adjacency and observe highlights/eligibility
-   - Confirm rotation only allowed with ≤ 1 passenger
-   - Confirm vertical shadow blocking by placing/removing blocking pieces vertically
+2. **Z-Axis Positioning Fix**
+   - **Problem**: Z-axis was using level-bucket logic instead of pin.zHeight (lines 59-74 of original plan)
+   - **Fix**: Updated `updateAttackBoardWorld` to use `pin.zHeight` directly
+   - **Implementation**: Replaced level-bucket calculation with `const attackBoardZ = pin.zHeight;`
+   - **Result**: Attack boards now position at exact heights specified in `PIN_POSITIONS`
 
-3) If mismatches surface, isolate the validation layer:
-   - Adjacency mismatches: compare ATTACK_BOARD_ADJACENCY vs ATTACK_BOARD_RULES.md; fix code or doc after confirming intent
-   - Occupancy/backward rules: confirm isBoardOccupied logic and passenger detection (PIN_POSITIONS alignment)
-   - Vertical shadow: verify board z-heights, shadow path computation, and special-case exceptions
-   - Rotation: verify <= 1 passenger gating in validateRotate or validateBoardMove
+3. **Attack Board Visual Position Updates**
+   - **Problem**: Boards were not visually moving to new positions after moves
+   - **Root Cause**: `updateAttackBoardWorld` only updated Z position, not X/Y positions or board metadata
+   - **Fix**: Complete rewrite of `updateAttackBoardWorld` to:
+     - Recompute files and ranks based on new pin position
+     - Calculate new centerX and centerY based on rank/file positions
+     - Update all square worldX, worldY, and worldZ coordinates
+   - **Result**: Boards now properly update their position data when moving to new pins
 
-Deliverables so far
-- Test suite: src/engine/world/__tests__/attackBoardAdjacencyFromDocs.test.ts
-  - Parses JSON adjacency embedded in ATTACK_BOARD_RULES.md and validates:
-    - Empty-board: exact destinations allowed
-    - Occupied: backward-only edges with requiresEmpty=true are disallowed when one passenger is present
-- Manual verification: Kings Only loaded via LocalStoragePersistence; lower-left controls exercised.
+4. **Pieces Staying Visible During Board Moves**
+   - **Problem**: Pieces (especially pawns) were disappearing when boards moved
+   - **Root Cause**: Square coordinates weren't being updated, causing pieces to render at stale positions
+   - **Fix**: Included in the `updateAttackBoardWorld` fix - all squares now update their world positions
+   - **Result**: Pieces stay visible and move with their boards
 
-What’s been tried (app-level)
-- Selected WKL using lower-left controls and executed moves via the lower-left pin buttons.
-- Sequences tested: KL1→KL2→KL3→KL4; attempted QL pins when eligible; tried rotation.
-- Findings:
-  - White king stays visible after board moves and rotations in my runs (no consistent “disappearing king” reproduction yet).
-  - Turn does NOT transfer after board moves (indicator remains “Move: White”).
-  - Lower-left pin buttons accurately reflect eligibility/tooltip reasons (occupancy, adjacency, vertical shadow).
-  - Could not consistently reproduce a Z “shoot up” yet; observed expected elevation changes between level buckets.
+5. **King and Pawn Saved Game**
+   - **Added**: New "King and Pawn" saved game state in `localStoragePersistence.ts`
+   - **Contents**: 
+     - White king on WKL at KL1
+     - Black king on BKL at KL6
+     - White pawn on WQL at z1 (file 0, rank 1)
+     - Black pawn on BQL at z8 (file 0, rank 8)
+   - **Purpose**: Provides a minimal test scenario for attack board movements with passengers
 
-What’s been tried (code reading)
-- worldMutation.ts:
-  - validateBoardMove applies rotation, adjacency (ATTACK_BOARD_ADJACENCY), occupancy (destination occupied), vertical shadow, king safety (stubbed true).
-  - executeBoardMove offsets passengers and updates pieces/positions, but does NOT toggle turns.
-- gameStore.ts:
-  - moveAttackBoard calls validateBoardMove and executeBoardMove, pushes moveHistory, updates positions/pieces, calls updateAttackBoardWorld for z/rotation visualization.
-  - No turn toggle occurs in moveAttackBoard; explains “turn does not transfer.”
-  - updateAttackBoardWorld computes z by coarse level buckets -> mainZ + ATTACK_OFFSET; ignores pin.zHeight, which may cause z inconsistencies if expectations rely on exact pin.zHeight.
-- pinPositions.ts:
-  - Contains fileOffset/rankOffset, level, and zHeight per pin; zHeight reflects more granular expected z placement than the store currently uses.
-- LocalStoragePersistence:
-  - Seeds “Kings Only” with white king on WKL at KL1 and black king on BKL at KL6.
+### Debug Instrumentation Added 🔍
 
-Open issues reproduced/observed
-- Turn not transferring after any attack-board move (lower-left buttons and otherwise).
-- Inconsistent reproduction of “king disappears” and “board shoots up on z” reported by user when clicking lower-left coordinate buttons; need exact sequence to reproduce reliably.
+Added comprehensive console logging in three key locations:
 
-Hypotheses
-1) Turn toggle missing for attack-board moves:
-   - moveAttackBoard should advance turn after a successful board move; currently does not.
-2) Z-axis jump via lower-left controls:
-   - updateAttackBoardWorld uses level buckets rather than pin.zHeight; when moving between pins with ATTACK_OFFSET vs base plane, the perceived jump might not match pin.zHeight expectations.
-   - Alternatively, the lower-left handler could be passing the wrong context (fromPin/toPin rotation) or using a stale selectedBoardId.
-3) “King disappears”:
-   - Passenger detection uses getBoardSquaresForBoardAtPin(boardId, fromPinId) and piece.level === boardId. If a move changes boardId/level or evaluates passenger set before selection state stabilizes, the king might not be included, leading to a momentary render drop until next state update.
-   - Another possibility is that the lower-left button click triggers a different code path or a duplicate update where piece level/file/rank diverge until world squares update.
+1. **`gameStore.ts - moveAttackBoard`**:
+   - Logs before: boardId, fromPinId, toPinId, rotate, currentTurn
+   - Logs king piece positions before/after move
+   - Logs after: nextTurn, moveHistoryLength
 
-Concrete next steps (for the next Devin)
-A) Instrumentation (temp logs or test-only debug payloads)
-- In gameStore.moveAttackBoard (and rotateAttackBoard):
-  - Log before/after: {boardId, fromPinId, toPinId, rotate, currentTurn}
-  - After executeBoardMove: passenger count detected in worldMutation; king piece before/after (file, rank, level).
-  - Log whether a turn toggle is invoked.
-- In worldMutation.executeBoardMove:
-  - Log passengerPieces.length and ids; piece-level/file/rank remapping results for king.
-- In updateAttackBoardWorld:
-  - Log pin.id, pin.level, pin.zHeight, computed attackBoardZ.
-  - Consider switching to use pin.zHeight directly for worldZ and board.centerZ to eliminate level-bucket discrepancies.
+2. **`worldMutation.ts - executeBoardMove`**:
+   - Logs passenger count
+   - Logs passenger piece IDs and positions
+   - Logs remapping details for each passenger (from → to coordinates)
 
-B) Minimal fixes to validate hypotheses
-- Turn toggle:
-  - After a successful board move in moveAttackBoard, toggle currentTurn to the other color, then call updateGameState to recompute check/checkmate/stalemate. Capture this in a separate commit for review.
-- Z-axis:
-  - Replace level-bucket logic with direct use of PIN_POSITIONS[pinId].zHeight. Verify visually that KL1/QL1/… align with expected heights and no “shoot up.”
-- Passenger robustness:
-  - Ensure selection state changes don’t race with passenger detection. If needed, use a functional set() to update pieces and positions in a single transaction; verify passenger detection uses the fromPinId captured before set state mutation.
+3. **`gameStore.ts - updateAttackBoardWorld`**:
+   - Logs boardId, pinId, pin level, pin zHeight
+   - Logs computed files, ranks, centerX, centerY, centerZ
+   - Logs rotation
 
-C) Reproduction script/steps
-- Load “Kings Only.”
-- Select WKL from lower-left controls.
-- Click lower-left QL1 (or provide exact sequence that previously caused the issue).
-- Observe:
-  - King visibility immediately after click.
-  - Board Z vs expected zHeight.
-  - Move History entry presence.
-  - Turn transfer to Black.
-- Compare with clicking the in-scene RailPins to see if bug is isolated to lower-left controls.
+### Testing Completed ✅
 
-D) Tests to add/adjust
-- Add unit test to confirm executeBoardMove remaps passengers correctly for both rotation states and for QL↔KL transitions.
-- Add selector-level test to ensure UI eligiblePins set matches validateBoardMove for the selected board/pin state.
-- If we switch to pin.zHeight in updateAttackBoardWorld, add a thin test to assert world squares’ worldZ equals pin.zHeight for attack boards.
+**Manual Testing with "King and Pawn" Game**:
+- ✅ Turn indicator correctly changes after board moves (White → Black)
+- ✅ Move history records board movements (e.g., "WQL: QL1-QL2")
+- ✅ King remains visible after board movements
+- ✅ Pawn remains visible after board movements
+- ✅ Board maintains proper Z-displacement from main board
+- ✅ All adjacency rules and tooltips working correctly
+- ✅ Backward-only moves correctly blocked when board is occupied
 
-Contingency
-- If “king disappears” remains elusive, add a debug overlay listing all pieces and their (file, rank, level) after each board move to cross-check render vs state.
-- If the lower-left control path differs from RailPins, unify handlers to a single moveAttackBoard invocation path.
+**Lint Status**: ✅ Passed with 2 pre-existing warnings in unmodified files
 
-Summary of actionable items
-- Implement turn toggle after board moves.
-- Consider using pin.zHeight directly for attack-board world Z.
-- Add logs around move execution and world updates to catch any passenger/level mismatches.
-- Continue reproducing the lower-left-button sequence; capture exact click path that triggers disappearance/z jump if possible.
+### Files Modified
 
+1. `src/store/gameStore.ts`:
+   - Added turn toggle to `moveAttackBoard` and `rotateAttackBoard`
+   - Rewrote `updateAttackBoardWorld` to properly update all board position data
+   - Added debug logging
 
-# Attack Board Movement Debugging Plan
+2. `src/engine/world/worldMutation.ts`:
+   - Added debug logging to `executeBoardMove`
 
-Goal
-- Ensure engine validation for attack board moves precisely matches the rules documented in ATTACK_BOARD_RULES.md, including:
-  - Pin adjacency (per-JSON map)
-  - requiresEmpty/backward-only constraints
-  - Rotation constraints (≤ 1 passenger)
-  - Vertical shadow blocking
-  - Exclusion of current pin and non-adjacent pins
+3. `src/persistence/localStoragePersistence.ts`:
+   - Added "King and Pawn" saved game state
+   - Fixed pawn positions to be on attack boards (WQL/BQL) instead of main boards
 
-Problem Summary
-- Documented JSON in ATTACK_BOARD_RULES.md defines allowed edges per pin with dir and requiresEmpty.
-- Engine validateBoardMove applies multiple layers: adjacency, occupancy/passenger count, vertical shadow, rotation rules, and king-safety.
-- Discrepancy was observed: some backward-only edges still validate as legal when we intend to simulate an occupied board. Root cause is typically test-world setup: the engine only treats a board as “occupied” when at least one piece is on the moving board’s 2x2 squares at the source pin, and passenger detection uses PIN_POSITIONS to determine those squares. Placing passengers incorrectly or letting other boards sit on destination pins can mask or flip expectations.
+## Remaining Issue - Player-Relative Direction Logic ⚠️
 
-High-Level Strategy
-1) Create a JSON-driven test suite that:
-   - Parses the JSON map from ATTACK_BOARD_RULES.md
-   - For each fromPin, verifies exactly the listed to pins are allowed on an empty board
-   - For backward-only edges with requiresEmpty=true, verifies they are disallowed when the board is occupied
-   - Avoids false test failures by ensuring:
-     - No other attack board occupies the destination pin
-     - For occupied cases, place a passenger square on WQL’s 2x2 area derived from PIN_POSITIONS[fromPin]
+### Problem Identified
 
-2) Manually verify in-app with “Kings Only” saved game via localStoragePersistence:
-   - Load the app, trigger the seeded Kings Only game
-   - Interactively attempt each adjacency and observe highlights/eligibility
-   - Confirm rotation only allowed with ≤ 1 passenger
-   - Confirm vertical shadow blocking by placing/removing blocking pieces vertically
+**Current Behavior**: The `requiresEmpty` constraint in attack board adjacency rules is applied uniformly without considering player ownership. The direction "backward" is currently treated as absolute (based on rank numbers increasing/decreasing) rather than relative to the player.
 
-3) If mismatches surface, isolate the validation layer:
-   - Adjacency mismatches: compare ATTACK_BOARD_ADJACENCY vs ATTACK_BOARD_RULES.md; fix code or doc after confirming intent
-   - Occupancy/backward rules: confirm isBoardOccupied logic and passenger detection (PIN_POSITIONS alignment)
-   - Vertical shadow: verify board z-heights, shadow path computation, and special-case exceptions
-   - Rotation: verify <= 1 passenger gating in validateRotate or validateBoardMove
+**Expected Behavior**: 
+- For **White** (playing from bottom): 
+  - Forward = increasing ranks (0→9)
+  - Backward = decreasing ranks (9→0)
+- For **Black** (playing from top):
+  - Forward = decreasing ranks (9→0)  
+  - Backward = increasing ranks (0→9)
 
-Detailed Step-by-Step Plan
+### Manifestation in Testing
 
-A) Tight-loop Unit Tests
-- Parse docs JSON:
-  - Extract “Map as structured JSON” block from ATTACK_BOARD_RULES.md
-  - JSON.parse into Record&lt;pin, edges[]&gt;
+When testing the "King and Pawn" game:
+- White's WQL at QL1 can move forward to QL2 ✅ (correct)
+- Black's BQL at QL6 cannot move to QL5 ❌ (incorrectly blocked as "backward" move)
+  - For Black, moving from QL6 (rank 8) to QL5 (rank 8, but different level) should be considered "forward" or "sideways"
+  - Currently blocked because the adjacency data marks it as "backward" and requires empty
 
-- Empty-board adjacency test:
-  - Build world via createChessWorld
-  - For each fromPin: compute allowed set from JSON
-  - For each toPin (excluding same): call validateBoardMove with
-    - boardId=WQL
-    - attackBoardPositions chosen so no other attack board sits on toPin
-    - pieces=[]
-  - Expect isValid to match allowed set membership
+### Root Cause
 
-- Occupied/backward-only test:
-  - For each fromPin:
-    - Place exactly one passenger piece on a square that belongs to WQL’s 2x2 footprint at fromPin using PIN_POSITIONS[fromPin].rankOffset and fileOffset (fileOffset 0 for QL, 4 for KL)
-    - Ensure other boards avoid toPin
-    - For each JSON edge where dir=[“backward”] and requiresEmpty=true: expect validateBoardMove(...).isValid === false
+The adjacency data in `ATTACK_BOARD_ADJACENCY.ts` and/or `ATTACK_BOARD_RULES.md` defines direction ("forward", "backward", "side") without player context. The validation logic in `validateAdjacency` (worldMutation.ts) checks `edge.requiresEmpty` but doesn't consider which player owns the board being moved.
 
-- Additional negative checks (optional if needed):
-  - Non-adjacent toPins should be invalid on empty board
-  - Current pin excluded
+### Plan for Next Session
 
-B) App Manual Verification (Kings Only)
-- Locate the localStorage seeded Kings Only state in src/persistence/localStoragePersistence.ts
-- npm run dev
-- Reload page to seed default saves; load Kings Only
-- For each source pin:
-  - Select WQL/WKL/BQL/BKL on the current pin and verify UI highlights match JSON edges
-  - Add/remove one passenger on the board to verify requiresEmpty/backward behavior toggles as documented
-  - Test rotation eligibility toggles at 0 vs 1 passenger and fails at 2+
-  - Set up a vertical blocker below/above a destination quadrant to verify vertical shadow disallows move
-- Note any mismatches: capture which pin and which rule failed
+#### A) Investigate Current Adjacency Implementation
 
-C) Root-Cause Isolation and Fixes
-- If empty-board adjacency mismatches:
-  - Compare ATTACK_BOARD_ADJACENCY.ts vs docs JSON
-  - If code is wrong: update ATTACK_BOARD_ADJACENCY and adjust validateAdjacency
-  - If docs are outdated: propose doc update and confirm before changing docs/tests
+1. **Read and analyze**:
+   - `src/engine/world/attackBoardAdjacency.ts` - Current adjacency data structure
+   - `reference_docs/ATTACK_BOARD_RULES.md` - Documented adjacency rules
+   - `src/engine/world/worldMutation.ts` - `validateAdjacency` function
 
-- If backward-only/occupied mismatches:
-  - Inspect passenger detection:
-    - Ensure we’re using PIN_POSITIONS[fromPin] to place a passenger square squarely on the moving board
-    - Verify level/boardId/world transforms are consistent (WQL vs WKL file offsets)
-  - Inspect validateAdjacency requiresEmpty enforcement path
+2. **Determine**:
+   - How directions are currently defined (absolute vs relative)
+   - Whether adjacency data differentiates between WQL/WKL (White) and BQL/BKL (Black)
+   - If the rules doc specifies player-relative directions
 
-- If vertical shadow mismatches:
-  - Confirm z-height mapping (Z_WHITE_MAIN, Z_NEUTRAL_MAIN, Z_BLACK_MAIN, ATTACK_OFFSET)
-  - Check ray/segment calculation for vertical path; ensure no off-by-one on square inclusion
+#### B) Design Player-Relative Direction Logic
 
-- If rotation constraints mismatches:
-  - Verify canRotate/canMoveBoard gating in gameStore and worldMutation
-  - Enforce passenger count threshold exactly at ≤ 1
+**Option 1: Separate Adjacency Maps by Color**
+- Create separate adjacency definitions for White boards vs Black boards
+- White boards: QL1→QL2 is forward, QL2→QL1 is backward
+- Black boards: QL6→QL5 is forward, QL5→QL6 is backward
+- Pros: Clear, explicit, matches game rules
+- Cons: Duplicates adjacency data
 
-Contingency Approaches
+**Option 2: Direction Computation at Validation Time**
+- Keep single adjacency map with absolute directions
+- In `validateAdjacency`, compute effective direction based on:
+  - Edge direction from adjacency data
+  - Board owner (White or Black)
+  - Transform: if boardOwner === 'black', flip "forward" ↔ "backward"
+- Pros: Minimal data duplication
+- Cons: More complex logic, potential for bugs
 
-If JSON parsing from docs becomes brittle:
-- Fall back to importing ATTACK_BOARD_ADJACENCY.ts as the authoritative set and add a separate doc-vs-code consistency test that diff-checks the two structures and prints a helpful failure
-- Keep the primary engine tests using the code adjacency table to limit brittleness, while still catching divergence with a separate consistency test
+**Option 3: Hybrid Approach**
+- Adjacency data specifies direction relative to rank increase
+- Add player color to board ID (already implicit: W prefix = White, B prefix = Black)
+- In validation: determine if rank is increasing/decreasing, compare to player's forward direction
+- Pros: Balanced complexity
+- Cons: Requires careful testing
 
-If occupancy detection remains flaky in tests:
-- Instrument validateBoardMove to return a debug payload (behind a test-only flag or separate function) indicating:
-  - which validations passed/failed
-  - passenger count detected
-  - vertical shadow result
-- Use this only in tests to verify the precise reason a move passed/failed
+#### C) Implementation Steps
 
-If vertical shadow is hard to test deterministically:
-- Add a dedicated unit for vertical shadow path calculation with fixed fixtures (known blocker piece positions, expected blocked/unblocked results)
-- Keep move-validation tests simple (just verify a blocked case and an unblocked case)
+1. **Extract board color from boardId**:
+   ```typescript
+   function getBoardColor(boardId: string): 'white' | 'black' {
+     return boardId.startsWith('W') ? 'white' : 'black';
+   }
+   ```
 
-If UI highlights deviate while engine validation is correct:
-- Trace the UI eligibility computation to ensure it sources from validateBoardMove or equivalent derived selector
-- Add a small integration test for the selector responsible for highlighting eligible pins, comparing it against validateBoardMove outcomes
+2. **Compute player-relative direction**:
+   ```typescript
+   function getRelativeDirection(
+     fromPinId: string,
+     toPinId: string,
+     boardColor: 'white' | 'black',
+     absoluteDirection: string[]
+   ): string[] {
+     if (boardColor === 'black') {
+       // Flip forward/backward for black
+       return absoluteDirection.map(dir => {
+         if (dir === 'forward') return 'backward';
+         if (dir === 'backward') return 'forward';
+         return dir; // 'side' stays the same
+       });
+     }
+     return absoluteDirection;
+   }
+   ```
 
-Deliverables
-- Test suite: src/engine/world/__tests__/attackBoardAdjacencyFromDocs.test.ts
-- Manual verification notes from Kings Only
-- Fixes (if required) in:
-  - src/engine/world/attackBoardAdjacency.ts
-  - src/engine/world/worldMutation.ts
-  - src/engine/world/pinPositions.ts (if mapping is wrong)
-  - reference_docs/ATTACK_BOARD_RULES.md (only if docs are wrong)
-- PR to main with:
-  - Summary of test coverage and results
-  - Notes on any fixes and manual verification outcomes
-  - Link to this Devin run and @wpettine
+3. **Update validateAdjacency**:
+   ```typescript
+   function validateAdjacency(context: BoardMoveContext): BoardMoveValidation {
+     const adjacencyList = ATTACK_BOARD_ADJACENCY[context.fromPinId];
+     if (!adjacencyList) {
+       return { isValid: false, reason: 'Invalid source pin' };
+     }
+   
+     const edge = adjacencyList.find(e => e.to === context.toPinId);
+     if (!edge) {
+       return { isValid: false, reason: 'Destination pin is not adjacent' };
+     }
+   
+     // NEW: Compute player-relative direction
+     const boardColor = getBoardColor(context.boardId);
+     const relativeDir = getRelativeDirection(
+       context.fromPinId,
+       context.toPinId,
+       boardColor,
+       edge.dir
+     );
+   
+     // Check if this is a backward move for this player
+     const isBackwardForPlayer = relativeDir.includes('backward');
+   
+     if (edge.requiresEmpty && isBackwardForPlayer) {
+       const passengerPieces = getPassengerPieces(
+         context.boardId,
+         context.fromPinId,
+         context.pieces
+       );
+       if (passengerPieces.length > 0) {
+         return {
+           isValid: false,
+           reason: 'Cannot move backward while occupied'
+         };
+       }
+     }
+   
+     return { isValid: true };
+   }
+   ```
 
-Verification Checklist
-- Empty-board adjacency: exact match with docs JSON
-- Occupied/backward-only: edges with requiresEmpty=true disallowed when ≥1 passenger on board
-- Current pin excluded; non-adjacent invalid
-- Rotation only with ≤1 passenger
-- Vertical shadow correctly blocks/unblocks
-- All tests pass and lint clean
+#### D) Testing Plan
+
+1. **Unit Tests**:
+   - Test White board moving forward (empty and occupied)
+   - Test White board moving backward (must be empty)
+   - Test Black board moving forward (empty and occupied)
+   - Test Black board moving backward (must be empty)
+
+2. **Manual Testing**:
+   - Load "King and Pawn" game
+   - Verify White can move WQL forward freely
+   - Verify Black can move BQL forward freely (this should now work!)
+   - Verify backward moves are blocked when occupied for both colors
+
+3. **Edge Cases**:
+   - Sideways moves (should not be affected by requiresEmpty based on direction)
+   - Diagonal moves (combination of forward/backward + side)
+   - Verify the direction flip doesn't affect rotation logic
+
+#### E) Validation
+
+- Update `src/engine/world/__tests__/attackBoardAdjacencyFromDocs.test.ts` to test both White and Black boards
+- Ensure all existing tests still pass
+- Add new tests specifically for player-relative direction logic
+
+### Expected Outcome
+
+After implementing player-relative direction logic:
+- Black's BQL at QL6 should be able to move to QL5 when occupied (forward move for Black)
+- Black's BQL at QL6 should NOT be able to move back to higher pins when occupied (backward for Black)
+- White's behavior should remain unchanged (already correct)
+- All adjacency rules should work correctly for both players
+
+### Deliverables for Next Session
+
+- [ ] Updated `validateAdjacency` function with player-relative direction logic
+- [ ] Helper functions: `getBoardColor()` and `getRelativeDirection()`
+- [ ] Updated tests to cover both White and Black board movements
+- [ ] Manual verification with "King and Pawn" game showing Black can now move
+- [ ] Documentation of the direction calculation logic
+- [ ] PR with all changes, including this progress update
+
+---
+
+## Original Problem Summary (For Reference)
+
+From the initial debugging plan:
+
+- Documented JSON in ATTACK_BOARD_RULES.md defines allowed edges per pin with dir and requiresEmpty
+- Engine validateBoardMove applies multiple layers: adjacency, occupancy/passenger count, vertical shadow, rotation rules, and king-safety
+- Direction logic ("backward", "forward", "side") must be interpreted relative to the player, not as absolute board positions
+
+## Files to Review/Modify in Next Session
+
+1. `src/engine/world/worldMutation.ts` - Update `validateAdjacency` function
+2. `src/engine/world/attackBoardAdjacency.ts` - Review adjacency data structure
+3. `reference_docs/ATTACK_BOARD_RULES.md` - Verify direction definitions
+4. `src/engine/world/__tests__/attackBoardAdjacencyFromDocs.test.ts` - Add player-relative tests
+
+## Notes for Next Devin
+
+- All core infrastructure is working (turn toggle, Z-positioning, visual updates, piece visibility)
+- The only remaining issue is making direction logic player-relative
+- Debug logging is in place - you can monitor board moves in browser console
+- "King and Pawn" saved game is perfect for testing this issue
+- PR #25 contains all the fixes so far: https://github.com/wpettine/open_tri_dim_chess/pull/25
