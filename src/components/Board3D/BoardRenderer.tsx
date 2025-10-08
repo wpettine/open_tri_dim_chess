@@ -17,6 +17,7 @@ export function BoardRenderer() {
 function SingleBoard({ board }: { board: BoardLayout }) {
   const world = useGameStore(state => state.world);
   const selectSquare = useGameStore(state => state.selectSquare);
+  const selectBoard = useGameStore(state => state.selectBoard);
   const selectedSquareId = useGameStore(state => state.selectedSquareId);
   const highlightedSquareIds = useGameStore(state => state.highlightedSquareIds);
 
@@ -44,6 +45,19 @@ function SingleBoard({ board }: { board: BoardLayout }) {
             opacity={THEME.platforms.opacity}
           />
         </mesh>
+
+        {board.type !== 'main' && (
+          <mesh
+            position={[0, 0, 0.06]}
+            onClick={(e) => {
+              e.stopPropagation();
+              selectBoard(board.id);
+            }}
+          >
+            <cylinderGeometry args={[0.4, 0.4, 0.08, 32]} />
+            <meshStandardMaterial color="#cc3333" emissive="#550000" emissiveIntensity={0.5} />
+          </mesh>
+        )}
       </group>
 
       {squares.map((square) => {
@@ -54,7 +68,12 @@ function SingleBoard({ board }: { board: BoardLayout }) {
           <mesh
             key={square.id}
             position={[square.worldX, square.worldY, square.worldZ]}
-            onClick={() => selectSquare(square.id)}
+            onClick={() => {
+              if (board.type !== 'main') {
+                selectBoard(board.id);
+              }
+              selectSquare(square.id);
+            }}
           >
             <boxGeometry args={[THEME.squares.size, THEME.squares.size, 0.1]} />
             <meshStandardMaterial

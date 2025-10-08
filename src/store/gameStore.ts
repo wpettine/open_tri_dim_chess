@@ -8,6 +8,9 @@ import { createInitialPieces } from '../engine/initialSetup';
 import { getLegalMovesAvoidingCheck, isInCheck, isCheckmate, isStalemate } from '../engine/validation/checkDetection';
 import { createSquareId } from '../engine/world/coordinates';
 import { getInitialPinPositions } from '../engine/world/pinPositions';
+import { PIN_POSITIONS } from '../engine/world/pinPositions';
+import { validateBoardMove, executeBoardMove } from '../engine/world/worldMutation';
+
 
 export interface Piece {
   id: string;
@@ -59,6 +62,11 @@ export interface GameState {
   deleteGameById: (id: string) => Promise<void>;
   exportGameById: (id: string) => Promise<string>;
   importGameFromJson: (json: string) => Promise<void>;
+  selectBoard: (boardId: string | null) => void;
+  canMoveBoard: (boardId: string, toPinId: string) => { allowed: boolean; reason?: string };
+  moveAttackBoard: (boardId: string, toPinId: string, rotate?: boolean) => void;
+  canRotate: (boardId: string, angle: 0 | 180) => { allowed: boolean; reason?: string };
+  rotateAttackBoard: (boardId: string, angle: 0 | 180) => void;
 }
 const __persistence = new LocalStoragePersistence();
 
@@ -191,6 +199,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
   clearSelection: () => {
     set({ selectedSquareId: null, highlightedSquareIds: [], selectedBoardId: null });
   },
+
+  selectBoard: (boardId: string | null) => {
+    set({ selectedBoardId: boardId });
+  },
   
   resetGame: () => {
     set({
@@ -269,6 +281,135 @@ export const useGameStore = create<GameState>()((set, get) => ({
     return await __persistence.exportGame(id);
   },
 
+  canMoveBoard: (boardId: string, toPinId: string) => {
+    const state = get();
+    const fromPinId = state.attackBoardPositions[boardId];
+    if (!fromPinId) return { allowed: false, reason: 'Unknown board' };
+    const result = validateBoardMove({
+      boardId,
+      fromPinId,
+      toPinId,
+      rotate: false,
+      pieces: state.pieces,
+      world: state.world,
+      attackBoardPositions: state.attackBoardPositions,
+    });
+    return { allowed: result.isValid, reason: result.reason };
+  },
+
+  moveAttackBoard: (boardId: string, toPinId: string, rotate = false) => {
+    const state = get();
+    const fromPinId = state.attackBoardPositions[boardId];
+    if (!fromPinId) return;
+
+    const validation = validateBoardMove({
+      boardId,
+      fromPinId,
+      toPinId,
+      rotate,
+      pieces: state.pieces,
+      world: state.world,
+      attackBoardPositions: state.attackBoardPositions,
+    });
+    if (!validation.isValid) return;
+
+    const result = executeBoardMove({
+      boardId,
+      fromPinId,
+      toPinId,
+      rotate,
+      pieces: state.pieces,
+      world: state.world,
+      attackBoardPositions: state.attackBoardPositions,
+    });
+
+    updateAttackBoardWorld(state.world, boardId, toPinId, state.world.boards.get(boardId)?.rotation ?? 0);
+
+    const move: Move = {
+      type: 'board-move',
+      from: fromPinId,
+      to: toPinId,
+      boardId,
+      rotation: rotate ? 180 : undefined,
+    };
+
+    set({
+      pieces: result.updatedPieces,
+      attackBoardPositions: result.updatedPositions,
+      moveHistory: [...state.moveHistory, move],
+      selectedBoardId: boardId,
+    });
+  },
+
+  canRotate: (boardId: string, angle: 0 | 180) => {
+    const state = get();
+    const fromPinId = state.attackBoardPositions[boardId];
+    if (!fromPinId) return { allowed: false, reason: 'Unknown board' };
+    if (angle === 0) return { allowed: true };
+
+    const result = validateBoardMove({
+      boardId,
+      fromPinId,
+      toPinId: fromPinId,
+      rotate: true,
+      pieces: state.pieces,
+      world: state.world,
+      attackBoardPositions: state.attackBoardPositions,
+    });
+    return { allowed: result.isValid, reason: result.reason };
+  },
+
+  rotateAttackBoard: (boardId: string, angle: 0 | 180) => {
+    const state = get();
+    const pinId = state.attackBoardPositions[boardId];
+    if (!pinId) return;
+
+    if (angle === 0) {
+      updateAttackBoardWorld(state.world, boardId, pinId, 0);
+      set({
+        moveHistory: state.moveHistory,
+      });
+      return;
+    }
+
+    const validation = validateBoardMove({
+      boardId,
+      fromPinId: pinId,
+      toPinId: pinId,
+      rotate: true,
+      pieces: state.pieces,
+      world: state.world,
+      attackBoardPositions: state.attackBoardPositions,
+    });
+    if (!validation.isValid) return;
+
+    const result = executeBoardMove({
+      boardId,
+      fromPinId: pinId,
+      toPinId: pinId,
+      rotate: true,
+      pieces: state.pieces,
+      world: state.world,
+      attackBoardPositions: state.attackBoardPositions,
+    });
+
+    updateAttackBoardWorld(state.world, boardId, pinId, 180);
+
+    const move: Move = {
+      type: 'board-move',
+      from: pinId,
+      to: pinId,
+      boardId,
+      rotation: 180,
+    };
+
+    set({
+      pieces: result.updatedPieces,
+      attackBoardPositions: result.updatedPositions,
+      moveHistory: [...state.moveHistory, move],
+      selectedBoardId: boardId,
+    });
+  },
   importGameFromJson: async (json: string) => {
     const doc = await __persistence.importGame(json);
     hydrateFromPersisted(set, get, doc.payload);
@@ -286,6 +427,26 @@ export function buildPersistablePayload(state: GameState) {
     attackBoardPositions: state.attackBoardPositions,
     moveHistory: state.moveHistory,
   };
+}
+
+function updateAttackBoardWorld(
+  world: ChessWorld,
+  boardId: string,
+  pinId: string,
+  rotation: number
+) {
+  const board = world.boards.get(boardId);
+  const pin = PIN_POSITIONS[pinId];
+  if (!board || !pin) return;
+  board.centerZ = pin.zHeight;
+  board.rotation = rotation;
+  world.boards.set(boardId, board);
+  Array.from(world.squares.values())
+    .filter((sq) => sq.boardId === boardId)
+    .forEach((sq) => {
+      sq.worldZ = pin.zHeight;
+      world.squares.set(sq.id, sq);
+    });
 }
 
 export function hydrateFromPersisted(
