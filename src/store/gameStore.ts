@@ -364,6 +364,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     const state = get();
     const fromPinId = state.attackBoardPositions[boardId];
     if (!fromPinId) return { allowed: false, reason: 'Unknown board' };
+    if (fromPinId === toPinId) return { allowed: false, reason: 'Board is already at this position' };
     const result = validateBoardMove({
       boardId,
       fromPinId,
