@@ -10,6 +10,67 @@ import { createSquareId } from '../engine/world/coordinates';
 import { getInitialPinPositions } from '../engine/world/pinPositions';
 import { PIN_POSITIONS } from '../engine/world/pinPositions';
 import { validateBoardMove, executeBoardMove } from '../engine/world/worldMutation';
+export interface GameSnapshot {
+  pieces: Piece[];
+  currentTurn: 'white' | 'black';
+  isCheck: boolean;
+  isCheckmate: boolean;
+  isStalemate: boolean;
+  winner: 'white' | 'black' | null;
+  gameOver: boolean;
+  attackBoardPositions: Record<string, string>;
+  moveHistory: Move[];
+  boardRotations: Record<string, number>;
+}
+
+const __snapshots: GameSnapshot[] = [];
+
+function takeSnapshot(state: GameState): GameSnapshot {
+  const boardRotations: Record<string, number> = {};
+  Array.from(state.world.boards.keys()).forEach((id) => {
+    boardRotations[id] = state.world.boards.get(id)?.rotation ?? 0;
+  });
+  return {
+    pieces: state.pieces.map((p) => ({ ...p })),
+    currentTurn: state.currentTurn,
+    isCheck: state.isCheck,
+    isCheckmate: state.isCheckmate,
+    isStalemate: state.isStalemate,
+    winner: state.winner,
+    gameOver: state.gameOver,
+    attackBoardPositions: { ...state.attackBoardPositions },
+    moveHistory: state.moveHistory.slice(),
+    boardRotations,
+  };
+}
+
+function restoreSnapshot(
+  set: (partial: Partial<GameState>) => void,
+  get: () => GameState,
+  snap: GameSnapshot
+) {
+  set({
+    pieces: snap.pieces,
+    currentTurn: snap.currentTurn,
+    isCheck: snap.isCheck,
+    isCheckmate: snap.isCheckmate,
+    isStalemate: snap.isStalemate,
+    winner: snap.winner,
+    gameOver: snap.gameOver,
+    attackBoardPositions: snap.attackBoardPositions,
+    moveHistory: snap.moveHistory,
+    selectedSquareId: null,
+    highlightedSquareIds: [],
+    selectedBoardId: null,
+  });
+  const state = get();
+  Object.entries(state.attackBoardPositions).forEach(([boardId, pinId]) => {
+    const rotation = snap.boardRotations[boardId] ?? 0;
+    updateAttackBoardWorld(state.world, boardId, pinId, rotation);
+  });
+  state.updateGameState();
+}
+
 
 
 export interface Piece {
@@ -67,6 +128,7 @@ export interface GameState {
   moveAttackBoard: (boardId: string, toPinId: string, rotate?: boolean) => void;
   canRotate: (boardId: string, angle: 0 | 180) => { allowed: boolean; reason?: string };
   rotateAttackBoard: (boardId: string, angle: 0 | 180) => void;
+  undoMove: () => void;
 }
 const __persistence = new LocalStoragePersistence();
 
@@ -184,6 +246,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     const checkmateStatus = isCheckmate(nextTurn, state.world, updatedPieces);
     const stalemateStatus = isStalemate(nextTurn, state.world, updatedPieces);
     
+    __snapshots.push(takeSnapshot(state));
     set({
       pieces: updatedPieces,
       moveHistory: [...state.moveHistory, move],
@@ -196,6 +259,12 @@ export const useGameStore = create<GameState>()((set, get) => ({
       gameOver: checkmateStatus || stalemateStatus,
       winner: checkmateStatus ? state.currentTurn : (stalemateStatus ? null : state.winner),
     });
+  },
+
+  undoMove: () => {
+    if (__snapshots.length === 0) return;
+    const snap = __snapshots.pop()!;
+    restoreSnapshot(set, get, snap);
   },
   
   clearSelection: () => {
@@ -343,6 +412,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       rotation: rotate ? 180 : undefined,
     };
 
+    __snapshots.push(takeSnapshot(state));
     set({
       pieces: result.updatedPieces,
       attackBoardPositions: result.updatedPositions,
@@ -413,6 +483,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       rotation: 180,
     };
 
+    __snapshots.push(takeSnapshot(state));
     set({
       pieces: result.updatedPieces,
       attackBoardPositions: result.updatedPositions,
