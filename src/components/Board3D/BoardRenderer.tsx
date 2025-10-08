@@ -136,8 +136,6 @@ function SingleBoard({ board }: { board: BoardLayout }) {
               <cylinderGeometry args={[THEME.pinLocationDisk.radius, THEME.pinLocationDisk.radius, THEME.pinLocationDisk.thickness, 32]} />
               <meshStandardMaterial 
                 color={isEligible ? THEME.squares.availableMoveColor : THEME.attackBoardSelector.color}
-                transparent={!isEligible}
-                opacity={isEligible ? 0.7 : 0.5}
               />
             </mesh>
           );
