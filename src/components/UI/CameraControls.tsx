@@ -10,12 +10,6 @@ export function CameraControls() {
       <h4>Camera View</h4>
       <div className="camera-buttons">
         <button
-          className={currentView === 'default' ? 'active' : ''}
-          onClick={() => setView('default')}
-        >
-          Default
-        </button>
-        <button
           className={currentView === 'top' ? 'active' : ''}
           onClick={() => setView('top')}
         >

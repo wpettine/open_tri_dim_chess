@@ -1,17 +1,20 @@
 export const THEME = {
   squares: {
     size: 2.0,
-    light: '#F0D9B5',
-    dark: '#B58863',
-    opacity: 0.95,
+    light: '#DDE6F5',
+    dark: '#1E3D8F',
+    opacity: 0.3,
     selectedColor: '#ffff00',
     availableMoveColor: '#00ff00',
   },
   platforms: {
-    main: '#8B4513',
-    attack: '#A0522D',
-    opacity: 0.3,
-    thickness: 0.3,
+    whiteMain: '#C0C0C0',
+    neutralMain: '#C0C0C0',
+    blackMain: '#C0C0C0',
+    attack: '#C0C0C0',
+    opacity: 0.9,
+    thickness: 0.2,
+    gap: 0.2,
   },
   attackBoardSelector: {
     color: '#C2A14D',
@@ -30,13 +33,14 @@ export const THEME = {
   },
   lighting: {
     ambient: {
-      intensity: 0.6,
+      intensity: 0.7,
       color: '#ffffff',
     },
     directional: {
-      intensity: 0.8,
-      position: [10, 20, 10] as [number, number, number],
+      intensity: 1.2,
+      position: [10, 10, 20] as [number, number, number],
       color: '#ffffff',
+      shadowMapSize: 2048,
     },
   },
   camera: {
@@ -67,6 +71,10 @@ export const THEME = {
     },
   },
   scene: {
-    background: '#1a1a2e',
+    background: '#3C3C3C',
+    backgroundEdge: '#1E1E1E',
+  },
+  typography: {
+    fontFamily: 'Microgramma, sans-serif',
   },
 };
