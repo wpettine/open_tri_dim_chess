@@ -4,12 +4,23 @@ export const THEME = {
     light: '#F0D9B5',
     dark: '#B58863',
     opacity: 0.95,
+    selectedColor: '#ffff00',
+    availableMoveColor: '#00ff00',
   },
   platforms: {
     main: '#8B4513',
     attack: '#A0522D',
     opacity: 0.3,
     thickness: 0.3,
+  },
+  attackBoardSelector: {
+    color: '#C2A14D',
+    radius: 0.4,
+    thickness: 0.08,
+  },
+  pinLocationDisk: {
+    radius: 0.3,
+    thickness: 0.06,
   },
   pieces: {
     white: '#f5f5f5',
