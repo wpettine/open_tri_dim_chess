@@ -104,7 +104,7 @@ describe('Board Movement Validation', () => {
     });
   });
 
-  describe('Direction Validation', () => {
+  describe('Direction & Occupancy Constraints', () => {
     it('should allow forward movement (increasing level)', () => {
       const context: BoardMoveContext = {
         boardId: 'WQL',
@@ -128,20 +128,34 @@ describe('Board Movement Validation', () => {
         rotate: false,
         pieces: basePieces,
         world: mockWorld,
-        attackBoardPositions: basePositions,
+        attackBoardPositions: {
+          ...basePositions,
+          WQL: 'QL2',
+          WKL: 'KL3',
+        },
       };
 
       const result = validateBoardMove(context);
       expect(result.isValid).toBe(true);
     });
 
-    it('should reject backward movement from non-inverted pin', () => {
+    it('should reject backward movement when board is occupied', () => {
+      const passenger: Piece = {
+        id: 'passenger-pawn',
+        type: 'pawn',
+        color: 'white',
+        file: 0,
+        rank: 2,
+        level: 'WQL',
+        hasMoved: false,
+      };
+
       const context: BoardMoveContext = {
         boardId: 'WQL',
         fromPinId: 'QL2',
         toPinId: 'QL1',
         rotate: false,
-        pieces: basePieces,
+        pieces: [passenger],
         world: mockWorld,
         attackBoardPositions: {
           ...basePositions,
@@ -154,7 +168,7 @@ describe('Board Movement Validation', () => {
       expect(result.reason).toContain('backward');
     });
 
-    it('should allow backward movement from inverted pin', () => {
+    it('should allow backward movement when board is empty', () => {
       const context: BoardMoveContext = {
         boardId: 'BQL',
         fromPinId: 'QL6',
@@ -169,31 +183,43 @@ describe('Board Movement Validation', () => {
       expect(result.isValid).toBe(true);
     });
 
-    it('should reject sideways movement within same line', () => {
+    it('should reject backward+side movement when occupied', () => {
+      const passenger: Piece = {
+        id: 'passenger',
+        type: 'bishop',
+        color: 'white',
+        file: 0,
+        rank: 2,
+        level: 'WQL',
+        hasMoved: false,
+      };
+
       const context: BoardMoveContext = {
         boardId: 'WQL',
         fromPinId: 'QL2',
-        toPinId: 'QL2',
+        toPinId: 'KL1',
         rotate: false,
-        pieces: basePieces,
+        pieces: [passenger],
         world: mockWorld,
         attackBoardPositions: {
           ...basePositions,
           WQL: 'QL2',
+          WKL: 'KL3',
         },
       };
 
       const result = validateBoardMove(context);
       expect(result.isValid).toBe(false);
+      expect(result.reason).toContain('backward');
     });
   });
 
   describe('Vertical Shadow Validation', () => {
-    it('should allow movement when no blocking pieces exist', () => {
+    it('should allow movement when no blocking pieces exist at destination', () => {
       const context: BoardMoveContext = {
         boardId: 'WQL',
         fromPinId: 'QL1',
-        toPinId: 'QL3',
+        toPinId: 'QL2',
         rotate: false,
         pieces: basePieces,
         world: mockWorld,
@@ -204,21 +230,21 @@ describe('Board Movement Validation', () => {
       expect(result.isValid).toBe(true);
     });
 
-    it('should reject movement when non-knight piece blocks path', () => {
+    it('should reject movement when non-knight piece occupies destination square', () => {
       const blockingPiece: Piece = {
         id: 'blocking-rook',
         type: 'rook',
         color: 'white',
         file: 0,
-        rank: 0,
-        level: '1',
+        rank: 2,
+        level: 'N',
         hasMoved: false,
       };
 
       const context: BoardMoveContext = {
         boardId: 'WQL',
         fromPinId: 'QL1',
-        toPinId: 'QL3',
+        toPinId: 'QL2',
         rotate: false,
         pieces: [blockingPiece],
         world: mockWorld,
@@ -230,33 +256,23 @@ describe('Board Movement Validation', () => {
       expect(result.reason).toContain('shadow');
     });
 
-    it('should allow movement when knight passenger exists', () => {
-      const knightPassenger: Piece = {
-        id: 'knight-passenger',
+    it('should allow movement when knight is at destination square', () => {
+      const knight: Piece = {
+        id: 'knight',
         type: 'knight',
         color: 'white',
         file: 0,
-        rank: 0,
-        level: '0',
-        hasMoved: false,
-      };
-
-      const blockingPiece: Piece = {
-        id: 'blocking-rook',
-        type: 'rook',
-        color: 'white',
-        file: 0,
-        rank: 0,
-        level: '1',
+        rank: 2,
+        level: 'B',
         hasMoved: false,
       };
 
       const context: BoardMoveContext = {
         boardId: 'WQL',
         fromPinId: 'QL1',
-        toPinId: 'QL3',
+        toPinId: 'QL2',
         rotate: false,
-        pieces: [knightPassenger, blockingPiece],
+        pieces: [knight],
         world: mockWorld,
         attackBoardPositions: basePositions,
       };
@@ -265,14 +281,14 @@ describe('Board Movement Validation', () => {
       expect(result.isValid).toBe(true);
     });
 
-    it('should allow single-level movement without shadow check', () => {
+    it('should check all four destination squares for shadows', () => {
       const blockingPiece: Piece = {
-        id: 'blocking-rook',
-        type: 'rook',
-        color: 'white',
-        file: 0,
-        rank: 0,
-        level: '1',
+        id: 'blocking-bishop',
+        type: 'bishop',
+        color: 'black',
+        file: 1,
+        rank: 3,
+        level: 'W',
         hasMoved: false,
       };
 
@@ -287,7 +303,8 @@ describe('Board Movement Validation', () => {
       };
 
       const result = validateBoardMove(context);
-      expect(result.isValid).toBe(true);
+      expect(result.isValid).toBe(false);
+      expect(result.reason).toContain('shadow');
     });
   });
 
@@ -314,7 +331,7 @@ describe('Board Movement Validation', () => {
         color: 'white',
         file: 0,
         rank: 0,
-        level: '0',
+        level: 'WQL',
         hasMoved: false,
       };
 
@@ -343,7 +360,7 @@ describe('Board Movement Validation', () => {
         color: 'white',
         file: 0,
         rank: 0,
-        level: '0',
+        level: 'WQL',
         hasMoved: false,
       };
 
@@ -353,7 +370,7 @@ describe('Board Movement Validation', () => {
         color: 'white',
         file: 1,
         rank: 1,
-        level: '0',
+        level: 'WQL',
         hasMoved: false,
       };
 
@@ -384,7 +401,7 @@ describe('Board Movement Validation', () => {
         color: 'white',
         file: 0,
         rank: 0,
-        level: '0',
+        level: 'WQL',
         hasMoved: false,
       };
 
@@ -417,15 +434,91 @@ describe('Board Movement Validation', () => {
     });
   });
 
-  describe('Complex Scenarios', () => {
-    it('should handle cross-line movement with rotation', () => {
+  describe('Rotation Validation', () => {
+    it('should allow rotation with 0 pieces on board', () => {
+      const context: BoardMoveContext = {
+        boardId: 'WQL',
+        fromPinId: 'QL1',
+        toPinId: 'QL1',
+        rotate: true,
+        pieces: basePieces,
+        world: mockWorld,
+        attackBoardPositions: basePositions,
+      };
+
+      const result = validateBoardMove(context);
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should allow rotation with 1 piece on board', () => {
+      const passenger: Piece = {
+        id: 'passenger',
+        type: 'pawn',
+        color: 'white',
+        file: 0,
+        rank: 0,
+        level: 'WQL',
+        hasMoved: false,
+      };
+
+      const context: BoardMoveContext = {
+        boardId: 'WQL',
+        fromPinId: 'QL1',
+        toPinId: 'QL1',
+        rotate: true,
+        pieces: [passenger],
+        world: mockWorld,
+        attackBoardPositions: basePositions,
+      };
+
+      const result = validateBoardMove(context);
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should reject rotation with 2 pieces on board', () => {
+      const passenger1: Piece = {
+        id: 'passenger-1',
+        type: 'pawn',
+        color: 'white',
+        file: 0,
+        rank: 0,
+        level: 'WQL',
+        hasMoved: false,
+      };
+
+      const passenger2: Piece = {
+        id: 'passenger-2',
+        type: 'rook',
+        color: 'white',
+        file: 1,
+        rank: 1,
+        level: 'WQL',
+        hasMoved: false,
+      };
+
+      const context: BoardMoveContext = {
+        boardId: 'WQL',
+        fromPinId: 'QL1',
+        toPinId: 'QL1',
+        rotate: true,
+        pieces: [passenger1, passenger2],
+        world: mockWorld,
+        attackBoardPositions: basePositions,
+      };
+
+      const result = validateBoardMove(context);
+      expect(result.isValid).toBe(false);
+      expect(result.reason).toContain('Cannot rotate with more than 1 piece');
+    });
+
+    it('should allow movement with rotation when only 1 piece', () => {
       const passenger: Piece = {
         id: 'passenger',
         type: 'bishop',
         color: 'white',
         file: 0,
         rank: 1,
-        level: '0',
+        level: 'WQL',
         hasMoved: false,
       };
 
@@ -449,50 +542,58 @@ describe('Board Movement Validation', () => {
       expect(updatedPassenger).toBeDefined();
       expect(updatedPassenger?.hasMoved).toBe(true);
     });
+  });
 
-    it('should validate multi-level jump with knight', () => {
-      const knight: Piece = {
-        id: 'knight',
-        type: 'knight',
-        color: 'white',
-        file: 0,
-        rank: 0,
-        level: '0',
-        hasMoved: false,
-      };
+  describe('Adjacency Tests - QL1 Specific', () => {
+    it('QL1 should allow only QL2, KL1, KL2', () => {
+      const validDestinations = ['QL2', 'KL1', 'KL2'];
+      const allPins = ['QL1', 'QL2', 'QL3', 'QL4', 'QL5', 'QL6', 'KL1', 'KL2', 'KL3', 'KL4', 'KL5', 'KL6'];
 
-      const blocker1: Piece = {
-        id: 'blocker1',
-        type: 'pawn',
-        color: 'black',
-        file: 0,
-        rank: 0,
-        level: '1',
-        hasMoved: false,
-      };
+      allPins.forEach(pin => {
+        if (pin === 'QL1') return;
 
-      const blocker2: Piece = {
-        id: 'blocker2',
-        type: 'pawn',
-        color: 'black',
-        file: 1,
-        rank: 1,
-        level: '2',
-        hasMoved: false,
-      };
+        const context: BoardMoveContext = {
+          boardId: 'WQL',
+          fromPinId: 'QL1',
+          toPinId: pin,
+          rotate: false,
+          pieces: basePieces,
+          world: mockWorld,
+          attackBoardPositions: {
+            ...basePositions,
+            WKL: 'KL3',
+          },
+        };
 
-      const context: BoardMoveContext = {
-        boardId: 'WQL',
-        fromPinId: 'QL1',
-        toPinId: 'QL4',
-        rotate: false,
-        pieces: [knight, blocker1, blocker2],
-        world: mockWorld,
-        attackBoardPositions: basePositions,
-      };
+        const result = validateBoardMove(context);
+        
+        if (validDestinations.includes(pin)) {
+          expect(result.isValid).toBe(true);
+        } else {
+          expect(result.isValid).toBe(false);
+          expect(result.reason).toContain('not adjacent');
+        }
+      });
+    });
 
-      const result = validateBoardMove(context);
-      expect(result.isValid).toBe(true);
+    it('QL1 should reject QL4, QL5, KL3, KL4 (the ones incorrectly shown before)', () => {
+      const invalidDestinations = ['QL4', 'QL5', 'KL3', 'KL4'];
+
+      invalidDestinations.forEach(pin => {
+        const context: BoardMoveContext = {
+          boardId: 'WQL',
+          fromPinId: 'QL1',
+          toPinId: pin,
+          rotate: false,
+          pieces: basePieces,
+          world: mockWorld,
+          attackBoardPositions: basePositions,
+        };
+
+        const result = validateBoardMove(context);
+        expect(result.isValid).toBe(false);
+        expect(result.reason).toContain('not adjacent');
+      });
     });
   });
 });
