@@ -1,8 +1,8 @@
 export const THEME = {
   squares: {
     size: 2.0,
-    light: '#F0D9B5',
-    dark: '#B58863',
+    light: '#DDE6F5',
+    dark: '#1E3D8F',
     opacity: 0.95,
     selectedColor: '#ffff00',
     availableMoveColor: '#00ff00',
