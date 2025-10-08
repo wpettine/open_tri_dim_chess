@@ -52,6 +52,24 @@ function validateRotation(context: BoardMoveContext): BoardMoveValidation {
   return { isValid: true };
 }
 
+function getBoardColor(boardId: string): 'white' | 'black' {
+  return boardId.startsWith('W') ? 'white' : 'black';
+}
+
+function getRelativeDirection(
+  absoluteDirection: string[],
+  boardColor: 'white' | 'black'
+): string[] {
+  if (boardColor === 'black') {
+    return absoluteDirection.map(dir => {
+      if (dir === 'forward') return 'backward';
+      if (dir === 'backward') return 'forward';
+      return dir; // 'side' stays the same
+    });
+  }
+  return absoluteDirection;
+}
+
 function validateAdjacency(context: BoardMoveContext): BoardMoveValidation {
   const adjacencyList = ATTACK_BOARD_ADJACENCY[context.fromPinId];
   
@@ -65,7 +83,12 @@ function validateAdjacency(context: BoardMoveContext): BoardMoveValidation {
     return { isValid: false, reason: 'Destination pin is not adjacent' };
   }
 
-  if (edge.requiresEmpty) {
+  const boardColor = getBoardColor(context.boardId);
+  const relativeDirection = getRelativeDirection(edge.dir, boardColor);
+  
+  const isBackwardForPlayer = relativeDirection.includes('backward');
+
+  if (edge.requiresEmpty && isBackwardForPlayer) {
     const passengerPieces = getPassengerPieces(context.boardId, context.fromPinId, context.pieces);
     if (passengerPieces.length > 0) {
       return { 
