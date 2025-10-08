@@ -71,6 +71,8 @@ function SingleBoard({ board }: { board: BoardLayout }) {
             onClick={() => {
               if (board.type !== 'main') {
                 selectBoard(board.id);
+              } else {
+                selectBoard(null);
               }
               selectSquare(square.id);
             }}
