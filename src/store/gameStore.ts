@@ -519,13 +519,30 @@ function updateAttackBoardWorld(
   const board = world.boards.get(boardId);
   const pin = PIN_POSITIONS[pinId];
   if (!board || !pin) return;
-  board.centerZ = pin.zHeight;
+  
+  const Z_WHITE_MAIN = 0;
+  const Z_NEUTRAL_MAIN = 5;
+  const Z_BLACK_MAIN = 10;
+  const ATTACK_OFFSET = 2.5;
+  
+  let mainBoardZ: number;
+  if (pin.level <= 1) {
+    mainBoardZ = Z_WHITE_MAIN;
+  } else if (pin.level === 2) {
+    mainBoardZ = Z_NEUTRAL_MAIN;
+  } else {
+    mainBoardZ = Z_BLACK_MAIN;
+  }
+  
+  const attackBoardZ = mainBoardZ + ATTACK_OFFSET;
+  
+  board.centerZ = attackBoardZ;
   board.rotation = rotation;
   world.boards.set(boardId, board);
   Array.from(world.squares.values())
     .filter((sq) => sq.boardId === boardId)
     .forEach((sq) => {
-      sq.worldZ = pin.zHeight;
+      sq.worldZ = attackBoardZ;
       world.squares.set(sq.id, sq);
     });
 }

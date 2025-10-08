@@ -97,6 +97,10 @@ function SingleBoard({ board }: { board: BoardLayout }) {
         
         const halfSquare = THEME.squares.size / 2;
         
+        const Z_WHITE_MAIN = 0;
+        const Z_NEUTRAL_MAIN = 5;
+        const Z_BLACK_MAIN = 10;
+        
         return corners.map(corner => {
           const pinX = fileToWorldX(corner.file) + (corner.file === minMainFile ? -halfSquare : halfSquare);
           const pinY = rankToWorldY(corner.rank) + (corner.rank === minMainRank ? -halfSquare : halfSquare);
@@ -105,7 +109,17 @@ function SingleBoard({ board }: { board: BoardLayout }) {
           if (selectedBoardId) {
             for (const pinId of Object.keys(PIN_POSITIONS)) {
               const pin = PIN_POSITIONS[pinId];
-              if (pin.zHeight === board.centerZ) {
+              
+              let pinMainBoardZ: number;
+              if (pin.level <= 1) {
+                pinMainBoardZ = Z_WHITE_MAIN;
+              } else if (pin.level === 2) {
+                pinMainBoardZ = Z_NEUTRAL_MAIN;
+              } else {
+                pinMainBoardZ = Z_BLACK_MAIN;
+              }
+              
+              if (pinMainBoardZ === board.centerZ) {
                 const result = canMoveBoard(selectedBoardId, pinId);
                 if (result.allowed) {
                   const pinMatchesCorner = 
