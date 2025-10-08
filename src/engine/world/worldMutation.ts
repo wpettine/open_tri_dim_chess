@@ -178,6 +178,9 @@ export function executeBoardMove(context: BoardMoveContext): BoardMoveResult {
     context.pieces
   );
 
+  console.log('[executeBoardMove] Passenger count:', passengerPieces.length);
+  console.log('[executeBoardMove] Passenger IDs:', passengerPieces.map(p => `${p.type}@${p.file},${p.rank},${p.level}`));
+
   const fromPin = PIN_POSITIONS[context.fromPinId];
   const toPin = PIN_POSITIONS[context.toPinId];
   
@@ -201,6 +204,12 @@ export function executeBoardMove(context: BoardMoveContext): BoardMoveResult {
       newFile = toPin.fileOffset + (1 - relativeFile);
       newRank = toPin.rankOffset + (1 - relativeRank);
     }
+
+    console.log('[executeBoardMove] Remapping passenger:', {
+      type: piece.type,
+      from: `${piece.file},${piece.rank},${piece.level}`,
+      to: `${newFile},${newRank},${piece.level}`,
+    });
 
     return {
       ...piece,

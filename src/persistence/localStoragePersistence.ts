@@ -85,6 +85,82 @@ export class LocalStoragePersistence implements GamePersistence {
         index.push({ id, name: doc.name, updatedAt: doc.updatedAt, source: 'local' });
       }
     }
+
+    const hasKingAndPawn = index.some((e) => e.name === 'King and Pawn');
+    if (!hasKingAndPawn) {
+      const kingAndPawnPieces = [
+        {
+          id: 'white-king-0',
+          type: 'king',
+          color: 'white',
+          file: 4,
+          rank: 0,
+          level: 'WKL',
+          hasMoved: false,
+        },
+        {
+          id: 'black-king-0',
+          type: 'king',
+          color: 'black',
+          file: 4,
+          rank: 9,
+          level: 'BKL',
+          hasMoved: false,
+        },
+        {
+          id: 'white-pawn-0',
+          type: 'pawn',
+          color: 'white',
+          file: 0,
+          rank: 1,
+          level: 'W',
+          hasMoved: false,
+        },
+        {
+          id: 'black-pawn-0',
+          type: 'pawn',
+          color: 'black',
+          file: 0,
+          rank: 8,
+          level: 'B',
+          hasMoved: false,
+        },
+      ];
+      const now = nowIso();
+      const id = generateId();
+      const doc: PersistedGameState = {
+        version: SCHEMA_VERSION,
+        createdAt: now,
+        updatedAt: now,
+        id,
+        name: 'King and Pawn',
+        payload: {
+          pieces: kingAndPawnPieces,
+          currentTurn: 'white',
+          isCheck: false,
+          isCheckmate: false,
+          isStalemate: false,
+          winner: null,
+          gameOver: false,
+          attackBoardPositions: {
+            WQL: 'QL1',
+            WKL: 'KL1',
+            BQL: 'QL6',
+            BKL: 'KL6',
+          },
+          moveHistory: [],
+        },
+        integrity: { schemaVersion: SCHEMA_VERSION },
+        meta: { source: 'local' },
+      } as PersistedGameState;
+      const parsed = PersistedGameStateSchema.safeParse(doc);
+      if (parsed.success) {
+        localStorage.setItem(SAVE_KEY(id), JSON.stringify(doc));
+        upsertIndex({ id, name: doc.name, updatedAt: doc.updatedAt, source: 'local' });
+        index.push({ id, name: doc.name, updatedAt: doc.updatedAt, source: 'local' });
+      }
+    }
+
     return index;
   }
 
