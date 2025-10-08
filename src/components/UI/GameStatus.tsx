@@ -48,8 +48,9 @@ export function GameStatus() {
           aria-label="Undo last move"
           title="Undo last move"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M12 5v3.586l1.293-1.293 1.414 1.414L11 12l-3.707-3.293 1.414-1.414L10 8.586V5h2zm-4 9a6 6 0 1112 0 6 6 0 01-12 0zm-2 0c0 4.418 3.582 8 8 8s8-3.582 8-8-3.582-8-8-8a7.963 7.963 0 00-5.657 2.343L6 6v4h4l-1.757-1.757A5.966 5.966 0 0114 8a6 6 0 100 12 6 6 0 01-8-6z"/>
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 7l5-5v3h6a7 7 0 110 14h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8 5v4H4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </button>
         <p>Move: {currentTurn === 'white' ? 'White' : 'Black'}</p>
