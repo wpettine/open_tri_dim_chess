@@ -86,8 +86,21 @@ function SingleBoard({ board }: { board: BoardLayout }) {
         if (pin.zHeight !== board.centerZ) return null;
         
         const isEligible = eligiblePins.has(pinId);
-        const pinX = fileToWorldX(pin.fileOffset + 1);
-        const pinY = rankToWorldY(pin.rankOffset + 1);
+        
+        const minMainRank = Math.min(...board.ranks);
+        const maxMainRank = Math.max(...board.ranks);
+        const minMainFile = Math.min(...board.files);
+        const maxMainFile = Math.max(...board.files);
+        
+        const pinFile = pin.fileOffset === 0 ? minMainFile : maxMainFile;
+        
+        const midMainRank = (minMainRank + maxMainRank) / 2;
+        const attackBoardMidRank = pin.rankOffset + 0.5;
+        
+        const pinRank = attackBoardMidRank >= midMainRank ? maxMainRank : minMainRank;
+        
+        const pinX = fileToWorldX(pinFile);
+        const pinY = rankToWorldY(pinRank);
         
         return (
           <mesh
