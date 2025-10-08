@@ -113,7 +113,7 @@ export class LocalStoragePersistence implements GamePersistence {
           color: 'white',
           file: 0,
           rank: 1,
-          level: 'W',
+          level: 'WQL',
           hasMoved: false,
         },
         {
@@ -122,7 +122,7 @@ export class LocalStoragePersistence implements GamePersistence {
           color: 'black',
           file: 0,
           rank: 8,
-          level: 'B',
+          level: 'BQL',
           hasMoved: false,
         },
       ];
