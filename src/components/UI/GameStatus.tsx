@@ -60,3 +60,4 @@ export function GameStatus() {
   
   return null;
 }
+export default GameStatus;
