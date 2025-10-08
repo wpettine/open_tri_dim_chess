@@ -1,3 +1,53 @@
+# Devin Scratch — Progress & Next Steps (Attack Board UI)
+
+Date: 2025-10-08
+
+What’s implemented so far:
+- Kings Only preset: seeded via LocalStoragePersistence on first run; places only kings in standard positions.
+- Attack Board UI (Phase I & II scaffolding):
+  - UI components: AttackBoardControls (board selection pills, eligible pin buttons, 0°/180° rotation), optional RailPins overlay.
+  - Store actions in useGameStore: selectBoard, canMoveBoard, moveAttackBoard, canRotate, rotateAttackBoard; world sync helper.
+  - Integrated validation/exec via worldMutation (no rule changes).
+  - App overlay integrates controls with 3D board.
+- Initial selection wiring:
+  - Clicking any square on an attack board also selects that board.
+  - PR #16 opened and green on CI; public preview deployed.
+
+Issue reported:
+- In Kings Only, selecting attack boards via 3D is not intuitive. Desired: click the red center disc to select the attack board.
+
+What I changed now:
+- Added a clickable red center disc to each attack board in BoardRenderer. Clicking the disc selects that board without affecting piece selection.
+- This provides a precise, discoverable target for board selection per the requested interaction.
+
+Next steps — focus on attack board selection/movement:
+1) Selection UX
+- Visual feedback: add subtle glow/pulse to the center disc when selected.
+- Accessibility: larger hit area on mobile; ensure keyboard focus and Enter/Space activate selection.
+- Optional: clearing piece selection when selecting a board to avoid mixed states.
+
+2) Movement UX
+- Eligibility clarity: keep eligible pins with green glow; show disabled reasons on hover/long-press.
+- Tap-to-place workflow: after selecting a board, tap an eligible pin to move; show transient confirmation toast.
+- Error feedback: if move is illegal, show brief inline message explaining the constraint.
+
+3) Rotation UX (Phase 2)
+- Keep 0°/180° buttons; when 180° is illegal, show reason (≤1 passenger, no vertical shadow/king safety violations).
+- Optional preview: brief flip animation when rotating to 180°, consistent with LCARS style.
+
+4) Testing and verification
+- Manual: Kings Only preset — select via disc, move to eligible pin, rotate 0° and 180°.
+- Unit: add tests around canMoveBoard/canRotate for typical legal/illegal states of attack boards.
+- Visual: verify disc z-offset ensures reliable clicks above squares/platform.
+
+5) Follow-ups and polish
+- Keyboard shortcuts: R toggles rotation; Shift+R revert to 0°.
+- History notation: include ^180 on board moves when rotated.
+- LCARS styling enhancements aligned with ATTACK_BOARD_UI_IDEAS.
+
+Deployment plan:
+- Continue pushing to branch devin/1759885610-attack-board-ui-phase1-2 (PR #16), wait for CI, redeploy preview after each change.
+
 # DEVIN_SCRATCH.md - Session Handoff Notes
 
 **Last Updated:** October 7, 2025 (19:46 UTC)  

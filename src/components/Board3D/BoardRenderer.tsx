@@ -45,6 +45,19 @@ function SingleBoard({ board }: { board: BoardLayout }) {
             opacity={THEME.platforms.opacity}
           />
         </mesh>
+
+        {board.type !== 'main' && (
+          <mesh
+            position={[0, 0, 0.06]}
+            onClick={(e) => {
+              e.stopPropagation();
+              selectBoard(board.id);
+            }}
+          >
+            <cylinderGeometry args={[0.4, 0.4, 0.08, 32]} />
+            <meshStandardMaterial color="#cc3333" emissive="#550000" emissiveIntensity={0.5} />
+          </mesh>
+        )}
       </group>
 
       {squares.map((square) => {
