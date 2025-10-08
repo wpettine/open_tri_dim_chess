@@ -111,6 +111,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
         set({ 
           selectedSquareId: squareId,
           highlightedSquareIds: validMoves,
+          selectedBoardId: null,
         });
       }
     } else {
@@ -139,6 +140,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
           set({ 
             selectedSquareId: squareId,
             highlightedSquareIds: validMoves,
+            selectedBoardId: null,
           });
         } else {
           set({ selectedSquareId: null, highlightedSquareIds: [] });
@@ -201,7 +203,15 @@ export const useGameStore = create<GameState>()((set, get) => ({
   },
 
   selectBoard: (boardId: string | null) => {
-    set({ selectedBoardId: boardId });
+    if (boardId === null) {
+      set({ selectedBoardId: null });
+    } else {
+      set({ 
+        selectedBoardId: boardId,
+        selectedSquareId: null,
+        highlightedSquareIds: []
+      });
+    }
   },
   
   resetGame: () => {

@@ -2,7 +2,93 @@
 
 Date: 2025-10-08
 
-What’s implemented so far:
+## Latest Session - October 8, 2025
+
+**Session:** https://app.devin.ai/sessions/eab5802dc82843dfabd6b399baf0f34f  
+**Branch:** `devin/1759888004-attack-board-deselection-fix`  
+**PR:** #17 - Fix attack board deselection and prevent mixed selection states
+
+### What Was Accomplished
+
+**Attack Board Deselection Fix (PR #17)**
+- **Problem Identified:** Attack board selection and piece selection could both be active simultaneously, creating confusing "mixed states"
+- **Root Cause:** No logic to clear one selection when the other was activated
+- **Solution Implemented:**
+  1. Added `AttackBoardControls` component to `App.tsx` (component existed but wasn't integrated)
+  2. Updated `selectBoard()` in `gameStore.ts`:
+     - When selecting a board (non-null), clears piece selection
+     - When deselecting (null), preserves piece selection
+  3. Updated `selectSquare()` in `gameStore.ts`:
+     - When selecting a piece, clears board selection
+  4. Updated `BoardRenderer.tsx`:
+     - Clicking main board squares calls `selectBoard(null)` to clear attack board selection
+     - Clicking attack board squares selects that board
+
+**Files Modified:**
+- `src/App.tsx` - Integrated AttackBoardControls component
+- `src/store/gameStore.ts` - Fixed selection state management logic
+- `src/components/Board3D/BoardRenderer.tsx` - Added deselection logic for main boards
+
+**Testing:**
+- ✅ All 77 tests passing
+- ✅ Lint clean (only pre-existing warnings in AttackBoardControls)
+- ✅ Manual testing confirmed all deselection scenarios work:
+  - Select attack board → select piece: board cleared, piece selected
+  - Select piece → select attack board: piece cleared, board selected
+  - Select attack board → click main board: board cleared
+  - Clear button works correctly
+  - Red disc selection works correctly
+
+**PR Status:**
+- Branch: `devin/1759888004-attack-board-deselection-fix`
+- PR #17: https://github.com/wpettine/open_tri_dim_chess/pull/17
+- CI: ✅ Passing
+- Status: Ready for review
+
+### Attack Board Visual Updates (In Progress)
+
+**User Requirements:**
+1. Remove red sphere from center of attack boards
+2. Replace with flat disk parallel to board, color #C2A14D (themeable)
+3. When attack board selected, disk takes on same color as selected piece squares (yellow)
+4. Add disk indicators at pin locations on main boards (same color as attack board selector)
+5. When attack board selected, eligible pin location disks turn green (same as available move squares)
+
+**Implementation Status:**
+- ✅ Updated `src/config/theme.ts`:
+  - Added `squares.selectedColor: '#ffff00'`
+  - Added `squares.availableMoveColor: '#00ff00'`
+  - Added `attackBoardSelector` config (color: #C2A14D, radius: 0.4, thickness: 0.08)
+  - Added `pinLocationDisk` config (radius: 0.3, thickness: 0.06)
+
+- ✅ Updated `src/components/Board3D/BoardRenderer.tsx`:
+  - Replaced red sphere with flat disk (parallel to board via rotation)
+  - Disk uses theme colors: gold normally, yellow when selected
+  - Added pin location disks on main boards at all 12 pin positions
+  - Pin disks show green when eligible, gold otherwise
+  - All square colors now use theme parameters
+
+**Current Status:**
+- Code changes complete and committed
+- Encountered browser caching issue preventing visual verification
+- Need to push changes and verify in fresh deployment
+
+### Next Steps
+
+**Immediate:**
+1. ✅ Update DEVIN_SCRATCH.md with session progress
+2. ⏳ Push visual changes to new PR
+3. ⏳ Test visual changes in deployed preview
+
+**Future Enhancements:**
+- Add visual glow/pulse to selected attack board selector
+- Improve mobile touch targets for attack board selection
+- Add keyboard navigation for attack board controls
+- Implement attack board movement execution via pin location clicks
+
+---
+
+What's implemented so far (Previous Sessions):r:
 - Kings Only preset: seeded via LocalStoragePersistence on first run; places only kings in standard positions.
 - Attack Board UI (Phase I & II scaffolding):
   - UI components: AttackBoardControls (board selection pills, eligible pin buttons, 0°/180° rotation), optional RailPins overlay.

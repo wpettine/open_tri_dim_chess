@@ -1,6 +1,8 @@
 import { useGameStore } from '../../store/gameStore';
 import type { BoardLayout, WorldSquare } from '../../engine/world/types';
 import { THEME } from '../../config/theme';
+import { PIN_POSITIONS } from '../../engine/world/pinPositions';
+import { fileToWorldX, rankToWorldY } from '../../engine/world/coordinates';
 
 export function BoardRenderer() {
   const world = useGameStore(state => state.world);
@@ -20,10 +22,22 @@ function SingleBoard({ board }: { board: BoardLayout }) {
   const selectBoard = useGameStore(state => state.selectBoard);
   const selectedSquareId = useGameStore(state => state.selectedSquareId);
   const highlightedSquareIds = useGameStore(state => state.highlightedSquareIds);
+  const selectedBoardId = useGameStore(state => state.selectedBoardId);
+  const canMoveBoard = useGameStore(state => state.canMoveBoard);
 
   const squares = Array.from(world.squares.values()).filter(
     (sq: WorldSquare) => sq.boardId === board.id
   );
+
+  const eligiblePins = new Set<string>();
+  if (selectedBoardId && board.type === 'main') {
+    Object.keys(PIN_POSITIONS).forEach(pinId => {
+      const result = canMoveBoard(selectedBoardId, pinId);
+      if (result.allowed) {
+        eligiblePins.add(pinId);
+      }
+    });
+  }
 
   return (
     <group>
@@ -48,17 +62,43 @@ function SingleBoard({ board }: { board: BoardLayout }) {
 
         {board.type !== 'main' && (
           <mesh
-            position={[0, 0, 0.06]}
+            position={[0, 0, 0]}
+            rotation={[Math.PI / 2, 0, 0]}
             onClick={(e) => {
               e.stopPropagation();
               selectBoard(board.id);
             }}
           >
-            <cylinderGeometry args={[0.4, 0.4, 0.08, 32]} />
-            <meshStandardMaterial color="#cc3333" emissive="#550000" emissiveIntensity={0.5} />
+            <cylinderGeometry args={[THEME.attackBoardSelector.radius, THEME.attackBoardSelector.radius, THEME.attackBoardSelector.thickness, 32]} />
+            <meshStandardMaterial 
+              color={selectedBoardId === board.id ? THEME.squares.selectedColor : THEME.attackBoardSelector.color}
+            />
           </mesh>
         )}
       </group>
+
+      {board.type === 'main' && Object.entries(PIN_POSITIONS).map(([pinId, pin]) => {
+        if (pin.zHeight !== board.centerZ) return null;
+        
+        const isEligible = eligiblePins.has(pinId);
+        const pinX = fileToWorldX(pin.fileOffset + 1);
+        const pinY = rankToWorldY(pin.rankOffset + 1);
+        
+        return (
+          <mesh
+            key={pinId}
+            position={[pinX, pinY, board.centerZ]}
+            rotation={[Math.PI / 2, 0, 0]}
+          >
+            <cylinderGeometry args={[THEME.pinLocationDisk.radius, THEME.pinLocationDisk.radius, THEME.pinLocationDisk.thickness, 32]} />
+            <meshStandardMaterial 
+              color={isEligible ? THEME.squares.availableMoveColor : THEME.attackBoardSelector.color}
+              transparent={!isEligible}
+              opacity={isEligible ? 0.7 : 0.5}
+            />
+          </mesh>
+        );
+      })}
 
       {squares.map((square) => {
         const isSelected = square.id === selectedSquareId;
@@ -71,6 +111,8 @@ function SingleBoard({ board }: { board: BoardLayout }) {
             onClick={() => {
               if (board.type !== 'main') {
                 selectBoard(board.id);
+              } else {
+                selectBoard(null);
               }
               selectSquare(square.id);
             }}
@@ -78,8 +120,8 @@ function SingleBoard({ board }: { board: BoardLayout }) {
             <boxGeometry args={[THEME.squares.size, THEME.squares.size, 0.1]} />
             <meshStandardMaterial
               color={
-                isSelected ? '#ffff00' :
-                isLegalMove ? '#00ff00' :
+                isSelected ? THEME.squares.selectedColor :
+                isLegalMove ? THEME.squares.availableMoveColor :
                 square.color === 'light' ? THEME.squares.light : THEME.squares.dark
               }
               transparent
