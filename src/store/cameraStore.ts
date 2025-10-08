@@ -8,6 +8,6 @@ interface CameraState {
 }
 
 export const useCameraStore = create<CameraState>((set) => ({
-  currentView: 'default',
+  currentView: 'side',
   setView: (view) => set({ currentView: view }),
 }));
