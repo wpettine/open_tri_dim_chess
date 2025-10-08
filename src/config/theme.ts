@@ -3,7 +3,7 @@ export const THEME = {
     size: 2.0,
     light: '#DDE6F5',
     dark: '#1E3D8F',
-    opacity: 0.95,
+    opacity: 0.3,
     selectedColor: '#ffff00',
     availableMoveColor: '#00ff00',
   },
