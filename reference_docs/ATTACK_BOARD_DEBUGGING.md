@@ -91,7 +91,47 @@ Added comprehensive console logging in three key locations:
    - Added "King and Pawn" saved game state
    - Fixed pawn positions to be on attack boards (WQL/BQL) instead of main boards
 
-## Remaining Issue - Player-Relative Direction Logic ⚠️
+## Session 2 Progress (Completed) ✅
+
+### Issue Fixed: Player-Relative Direction Logic
+
+**Problem**: The `requiresEmpty` constraint in attack board adjacency rules was applied uniformly without considering player ownership. The direction "backward" was treated as absolute (based on rank numbers) rather than relative to the player.
+
+**Solution Implemented**:
+1. Added `getBoardColor(boardId)` helper function to extract player color from board ID
+2. Added `getRelativeDirection(absoluteDirection, boardColor)` to flip forward/backward for Black boards
+3. Updated `validateAdjacency()` to compute player-relative directions before checking `requiresEmpty`
+
+**Code Changes** (`src/engine/world/worldMutation.ts`):
+- New helper functions determine board ownership and transform directions
+- For Black boards, "forward" and "backward" are flipped since Black plays from the opposite side
+- "side" moves remain unchanged for both colors
+
+**Testing Results** ✅:
+- White's WQL can move QL1→QL2 while occupied (forward for White) ✅
+- Black's BQL can now move QL6→QL5 while occupied (forward for Black) ✅
+- Turn toggles correctly after both moves ✅
+- Move history records movements properly ✅
+- Lint passed with only pre-existing warnings ✅
+
+**PR**: #27 - All CI checks passed
+
+---
+
+## All Issues Resolved ✅
+
+All attack board movement issues have been successfully debugged and fixed:
+1. ✅ Turn toggle after attack board moves
+2. ✅ Z-axis positioning
+3. ✅ Visual position updates
+4. ✅ Pieces staying visible during moves
+5. ✅ Player-relative direction logic
+
+The attack board movement system is now fully functional for both White and Black players.
+
+---
+
+## Previous Session Notes - Player-Relative Direction Logic ⚠️
 
 ### Problem Identified
 
