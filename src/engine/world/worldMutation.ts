@@ -1,6 +1,7 @@
 import type { ChessWorld } from './types';
 import type { Piece } from '../../store/gameStore';
 import { PIN_POSITIONS } from './pinPositions';
+import { ATTACK_BOARD_ADJACENCY } from './attackBoardAdjacency';
 
 export interface BoardMoveContext {
   boardId: string;
@@ -18,17 +19,19 @@ export interface BoardMoveValidation {
 }
 
 export function validateBoardMove(context: BoardMoveContext): BoardMoveValidation {
-  const adjacencyCheck = validateAdjacency(context);
-  if (!adjacencyCheck.isValid) return adjacencyCheck;
+  const rotationCheck = validateRotation(context);
+  if (!rotationCheck.isValid) return rotationCheck;
 
-  const occupancyCheck = validateOccupancy(context);
-  if (!occupancyCheck.isValid) return occupancyCheck;
+  if (context.fromPinId !== context.toPinId) {
+    const adjacencyCheck = validateAdjacency(context);
+    if (!adjacencyCheck.isValid) return adjacencyCheck;
 
-  const directionCheck = validateDirection(context);
-  if (!directionCheck.isValid) return directionCheck;
+    const occupancyCheck = validateOccupancy(context);
+    if (!occupancyCheck.isValid) return occupancyCheck;
 
-  const shadowCheck = validateVerticalShadow(context);
-  if (!shadowCheck.isValid) return shadowCheck;
+    const shadowCheck = validateVerticalShadow(context);
+    if (!shadowCheck.isValid) return shadowCheck;
+  }
 
   const kingSafetyCheck = validateKingSafety(context);
   if (!kingSafetyCheck.isValid) return kingSafetyCheck;
@@ -36,39 +39,43 @@ export function validateBoardMove(context: BoardMoveContext): BoardMoveValidatio
   return { isValid: true };
 }
 
-function validateAdjacency(context: BoardMoveContext): BoardMoveValidation {
-  const fromPin = PIN_POSITIONS[context.fromPinId];
-  const toPin = PIN_POSITIONS[context.toPinId];
-  
-  if (!fromPin || !toPin) {
-    return { isValid: false, reason: 'Invalid source or destination pin' };
-  }
-
-  const fromLine = context.fromPinId.startsWith('QL') ? 'QL' : 'KL';
-  const toLine = context.toPinId.startsWith('QL') ? 'QL' : 'KL';
-
-  if (fromLine === toLine) {
-    const levelDiff = Math.abs(toPin.level - fromPin.level);
-    
-    if (levelDiff <= 2) {
-      return { isValid: true };
-    }
-    
-    const passengerPieces = getPassengerPieces(context.boardId, context.fromPinId, context.pieces);
-    const hasKnight = passengerPieces.some(p => p.type === 'knight');
-    
-    if (levelDiff <= 3 && hasKnight) {
-      return { isValid: true };
-    }
-    
-    return { isValid: false, reason: 'Destination pin is not adjacent' };
-  }
-
-  if (fromPin.adjacentPins.includes(context.toPinId)) {
+function validateRotation(context: BoardMoveContext): BoardMoveValidation {
+  if (!context.rotate) {
     return { isValid: true };
   }
 
-  return { isValid: false, reason: 'Destination pin is not adjacent' };
+  const passengerPieces = getPassengerPieces(context.boardId, context.fromPinId, context.pieces);
+  if (passengerPieces.length > 1) {
+    return { isValid: false, reason: 'Cannot rotate with more than 1 piece on board' };
+  }
+
+  return { isValid: true };
+}
+
+function validateAdjacency(context: BoardMoveContext): BoardMoveValidation {
+  const adjacencyList = ATTACK_BOARD_ADJACENCY[context.fromPinId];
+  
+  if (!adjacencyList) {
+    return { isValid: false, reason: 'Invalid source pin' };
+  }
+
+  const edge = adjacencyList.find(e => e.to === context.toPinId);
+  
+  if (!edge) {
+    return { isValid: false, reason: 'Destination pin is not adjacent' };
+  }
+
+  if (edge.requiresEmpty) {
+    const passengerPieces = getPassengerPieces(context.boardId, context.fromPinId, context.pieces);
+    if (passengerPieces.length > 0) {
+      return { 
+        isValid: false, 
+        reason: 'Cannot move backward or backward+side while occupied' 
+      };
+    }
+  }
+
+  return { isValid: true };
 }
 
 function validateOccupancy(context: BoardMoveContext): BoardMoveValidation {
@@ -83,85 +90,30 @@ function validateOccupancy(context: BoardMoveContext): BoardMoveValidation {
   return { isValid: true };
 }
 
-function validateDirection(context: BoardMoveContext): BoardMoveValidation {
-  const fromPin = PIN_POSITIONS[context.fromPinId];
-  const toPin = PIN_POSITIONS[context.toPinId];
-
-  if (!fromPin || !toPin) {
-    return { isValid: false, reason: 'Invalid pin positions' };
-  }
-
-  const levelDiff = toPin.level - fromPin.level;
-  
-  if (levelDiff > 0) {
-    return { isValid: true };
-  }
-  
-  if (levelDiff === 0) {
-    const fromLine = context.fromPinId.startsWith('QL') ? 'QL' : 'KL';
-    const toLine = context.toPinId.startsWith('QL') ? 'QL' : 'KL';
-    
-    if (fromLine !== toLine) {
-      return { isValid: true };
-    }
-    
-    return { isValid: false, reason: 'Cannot move sideways within the same line' };
-  }
-  
-  if (fromPin.inverted) {
-    return { isValid: true };
-  }
-  
-  return { isValid: false, reason: 'Cannot move backward (except from inverted pins)' };
-}
-
 function validateVerticalShadow(context: BoardMoveContext): BoardMoveValidation {
-  const fromPin = PIN_POSITIONS[context.fromPinId];
   const toPin = PIN_POSITIONS[context.toPinId];
 
-  if (!fromPin || !toPin) {
-    return { isValid: false, reason: 'Invalid pin positions' };
+  if (!toPin) {
+    return { isValid: false, reason: 'Invalid destination pin' };
   }
 
-  const levelDiff = Math.abs(toPin.level - fromPin.level);
-  if (levelDiff <= 1) {
-    return { isValid: true };
-  }
+  const destinationSquares = getBoardSquaresForBoardAtPin(context.boardId, context.toPinId);
 
-  const passengerPieces = getPassengerPieces(context.boardId, context.fromPinId, context.pieces);
-  const hasKnight = passengerPieces.some(p => p.type === 'knight');
-
-  if (levelDiff > 2 && !hasKnight) {
-    return { 
-      isValid: false, 
-      reason: 'Cannot move more than 2 levels without a knight passenger' 
-    };
-  }
-
-  const minLevel = Math.min(fromPin.level, toPin.level);
-  const maxLevel = Math.max(fromPin.level, toPin.level);
-  
-  if (hasKnight) {
-    return { isValid: true };
-  }
-
-  const boardSquares = getBoardSquaresForBoardAtPin(context.boardId, context.fromPinId);
-  
-  for (let level = minLevel + 1; level < maxLevel; level++) {
-    for (const square of boardSquares) {
-      const blockingPiece = context.pieces.find(p => 
-        p.file === square.file &&
-        p.rank === square.rank &&
-        parseInt(p.level) === level &&
-        !passengerPieces.includes(p)
-      );
-      
-      if (blockingPiece) {
-        return { 
-          isValid: false, 
-          reason: `Vertical shadow blocked by ${blockingPiece.type} at level ${level}` 
-        };
-      }
+  for (const square of destinationSquares) {
+    const blockingPiece = context.pieces.find(p => 
+      p.file === square.file &&
+      p.rank === square.rank &&
+      p.type !== 'knight' &&
+      p.level !== context.boardId
+    );
+    
+    if (blockingPiece) {
+      const fileNames = ['z', 'a', 'b', 'c', 'd', 'e'];
+      const fileName = fileNames[blockingPiece.file] || '?';
+      return { 
+        isValid: false, 
+        reason: `Vertical shadow: ${blockingPiece.type} at ${fileName}${blockingPiece.rank}${blockingPiece.level} blocks board placement` 
+      };
     }
   }
 
@@ -186,8 +138,8 @@ function getPassengerPieces(
   return pieces.filter(piece => {
     const pieceSquareId = `${piece.file}-${piece.rank}`;
     const isOnBoardSquare = boardSquares.some(sq => `${sq.file}-${sq.rank}` === pieceSquareId);
-    const isAtBoardLevel = parseInt(piece.level) === pin.level;
-    return isOnBoardSquare && isAtBoardLevel;
+    const isOnThisBoard = piece.level === boardId;
+    return isOnBoardSquare && isOnThisBoard;
   });
 }
 

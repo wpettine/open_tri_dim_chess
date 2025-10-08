@@ -57,6 +57,7 @@ export function AttackBoardControls() {
           <div style={rowStyle}>
             {PINS.map(pin => {
               const eligible = eligiblePins.has(pin);
+              const result = canMoveBoard(selectedBoardId, pin);
               const onClick = eligible ? () => moveAttackBoard(selectedBoardId, pin) : undefined;
               return (
                 <button
@@ -64,7 +65,7 @@ export function AttackBoardControls() {
                   onClick={onClick}
                   aria-disabled={!eligible}
                   style={{...pinStyle, ...(eligible ? pinEligible : pinDisabled)}}
-                  title={!eligible ? 'Illegal destination' : undefined}
+                  title={!eligible ? result.reason || 'Illegal destination' : undefined}
                 >
                   {pin}
                 </button>
