@@ -54,7 +54,12 @@ function SingleBoard({ board }: { board: BoardLayout }) {
             ]}
           />
           <meshStandardMaterial
-            color={board.type === 'main' ? THEME.platforms.main : THEME.platforms.attack}
+            color={
+              board.type === 'attack' ? THEME.platforms.attack :
+              board.id === 'WL' ? THEME.platforms.whiteMain :
+              board.id === 'NL' ? THEME.platforms.neutralMain :
+              THEME.platforms.blackMain
+            }
             transparent
             opacity={THEME.platforms.opacity}
           />
@@ -125,10 +130,7 @@ function SingleBoard({ board }: { board: BoardLayout }) {
                 square.color === 'light' ? THEME.squares.light : THEME.squares.dark
               }
               transparent
-              opacity={
-                isLegalMove ? 0.7 : 
-                square.color === 'light' ? THEME.squares.lightOpacity : THEME.squares.darkOpacity
-              }
+              opacity={isLegalMove ? 0.7 : THEME.squares.opacity}
             />
           </mesh>
         );
