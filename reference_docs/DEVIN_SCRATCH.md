@@ -47,6 +47,55 @@ Next steps — focus on attack board selection/movement:
 
 Deployment plan:
 - Continue pushing to branch devin/1759885610-attack-board-ui-phase1-2 (PR #16), wait for CI, redeploy preview after each change.
+# Save/Load Persistence — Implementation Notes (2025-10-07)
+
+Summary of what was implemented across PRs #10, #11, and #12.
+
+- Added local-first persistence with zod schema validation and a storage provider abstraction for future Firebase.
+- Implemented LocalStoragePersistence with:
+  - Index key: otdc:saves:index
+  - Data keys: otdc:saves:{id}
+  - Methods: listSaves, saveGame, loadGame, deleteGame, exportGame, importGame
+- Added schema.ts with SCHEMA_VERSION and Zod schemas for index, document, and payload.
+- Added utils.ts with generateId, nowIso, debounce.
+
+Store integration (gameStore.ts):
+- Added buildPersistablePayload and hydrateFromPersisted helpers.
+- Added async actions on the Zustand store:
+  - saveCurrentGame(name?)
+  - loadGameById(id)
+  - deleteGameById(id)
+  - exportGameById(id) -> JSON string
+  - importGameFromJson(json)
+- Hydration preserves game state fields and refreshes derived flags via updateGameState.
+
+UI:
+- New SaveLoadManager modal (Save/Load manager):
+  - Save mode: optional name input; saves current game.
+  - List of saves sorted by updatedAt desc.
+  - Per-row actions: Export, Delete.
+  - Import from File in the modal footer.
+  - Load mode: select a save and load it; Import also available.
+- MoveHistory layout:
+  - Controls bar moved above “Move History” header.
+  - Toggle now only expands/collapses the move list (controls remain visible).
+  - Removed main “Export Save” and “Import from File” buttons; these actions live inside the Save/Load manager.
+  - Controls shown: New Game, Save Game, Load Game.
+
+Developer notes:
+- Saving uses store.saveCurrentGame(name) which writes via LocalStoragePersistence and updates the index.
+- Import validates JSON via Zod; on success the imported game becomes available and can be loaded.
+- Export returns validated JSON for a specific saved game.
+- This architecture prepares for a Firebase-backed GamePersistence implementation later without UI changes.
+
+Verification:
+- Linted and built locally (vite).
+- Manually tested:
+  - Save with a name; entry appears at top of list.
+  - Load selected; board and move history restore.
+  - Delete removes entry after confirm.
+  - Export downloads JSON; Import re-adds the save.
+  - Controls bar remains visible when toggling history.
 
 # DEVIN_SCRATCH.md - Session Handoff Notes
 
