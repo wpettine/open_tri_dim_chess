@@ -102,6 +102,135 @@ When an attack board moves or is placed so that any of its four overhanging squa
 
 *(see diagram `attack_board_adjacency.svg/png`)*
 
+### Map as structured JSON
+
+{
+  "QL1": [
+    { "to": "QL2", "dir": ["forward"], "requiresEmpty": false },
+    { "to": "KL1", "dir": ["side"], "requiresEmpty": false },
+    { "to": "KL2", "dir": ["forward", "side"], "requiresEmpty": false }
+  ],
+  "QL2": [
+    { "to": "QL1", "dir": ["backward"], "requiresEmpty": true },
+    { "to": "QL3", "dir": ["forward"], "requiresEmpty": false },
+    { "to": "KL1", "dir": ["side", "backward"], "requiresEmpty": true },
+    { "to": "KL2", "dir": ["side"], "requiresEmpty": false },
+    { "to": "KL3", "dir": ["forward", "side"], "requiresEmpty": false }
+  ],
+  "QL3": [
+    { "to": "QL2", "dir": ["backward"], "requiresEmpty": true },
+    { "to": "QL4", "dir": ["forward"], "requiresEmpty": false },
+    { "to": "KL2", "dir": ["side", "backward"], "requiresEmpty": true },
+    { "to": "KL3", "dir": ["side"], "requiresEmpty": false },
+    { "to": "KL4", "dir": ["forward", "side"], "requiresEmpty": false }
+  ],
+  "QL4": [
+    { "to": "QL3", "dir": ["backward"], "requiresEmpty": true },
+    { "to": "QL5", "dir": ["forward"], "requiresEmpty": false },
+    { "to": "KL3", "dir": ["side", "backward"], "requiresEmpty": true },
+    { "to": "KL4", "dir": ["side"], "requiresEmpty": false },
+    { "to": "KL5", "dir": ["forward", "side"], "requiresEmpty": false }
+  ],
+  "QL5": [
+    { "to": "QL4", "dir": ["backward"], "requiresEmpty": true },
+    { "to": "QL6", "dir": ["forward"], "requiresEmpty": false },
+    { "to": "KL4", "dir": ["side", "backward"], "requiresEmpty": true },
+    { "to": "KL5", "dir": ["side"], "requiresEmpty": false },
+    { "to": "KL6", "dir": ["forward", "side"], "requiresEmpty": false }
+  ],
+  "QL6": [
+    { "to": "QL5", "dir": ["backward"], "requiresEmpty": true },
+    { "to": "KL5", "dir": ["side", "backward"], "requiresEmpty": true },
+    { "to": "KL6", "dir": ["side"], "requiresEmpty": false }
+  ],
+  "KL1": [
+    { "to": "KL2", "dir": ["forward"], "requiresEmpty": false },
+    { "to": "QL1", "dir": ["side"], "requiresEmpty": false },
+    { "to": "QL2", "dir": ["forward", "side"], "requiresEmpty": false }
+  ],
+  "KL2": [
+    { "to": "KL1", "dir": ["backward"], "requiresEmpty": true },
+    { "to": "KL3", "dir": ["forward"], "requiresEmpty": false },
+    { "to": "QL1", "dir": ["side", "backward"], "requiresEmpty": true },
+    { "to": "QL2", "dir": ["side"], "requiresEmpty": false },
+    { "to": "QL3", "dir": ["forward", "side"], "requiresEmpty": false }
+  ],
+  "KL3": [
+    { "to": "KL2", "dir": ["backward"], "requiresEmpty": true },
+    { "to": "KL4", "dir": ["forward"], "requiresEmpty": false },
+    { "to": "QL2", "dir": ["side", "backward"], "requiresEmpty": true },
+    { "to": "QL3", "dir": ["side"], "requiresEmpty": false },
+    { "to": "QL4", "dir": ["forward", "side"], "requiresEmpty": false }
+  ],
+  "KL4": [
+    { "to": "KL3", "dir": ["backward"], "requiresEmpty": true },
+    { "to": "KL5", "dir": ["forward"], "requiresEmpty": false },
+    { "to": "QL3", "dir": ["side", "backward"], "requiresEmpty": true },
+    { "to": "QL4", "dir": ["side"], "requiresEmpty": false },
+    { "to": "QL5", "dir": ["forward", "side"], "requiresEmpty": false }
+  ],
+  "KL5": [
+    { "to": "KL4", "dir": ["backward"], "requiresEmpty": true },
+    { "to": "KL6", "dir": ["forward"], "requiresEmpty": false },
+    { "to": "QL4", "dir": ["side", "backward"], "requiresEmpty": true },
+    { "to": "QL5", "dir": ["side"], "requiresEmpty": false },
+    { "to": "QL6", "dir": ["forward", "side"], "requiresEmpty": false }
+  ],
+  "KL6": [
+    { "to": "KL5", "dir": ["backward"], "requiresEmpty": true },
+    { "to": "QL5", "dir": ["side", "backward"], "requiresEmpty": true },
+    { "to": "QL6", "dir": ["side"], "requiresEmpty": false }
+  ]
+}
+
+### ASCI Diagrams
+
+a–d   → files (left to right)
+1–4   → ranks (bottom to top)
+W/N/B → main boards (White / Neutral / Black)
+QLx / KLx → attack-board pins at those corners
+
+#### White Main Board (W)
+```
+        ↑ rank
+  4  ┌──────────────┐
+     │              │
+     │              │
+  1  └──────────────┘
+     a              d  → file
+```
+
+Corner pins:
+ a1W → QL1   (Queen-side pin, White’s front-left)
+ d1W → KL1   (King-side pin, White’s front-right)
+ a4W → QL2   (Queen-side rear pin)
+ d4W → KL2   (King-side rear pin)
+
+#### Neutral Main Board (N)
+```
+     a   b   c   d
+  6 [QL4] .   . [KL4]
+  5   .   .   .   .
+  4   .   .   .   .
+  3 [QL3] .   . [KL3]
+
+```
+#### Black Main Board (B)
+```
+     a   b   c   d
+  8 [QL6] .   . [KL6]
+  7   .   .   .   .
+  6   .   .   .   .
+  5 [QL5] .   . [KL5]
+```
+#### Summary
+
+| Vertical Layer             | Queen-side Pins | King-side Pins | Physical Description     |
+| :------------------------- | :-------------- | :------------- | :----------------------- |
+| **White Board (lowest)**   | QL1, QL2        | KL1, KL2       | Attack boards near White |
+| **Neutral Board (middle)** | QL3, QL4        | KL3, KL4       | Mid-bridge attack boards |
+| **Black Board (highest)**  | QL5, QL6        | KL5, KL6       | Attack boards near Black |
+
 ---
 
 ## 8  Engine Implementation Snippets
