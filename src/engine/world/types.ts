@@ -28,6 +28,8 @@ export interface BoardLayout {
   centerY: number;               // World coordinate
   centerZ: number;               // World coordinate (height)
   rotation: number;              // 0 or 180 degrees
+  owner?: 'white' | 'black';     // Original owner of attack board
+  controller?: 'white' | 'black' | null; // Current controller (hijack mechanic)
 }
 
 /**

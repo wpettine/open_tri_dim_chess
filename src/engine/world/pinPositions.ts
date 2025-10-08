@@ -18,7 +18,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
     fileOffset: 0,  // Files z-a (0-1)
     rankOffset: 0,  // Ranks 0-1
     zHeight: 7.5,  // Above white main (Z=5), below neutral (Z=10)
-    adjacentPins: ['QL2', 'QL3'],
+    adjacentPins: ['QL2', 'KL1', 'KL2'],
     level: 0,
     inverted: false,
   },
@@ -27,7 +27,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
     fileOffset: 0,
     rankOffset: 2,  // Ranks 2-3 (overlaps with W main board)
     zHeight: 7.5,  // Above white main (Z=5), below neutral (Z=10)
-    adjacentPins: ['QL1', 'QL3', 'QL4'],
+    adjacentPins: ['QL1', 'QL3', 'KL1', 'KL2', 'KL3'],
     level: 1,
     inverted: false,
   },
@@ -36,7 +36,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
     fileOffset: 0,
     rankOffset: 4,  // Ranks 4-5 (overlaps with W/N main boards)
     zHeight: 12.5,  // Above neutral main (Z=10), below black (Z=15)
-    adjacentPins: ['QL1', 'QL2', 'QL4', 'QL5'],
+    adjacentPins: ['QL2', 'QL4', 'KL2', 'KL3', 'KL4'],
     level: 2,
     inverted: false,
   },
@@ -45,7 +45,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
     fileOffset: 0,
     rankOffset: 6,  // Ranks 6-7 (overlaps with N/B main boards)
     zHeight: 12.5,  // Above neutral main (Z=10), below black (Z=15)
-    adjacentPins: ['QL2', 'QL3', 'QL5', 'QL6'],
+    adjacentPins: ['QL3', 'QL5', 'KL3', 'KL4', 'KL5'],
     level: 3,
     inverted: false,
   },
@@ -54,7 +54,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
     fileOffset: 0,
     rankOffset: 8,  // Ranks 8-9 (overlaps with B main board)
     zHeight: 17.5,  // Above black main (Z=15)
-    adjacentPins: ['QL3', 'QL4', 'QL6'],
+    adjacentPins: ['QL4', 'QL6', 'KL4', 'KL5', 'KL6'],
     level: 4,
     inverted: false,
   },
@@ -63,7 +63,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
     fileOffset: 0,
     rankOffset: 8,  // Ranks 8-9 (above B main board)
     zHeight: 17.5,  // Above black main board
-    adjacentPins: ['QL4', 'QL5'],
+    adjacentPins: ['QL5', 'KL5', 'KL6'],
     level: 5,
     inverted: true,  // Inverted at top
   },
@@ -74,7 +74,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
     fileOffset: 4,  // Files d-e (4-5)
     rankOffset: 0,  // Ranks 0-1
     zHeight: 7.5,  // Above white main (Z=5), below neutral (Z=10)
-    adjacentPins: ['KL2', 'KL3'],
+    adjacentPins: ['KL2', 'QL1', 'QL2'],
     level: 0,
     inverted: false,
   },
@@ -83,7 +83,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
     fileOffset: 4,
     rankOffset: 2,  // Ranks 2-3 (overlaps with W main board)
     zHeight: 7.5,  // Above white main (Z=5), below neutral (Z=10)
-    adjacentPins: ['KL1', 'KL3', 'KL4'],
+    adjacentPins: ['KL1', 'KL3', 'QL1', 'QL2', 'QL3'],
     level: 1,
     inverted: false,
   },
@@ -92,7 +92,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
     fileOffset: 4,
     rankOffset: 4,  // Ranks 4-5
     zHeight: 12.5,  // Above neutral main (Z=10), below black (Z=15)
-    adjacentPins: ['KL1', 'KL2', 'KL4', 'KL5'],
+    adjacentPins: ['KL2', 'KL4', 'QL2', 'QL3', 'QL4'],
     level: 2,
     inverted: false,
   },
@@ -101,7 +101,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
     fileOffset: 4,
     rankOffset: 6,  // Ranks 6-7
     zHeight: 12.5,  // Above neutral main (Z=10), below black (Z=15)
-    adjacentPins: ['KL2', 'KL3', 'KL5', 'KL6'],
+    adjacentPins: ['KL3', 'KL5', 'QL3', 'QL4', 'QL5'],
     level: 3,
     inverted: false,
   },
@@ -110,7 +110,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
     fileOffset: 4,
     rankOffset: 8,  // Ranks 8-9
     zHeight: 17.5,  // Above black main (Z=15)
-    adjacentPins: ['KL3', 'KL4', 'KL6'],
+    adjacentPins: ['KL4', 'KL6', 'QL4', 'QL5', 'QL6'],
     level: 4,
     inverted: false,
   },
@@ -119,7 +119,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
     fileOffset: 4,
     rankOffset: 8,  // Ranks 8-9
     zHeight: 17.5,  // Above black main board
-    adjacentPins: ['KL4', 'KL5'],
+    adjacentPins: ['KL5', 'QL5', 'QL6'],
     level: 5,
     inverted: true,
   },

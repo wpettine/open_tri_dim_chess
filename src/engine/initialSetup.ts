@@ -52,7 +52,7 @@ export function createInitialPieces(): Piece[] {
   };
 
   // Helper to map JSON level (pin/board id) to our board ids
-  const mapLevel = (color: 'white' | 'black', level: 'W' | 'B' | 'QL1' | 'KL1' | 'QL6' | 'KL6'): string => {
+  const mapLevel = (_color: 'white' | 'black', level: 'W' | 'B' | 'QL1' | 'KL1' | 'QL6' | 'KL6'): string => {
     if (level === 'W' || level === 'B') return level;
     if (level === 'QL1') return 'WQL';
     if (level === 'KL1') return 'WKL';
