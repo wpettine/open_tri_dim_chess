@@ -82,41 +82,67 @@ function SingleBoard({ board }: { board: BoardLayout }) {
         )}
       </group>
 
-      {board.type === 'main' && Object.entries(PIN_POSITIONS).map(([pinId, pin]) => {
-        if (pin.zHeight !== board.centerZ) return null;
-        
-        const isEligible = eligiblePins.has(pinId);
-        
+      {board.type === 'main' && (() => {
         const minMainRank = Math.min(...board.ranks);
         const maxMainRank = Math.max(...board.ranks);
         const minMainFile = Math.min(...board.files);
         const maxMainFile = Math.max(...board.files);
         
-        const pinFile = pin.fileOffset === 0 ? minMainFile : maxMainFile;
+        const corners = [
+          { file: minMainFile, rank: minMainRank, key: 'bottom-left' },
+          { file: maxMainFile, rank: minMainRank, key: 'bottom-right' },
+          { file: minMainFile, rank: maxMainRank, key: 'top-left' },
+          { file: maxMainFile, rank: maxMainRank, key: 'top-right' },
+        ];
         
-        const midMainRank = (minMainRank + maxMainRank) / 2;
-        const attackBoardMidRank = pin.rankOffset + 0.5;
+        const halfSquare = THEME.squares.size / 2;
         
-        const pinRank = attackBoardMidRank >= midMainRank ? maxMainRank : minMainRank;
-        
-        const pinX = fileToWorldX(pinFile);
-        const pinY = rankToWorldY(pinRank);
-        
-        return (
-          <mesh
-            key={pinId}
-            position={[pinX, pinY, board.centerZ]}
-            rotation={[Math.PI / 2, 0, 0]}
-          >
-            <cylinderGeometry args={[THEME.pinLocationDisk.radius, THEME.pinLocationDisk.radius, THEME.pinLocationDisk.thickness, 32]} />
-            <meshStandardMaterial 
-              color={isEligible ? THEME.squares.availableMoveColor : THEME.attackBoardSelector.color}
-              transparent={!isEligible}
-              opacity={isEligible ? 0.7 : 0.5}
-            />
-          </mesh>
-        );
-      })}
+        return corners.map(corner => {
+          const pinX = fileToWorldX(corner.file) + (corner.file === minMainFile ? -halfSquare : halfSquare);
+          const pinY = rankToWorldY(corner.rank) + (corner.rank === minMainRank ? -halfSquare : halfSquare);
+          
+          let isEligible = false;
+          if (selectedBoardId) {
+            for (const pinId of Object.keys(PIN_POSITIONS)) {
+              const pin = PIN_POSITIONS[pinId];
+              if (pin.zHeight === board.centerZ) {
+                const result = canMoveBoard(selectedBoardId, pinId);
+                if (result.allowed) {
+                  const pinMatchesCorner = 
+                    (pin.fileOffset === 0 && corner.file === minMainFile) ||
+                    (pin.fileOffset === 4 && corner.file === maxMainFile);
+                  
+                  const attackBoardMidRank = pin.rankOffset + 0.5;
+                  const midMainRank = (minMainRank + maxMainRank) / 2;
+                  const rankMatchesCorner =
+                    (attackBoardMidRank < midMainRank && corner.rank === minMainRank) ||
+                    (attackBoardMidRank >= midMainRank && corner.rank === maxMainRank);
+                  
+                  if (pinMatchesCorner && rankMatchesCorner) {
+                    isEligible = true;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          
+          return (
+            <mesh
+              key={`${board.id}-${corner.key}`}
+              position={[pinX, pinY, board.centerZ]}
+              rotation={[Math.PI / 2, 0, 0]}
+            >
+              <cylinderGeometry args={[THEME.pinLocationDisk.radius, THEME.pinLocationDisk.radius, THEME.pinLocationDisk.thickness, 32]} />
+              <meshStandardMaterial 
+                color={isEligible ? THEME.squares.availableMoveColor : THEME.attackBoardSelector.color}
+                transparent={!isEligible}
+                opacity={isEligible ? 0.7 : 0.5}
+              />
+            </mesh>
+          );
+        });
+      })()}
 
       {squares.map((square) => {
         const isSelected = square.id === selectedSquareId;
