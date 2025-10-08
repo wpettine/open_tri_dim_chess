@@ -1,3 +1,135 @@
+# Implementation Guide — Attack Board UI (Phases I & II)
+This section defines concrete implementation steps for the Attack Board UI, aligned with ATTACK_BOARD_UI_IDEAS.md and ATTACK_BOARD_RULES.md.
+
+Overview
+- Phase I (Pins & Placement): Render static rails and pin slots, selection, eligibility highlighting, and tap-to-place/drag-to-snap movement.
+- Phase II (Rotation UI 0°/180°): Provide rotation controls and previews, enforce legality (≤1 piece occupancy, Vertical Shadow, King Safety), and update move history.
+
+References
+- See reference_docs/ATTACK_BOARD_UI_IDEAS.md for UX, visual language, mobile ergonomics, and test checklist.
+- See reference_docs/ATTACK_BOARD_RULES.md for movement, adjacency, rotation legality, vertical shadow, and notation.
+
+Success Criteria
+- Phase I: Users can select an attack board, see valid pin targets highlighted, and move the board by tap-to-place (mobile) or drag-and-snap (desktop). Ghost preview appears at destination prior to placement.
+- Phase II: Users can flip an attack board to 0°/180° when legal. Illegal cases are disabled with reasons. Move history records rotations using ^180 notation.
+
+Engine & Data Model Touchpoints
+- Pin topology: src/engine/world/pinPositions.ts (PIN_POSITIONS and getInitialPinPositions)
+- Game state: useGameStore (attackBoardPositions, pieces, currentTurn, etc.)
+- Rules: adjacency, occupancy, vertical shadow, king safety checks (engine APIs to query legality)
+
+PHASE I — Pins, Highlighting, Movement (Tap-to-Place / Drag-and-Snap)
+1) Rendering
+- Add a RailPins component to render pin rails for QL1–6 and KL1–6 using PIN_POSITIONS. Each pin renders:
+  - Visual slot marker with LCARS-accent color and label (QLn/KLn).
+  - Data attributes for boardId and pinId for hit-testing.
+- Add an AttackBoardPlate component for WQL, WKL, BQL, BKL:
+  - Semi-transparent plate with colored rim; glow on selection.
+  - Plate position is derived from attackBoardPositions mapping in state.
+
+2) Selection & Focus
+- Add UI controls to focus an attack board:
+  - Desktop: click plate or sidebar pill buttons (WQL/WKL/BQL/BKL).
+  - Mobile: bottom thumb strip with large pills for WQL/WKL/BQL/BKL.
+- Store focusedBoardId in UI state. Selected plate shows pulsing rim.
+
+3) Eligibility Highlighting
+- When a board is focused, compute legal destination pins via engine helper:
+  - canMoveBoard(boardId, fromPinId, toPinId) -> { allowed: boolean, reason?: string }
+  - Consider adjacency, occupancy limits, and king safety per rules.
+- Highlight eligible pins with active glow; ineligible remain dim.
+
+4) Interaction — Tap-to-Place (mobile)
+- First tap selects the board (if not already). Valid pins glow.
+- Second tap on a glowing pin:
+  - Show a ghost preview of the plate at the destination (temporary overlay).
+  - On confirm (auto or single “Place” inline button on mobile), dispatch move:
+    - store.moveAttackBoard(boardId, toPinId)
+    - Append move history e.g., QL1-QL3
+
+5) Interaction — Drag-and-Snap (desktop/tablet)
+- Pointer-down on plate enters drag; while dragging:
+  - Eligible pins glow; nearest eligible pin under cursor/finger becomes the snap target.
+- On release, snap to nearest eligible pin; play short movement animation.
+- Cancel on Escape or if leaving viewport bounds.
+
+6) Visuals & Accessibility
+- Labels for all pins (QLn/KLn) and aria-labels for screen readers.
+- Reduced motion mode: disable heavy glows/animations.
+- High contrast mode: replace glows with solid outlines.
+
+7) State Updates & History
+- On successful placement, update attackBoardPositions and move history.
+- Ensure undo/redo compatibility if present in store.
+
+8) Testing (Manual + Unit)
+- Selection glow appears when focusing each board.
+- Legal pins glow; illegal do not.
+- Tap-to-place performs a move and updates state/history.
+- Drag-and-snap chooses the correct pin and snaps cleanly.
+- Ghost preview matches final placement.
+- Labels readable on mobile breakpoints.
+
+PHASE II — Rotation UI (0° / 180°)
+1) Constraints & Legality (Engine)
+- Rotation allowed angles: 0° and 180° (no 90°/270°).
+- Board occupancy must be ≤ 1 piece to rotate.
+- Must respect Vertical Shadow constraint for the four quadrants after rotation.
+- Must not expose a king to check.
+- Introduce canRotate(boardId, angle) -> { allowed: boolean, reason?: string } in engine or selector layer:
+  - Check occupancy.
+  - Compute quadrant swap mapping q1↔q3, q2↔q4; derive destination world cells.
+  - Apply shadow checks and king safety on the prospective state.
+
+2) UI Controls
+- Desktop default: Flip Toggle with two states “0° / 180°” visible when a board is focused. Disabled states dim with tooltip reasons.
+- Mobile default: Long-Press Carousel on the focused plate revealing [0°] [180°]; also mirror two large pills [0°] [180°] in thumb strip when focused.
+- Optional later: compact radial dial with two notches for 0/180.
+
+3) Previews & Feedback
+- On hover (desktop) or first-tap (mobile), show ghosted board rotated to the target angle; render quadrant-swap overlay.
+- Disabled states show specific reasons: “> 1 piece on board”, “Blocked by shadow”, “King safety violation”.
+- If user attempts illegal rotation, gently shake and show tooltip; respect reduced motion.
+
+4) Action & History
+- Immediate apply on enabled control:
+  - store.rotateAttackBoard(boardId, 180|0)
+  - Append history with ^180 when applicable:
+    - In place: QL1^180
+    - Combined with movement (if supported): QL1-QL3^180
+
+5) Accessibility & Keyboard
+- When board focused: R toggles rotation; Shift+R flips back.
+- ARIA: rotation control is an aria-pressed button for 180°; aria-live announces changes and reasons when blocked.
+- High contrast: outlines instead of glow.
+
+6) Mobile Ergonomics
+- Hit targets ≥44×44px; spacing prevents accidental taps.
+- One-handed flow: focus board → long-press or thumb pills → flip if enabled.
+
+7) Testing (Manual + Unit)
+- Occupancy: add two pieces to the attack board → rotation disabled with correct message.
+- Shadow: place a rook vertically aligned under a would-be quadrant → disabled.
+- King safety: simulate rotation that would expose king → disabled.
+- Keyboard: R toggles; Shift+R reverts.
+- Reduced motion: flip snaps without animation.
+- Move history reflects ^180 and updates correctly.
+
+Incremental Integration Plan
+- Milestone A: Phase I rails/pins rendering, selection, eligibility highlighting.
+- Milestone B: Phase I movement (tap-to-place + drag-and-snap) with ghost preview, state updates, history.
+- Milestone C: Phase II canRotate + UI controls (toggle/long-press), previews, disabled reasons.
+- Milestone D: Phase II accessibility, reduced motion, keyboard support, final test checklist.
+
+Risk Notes
+- Engine legality must be single source of truth; UI only mirrors allowed states.
+- Shadow and king safety checks are required before enabling rotation UI.
+- Keep animations optional and performant; avoid re-render storms during drag.
+
+Rollout
+- Enable Phase I by default once complete.
+- Behind feature flag for Phase II until legality checks pass test suite.
+
 # Tri-Dimensional Chess - Comprehensive Implementation Guide
 
 ## Table of Contents
