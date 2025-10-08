@@ -40,7 +40,22 @@ export function GameStatus() {
   
   if (!gameOver) {
     return (
-      <div className="game-status turn-indicator">
+      <div
+        className="game-status turn-indicator"
+        style={{
+          position: 'fixed',
+          top: 20,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          padding: '10px 20px',
+          background: 'rgba(0, 0, 0, 0.9)',
+          pointerEvents: 'auto',
+          zIndex: 110,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
         <button
           className="undo-button"
           onClick={undoMove}
