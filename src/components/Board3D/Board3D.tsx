@@ -5,7 +5,6 @@ import gsap from 'gsap';
 import { THEME } from '../../config/theme';
 import { useCameraStore } from '../../store/cameraStore';
 import { BoardRenderer } from './BoardRenderer';
-import { WorldGridVisualizer } from '../Debug/WorldGridVisualizer';
 import { Pieces3D } from './Pieces3D';
 
 function CameraController() {
@@ -61,7 +60,9 @@ export function Board3D() {
         position: THEME.camera.position,
         fov: THEME.camera.fov,
       }}
-      style={{ background: THEME.scene.background }}
+      style={{ 
+        background: `radial-gradient(circle at center, ${THEME.scene.background}, ${THEME.scene.backgroundEdge})` 
+      }}
     >
       <ambientLight
         intensity={THEME.lighting.ambient.intensity}
@@ -75,7 +76,7 @@ export function Board3D() {
 
       <CameraController />
 
-      <WorldGridVisualizer />
+      {/* <WorldGridVisualizer /> */}
 
       <BoardRenderer />
       

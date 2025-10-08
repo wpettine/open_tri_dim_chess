@@ -30,13 +30,14 @@ export const THEME = {
   },
   lighting: {
     ambient: {
-      intensity: 0.6,
+      intensity: 0.7,
       color: '#ffffff',
     },
     directional: {
-      intensity: 0.8,
-      position: [10, 20, 10] as [number, number, number],
+      intensity: 1.2,
+      position: [10, 10, 20] as [number, number, number],
       color: '#ffffff',
+      shadowMapSize: 2048,
     },
   },
   camera: {
@@ -67,6 +68,7 @@ export const THEME = {
     },
   },
   scene: {
-    background: '#1a1a2e',
+    background: '#3C3C3C',
+    backgroundEdge: '#1E1E1E',
   },
 };
