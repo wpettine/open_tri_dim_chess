@@ -17,6 +17,7 @@ export function BoardRenderer() {
 function SingleBoard({ board }: { board: BoardLayout }) {
   const world = useGameStore(state => state.world);
   const selectSquare = useGameStore(state => state.selectSquare);
+  const selectBoard = useGameStore(state => state.selectBoard);
   const selectedSquareId = useGameStore(state => state.selectedSquareId);
   const highlightedSquareIds = useGameStore(state => state.highlightedSquareIds);
 
@@ -54,7 +55,12 @@ function SingleBoard({ board }: { board: BoardLayout }) {
           <mesh
             key={square.id}
             position={[square.worldX, square.worldY, square.worldZ]}
-            onClick={() => selectSquare(square.id)}
+            onClick={() => {
+              if (board.type !== 'main') {
+                selectBoard(board.id);
+              }
+              selectSquare(square.id);
+            }}
           >
             <boxGeometry args={[THEME.squares.size, THEME.squares.size, 0.1]} />
             <meshStandardMaterial
