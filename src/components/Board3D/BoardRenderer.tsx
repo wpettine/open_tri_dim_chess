@@ -125,7 +125,10 @@ function SingleBoard({ board }: { board: BoardLayout }) {
                 square.color === 'light' ? THEME.squares.light : THEME.squares.dark
               }
               transparent
-              opacity={isLegalMove ? 0.7 : THEME.squares.opacity}
+              opacity={
+                isLegalMove ? 0.7 : 
+                square.color === 'light' ? THEME.squares.lightOpacity : THEME.squares.darkOpacity
+              }
             />
           </mesh>
         );
