@@ -1,6 +1,7 @@
 import type { ChessWorld } from './types';
 import type { Piece } from '../../store/gameStore';
 import { PIN_POSITIONS } from './pinPositions';
+import { getPinLevel } from './attackBoardAdjacency';
 import { ATTACK_BOARD_ADJACENCY, classifyDirection } from './attackBoardAdjacency';
 
 export interface BoardMoveContext {
@@ -86,12 +87,22 @@ function validateAdjacency(context: BoardMoveContext): BoardMoveValidation {
   
   const passengerPieces = getPassengerPieces(context.boardId, context.fromPinId, context.pieces);
   const isOccupied = passengerPieces.length > 0;
-  
-  if (isOccupied && direction === 'backward') {
-    return { 
-      isValid: false, 
-      reason: 'Cannot move backward while occupied' 
-    };
+
+  if (isOccupied) {
+    if (direction === 'backward') {
+      return { isValid: false, reason: 'Cannot move backward while occupied' };
+    }
+    if (direction === 'side') {
+      const awayLevel = controller === 'white' ? 6 : 1;
+      const fromLevel = getPinLevel(context.fromPinId);
+      const toLevel = getPinLevel(context.toPinId);
+      const distFromAway = Math.abs(fromLevel - awayLevel);
+      const distToAway = Math.abs(toLevel - awayLevel);
+      const sideIsBackward = distToAway > distFromAway;
+      if (sideIsBackward) {
+        return { isValid: false, reason: 'Cannot move backward while occupied' };
+      }
+    }
   }
 
   return { isValid: true };
@@ -133,29 +144,21 @@ function validateVerticalShadow(context: BoardMoveContext): BoardMoveValidation 
         return false;
       }
       
-      let pieceZHeight: number;
       const pieceLevel = p.level;
-      
       if (pieceLevel === 'W' || pieceLevel === 'N' || pieceLevel === 'B') {
-        const mainLevelZ: Record<string, number> = {
-          'W': 0,
-          'N': 5,
-          'B': 10
-        };
-        pieceZHeight = mainLevelZ[pieceLevel];
-      } else {
-        const piecePinId = context.attackBoardPositions[pieceLevel];
-        if (!piecePinId) {
-          return true;
-        }
-        const piecePin = PIN_POSITIONS[piecePinId];
-        if (!piecePin) {
-          return true;
-        }
-        pieceZHeight = piecePin.zHeight;
+        return true;
       }
       
-      return pieceZHeight !== destinationZHeight;
+      const piecePinId = context.attackBoardPositions[pieceLevel];
+      if (!piecePinId) {
+        return true;
+      }
+      const piecePin = PIN_POSITIONS[piecePinId];
+      if (!piecePin) {
+        return true;
+      }
+      const pieceZHeight = piecePin.zHeight;
+      return pieceZHeight === destinationZHeight;
     });
     
     if (blockingPiece) {
@@ -203,12 +206,13 @@ function getBoardSquaresForBoardAtPin(
 
   const isQueenLine = pinId.startsWith('QL');
   const baseFile = isQueenLine ? 0 : 4;
+  const baseRank = pin.rankOffset / 2;
   
   return [
-    { file: baseFile, rank: pin.rankOffset },
-    { file: baseFile + 1, rank: pin.rankOffset },
-    { file: baseFile, rank: pin.rankOffset + 1 },
-    { file: baseFile + 1, rank: pin.rankOffset + 1 },
+    { file: baseFile, rank: baseRank },
+    { file: baseFile + 1, rank: baseRank },
+    { file: baseFile, rank: baseRank + 1 },
+    { file: baseFile + 1, rank: baseRank + 1 },
   ];
 }
 
@@ -235,8 +239,8 @@ export function executeBoardMove(context: BoardMoveContext): BoardMoveResult {
   const fromPin = PIN_POSITIONS[context.fromPinId];
   const toPin = PIN_POSITIONS[context.toPinId];
   
-  const fileOffset = toPin.fileOffset - fromPin.fileOffset;
-  const rankOffset = toPin.rankOffset - fromPin.rankOffset;
+  const fileOffsetCells = toPin.fileOffset - fromPin.fileOffset;
+  const rankOffsetCells = (toPin.rankOffset - fromPin.rankOffset) / 2;
 
   const updatedPieces = context.pieces.map(piece => {
     const isPassenger = passengerPieces.includes(piece);
@@ -245,15 +249,15 @@ export function executeBoardMove(context: BoardMoveContext): BoardMoveResult {
       return piece;
     }
 
-    let newFile = piece.file + fileOffset;
-    let newRank = piece.rank + rankOffset;
+    let newFile = piece.file + fileOffsetCells;
+    let newRank = piece.rank + rankOffsetCells;
 
     if (context.rotate) {
       const relativeFile = piece.file - fromPin.fileOffset;
-      const relativeRank = piece.rank - fromPin.rankOffset;
+      const relativeRankCells = piece.rank - (fromPin.rankOffset / 2);
       
       newFile = toPin.fileOffset + (1 - relativeFile);
-      newRank = toPin.rankOffset + (1 - relativeRank);
+      newRank = (toPin.rankOffset / 2) + (1 - relativeRankCells);
     }
 
     console.log('[executeBoardMove] Remapping passenger:', {
