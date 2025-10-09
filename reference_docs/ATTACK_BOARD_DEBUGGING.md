@@ -29,6 +29,35 @@ This document provides a reference for debugging attack board movement functiona
    - QL5/KL5: 8 → 4 (ranks 4-5)
 2. **Vertical Shadow Z-Height Comparison** - Fixed validateVerticalShadow() to compare actual Z-heights instead of board centerZ values, properly handling both main board pieces and attack board pieces
 
+### Session 4: Attack Board Rendering After Movement (INCOMPLETE)
+**Issue Identified:**
+Attack boards render with squares scattered around the platform rather than cohesively positioned on the platform. The squares follow a consistent pattern relative to the platform, suggesting a coordinate transformation error rather than random positioning.
+
+**What Was Tried:**
+1. **Added hydrateFromPersisted world updates** - Added updateAttackBoardWorld() calls in hydrateFromPersisted() to sync world coordinates when loading saved games (matching the restoreSnapshot() pattern)
+2. **Updated square file/rank values** - Modified updateAttackBoardWorld() to update each square's file and rank properties to match the new pin position before calculating worldX/Y/Z coordinates
+3. **Attempted to move squares into rotated group** - Initially tried moving squares inside the rotated board group in BoardRenderer.tsx and calculating relative positions, but this caused the page to fail to render
+
+**Root Cause Hypothesis:**
+The squares are rendering at **absolute world coordinates** while the platform is positioned **relative to the board center**. In BoardRenderer.tsx:
+- Platform is inside a `<group>` at position `[board.centerX, board.centerY, board.centerZ]` with rotation applied
+- Squares are rendered OUTSIDE this group at position `[square.worldX, square.worldY, square.worldZ]`
+- When the board rotates, the platform rotates but the squares don't because they're positioned absolutely
+
+The coordinate transformation issue is likely that:
+- `updateAttackBoardWorld()` is calculating square positions based on file/rank to worldX/Y conversion
+- But these calculations may not account for the fact that squares need to be positioned **relative to the board center** when the board has a rotation applied
+- OR the squares need to be inside the rotated group (but positioned relative to center)
+
+**Next Steps to Investigate:**
+1. **Compare initial vs moved board coordinates** - Log and compare the worldX/Y/Z values for squares on an attack board at initial position vs after movement to understand the transformation
+2. **Examine BoardRenderer rendering approach** - Understand why platform is in a rotated group while squares are not
+3. **Check createAttackBoard initial setup** - See how worldX/Y/Z are calculated initially in worldBuilder.ts and ensure updateAttackBoardWorld uses the same logic
+4. **Consider two possible fixes:**
+   - Option A: Keep squares outside rotated group but ensure worldX/Y/Z accounts for rotation
+   - Option B: Move squares inside rotated group and calculate positions relative to board center (tried but failed - needs investigation why)
+5. **Add debug visualizer** - Use WorldGridVisualizer or add console logging to see actual vs expected square positions
+
 ## Key Files Reference
 
 ### Core Logic Files
