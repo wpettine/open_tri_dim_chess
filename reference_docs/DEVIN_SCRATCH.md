@@ -22,3 +22,8 @@ Open Questions (to self):
 Work log:
 - [T0] Initialized Phase I plan and checklist here.
 - [T1] Added Phase I scaffolding: extended types, attached adjacencyGraph in worldBuilder, optional trackStates in GameState, helper tests created.
+
+Decision on legacy tests (Phase I):
+- Per Warren: Ignore failing legacy attack-board tests for now; they will be reworked for the new visibility-based system.
+- Main board-related tests remain relevant.
+- New tests added in this phase (instanceHelpers) must pass; they do.
