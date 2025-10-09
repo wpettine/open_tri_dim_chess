@@ -1,3 +1,4 @@
+Note: Updated to reflect corrected attack-board model: static pin footprints, 0°/180° rotation with quadrant swap only, 4×4 main-board areas, and distinct pin Z levels between main planes.
 Coordinate System Overview
 
 This project uses a board-space coordinate system (file, rank, level) that maps deterministically to world-space (worldX, worldY, worldZ) for rendering and interactions.
@@ -63,20 +64,23 @@ Each board has a geometric center:
 - centerY = average of its rows’ worldY
 - centerZ = platform zHeight
 
-Rotation is applied around the center. For attack boards, when rotation is non-zero (multiples of 90°), square absolute positions are rotated using a 2D rotation matrix about (centerX, centerY):
+Rotation semantics:
+- Only 0° or 180° are valid.
+- A 180° flip does not change which (file, rank) cells the attack board occupies; it swaps quadrants (q1↔q3, q2↔q4) for visual/glyph orientation.
+- No world-space rotation of square coordinates is performed. Squares remain exactly at fileToWorldX(file)/rankToWorldY(rank). The platform mesh may visually rotate 0 or π, but logical squares do not move.
 
-Given pre-rotation square position (preX, preY):
-- dx = preX − centerX
-- dy = preY − centerY
-- theta = rotationDegrees × π / 180
-- rx = dx cos(theta) − dy sin(theta)
-- ry = dx sin(theta) + dy cos(theta)
-- square.worldX = centerX + rx
-- square.worldY = centerY + ry
-- square.worldZ = centerZ
+Pin footprints and Z levels
+- Each pin defines an explicit 2×2 footprint and Z:
+  - Files: QLx uses [z,a] → [0,1]; KLx uses [d,e] → [4,5]
+  - Ranks: as listed per pin; two consecutive ranks
+  - Z: Z_L1..Z_L6 monotonically ordered between Z_WHITE_MAIN, Z_NEUTRAL_MAIN, Z_BLACK_MAIN
 
-This preserves world coordinates consistency with other systems (e.g., pieces and interactions) while visually aligning with the rotated platform.
-
+Example:
+- QL1: files [0,1], ranks [0,1], z = Z_L1
+- KL1: files [4,5], ranks [0,1], z = Z_L1
+- QL2: files [0,1], ranks [4,5], z = Z_L2
+- ...
+- KL6: files [4,5], ranks [8,9], z = Z_L6
 Attack Board Movement: Where Boards Should Be After Move
 
 Moving an attack board to a new pin updates:

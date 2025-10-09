@@ -1,6 +1,6 @@
 import type { ChessWorld } from './types';
 import type { Piece } from '../../store/gameStore';
-import { PIN_POSITIONS } from './pinPositions';
+import { PIN_POSITIONS, PIN_FOOTPRINT } from './pinPositions';
 import { ATTACK_BOARD_ADJACENCY, classifyDirection } from './attackBoardAdjacency';
 
 export interface BoardMoveContext {
@@ -195,20 +195,18 @@ function getPassengerPieces(
 }
 
 function getBoardSquaresForBoardAtPin(
-  boardId: string,
+  _boardId: string,
   pinId: string
 ): Array<{ file: number; rank: number }> {
-  const pin = PIN_POSITIONS[pinId];
-  if (!pin) return [];
-
-  const isQueenLine = pinId.startsWith('QL');
-  const baseFile = isQueenLine ? 0 : 4;
-  
+  const fp = PIN_FOOTPRINT[pinId];
+  if (!fp) return [];
+  const [f0, f1] = fp.files;
+  const [r0, r1] = fp.ranks;
   return [
-    { file: baseFile, rank: pin.rankOffset },
-    { file: baseFile + 1, rank: pin.rankOffset },
-    { file: baseFile, rank: pin.rankOffset + 1 },
-    { file: baseFile + 1, rank: pin.rankOffset + 1 },
+    { file: f0, rank: r0 },
+    { file: f1, rank: r0 },
+    { file: f0, rank: r1 },
+    { file: f1, rank: r1 },
   ];
 }
 
@@ -232,40 +230,60 @@ export function executeBoardMove(context: BoardMoveContext): BoardMoveResult {
   console.log('[executeBoardMove] Passenger count:', passengerPieces.length);
   console.log('[executeBoardMove] Passenger IDs:', passengerPieces.map(p => `${p.type}@${p.file},${p.rank},${p.level}`));
 
-  const fromPin = PIN_POSITIONS[context.fromPinId];
-  const toPin = PIN_POSITIONS[context.toPinId];
-  
-  const fileOffset = toPin.fileOffset - fromPin.fileOffset;
-  const rankOffset = toPin.rankOffset - fromPin.rankOffset;
+  const fromFp = PIN_FOOTPRINT[context.fromPinId];
+  const toFp = PIN_FOOTPRINT[context.toPinId];
+
+  const indexOfInFootprint = (file: number, rank: number, fp: { files: [number, number]; ranks: [number, number] }) => {
+    const [f0, f1] = fp.files;
+    const [r0, r1] = fp.ranks;
+    if (file === f0 && rank === r0) return 0; // q1
+    if (file === f1 && rank === r0) return 1; // q2
+    if (file === f0 && rank === r1) return 2; // q3
+    if (file === f1 && rank === r1) return 3; // q4
+    return -1;
+  };
+
+  const coordsFromIndex = (idx: number, fp: { files: [number, number]; ranks: [number, number] }) => {
+    const [f0, f1] = fp.files;
+    const [r0, r1] = fp.ranks;
+    switch (idx) {
+      case 0: return { file: f0, rank: r0 };
+      case 1: return { file: f1, rank: r0 };
+      case 2: return { file: f0, rank: r1 };
+      case 3: return { file: f1, rank: r1 };
+      default: return null;
+    }
+  };
+
+  const rotate180Index = (idx: number) => {
+    if (idx === 0) return 2;
+    if (idx === 1) return 3;
+    if (idx === 2) return 0;
+    if (idx === 3) return 1;
+    return idx;
+  };
 
   const updatedPieces = context.pieces.map(piece => {
     const isPassenger = passengerPieces.includes(piece);
-    
-    if (!isPassenger) {
-      return piece;
-    }
+    if (!isPassenger) return piece;
 
-    let newFile = piece.file + fileOffset;
-    let newRank = piece.rank + rankOffset;
+    const fromIdx = indexOfInFootprint(piece.file, piece.rank, fromFp);
+    if (fromIdx === -1) return piece;
 
-    if (context.rotate) {
-      const relativeFile = piece.file - fromPin.fileOffset;
-      const relativeRank = piece.rank - fromPin.rankOffset;
-      
-      newFile = toPin.fileOffset + (1 - relativeFile);
-      newRank = toPin.rankOffset + (1 - relativeRank);
-    }
+    const targetIdx = context.rotate ? rotate180Index(fromIdx) : fromIdx;
+    const target = coordsFromIndex(targetIdx, toFp);
+    if (!target) return piece;
 
     console.log('[executeBoardMove] Remapping passenger:', {
       type: piece.type,
       from: `${piece.file},${piece.rank},${piece.level}`,
-      to: `${newFile},${newRank},${piece.level}`,
+      to: `${target.file},${target.rank},${piece.level}`,
     });
 
     return {
       ...piece,
-      file: newFile,
-      rank: newRank,
+      file: target.file,
+      rank: target.rank,
       hasMoved: true,
     };
   });

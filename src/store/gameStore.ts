@@ -6,9 +6,8 @@ import type { ChessWorld } from '../engine/world/types';
 import { createChessWorld } from '../engine/world/worldBuilder';
 import { createInitialPieces } from '../engine/initialSetup';
 import { getLegalMovesAvoidingCheck, isInCheck, isCheckmate, isStalemate } from '../engine/validation/checkDetection';
-import { createSquareId } from '../engine/world/coordinates';
-import { getInitialPinPositions } from '../engine/world/pinPositions';
-import { PIN_POSITIONS } from '../engine/world/pinPositions';
+import { createSquareId, fileToWorldX, rankToWorldY } from '../engine/world/coordinates';
+import { getInitialPinPositions, PIN_POSITIONS, PIN_FOOTPRINT } from '../engine/world/pinPositions';
 import { validateBoardMove, executeBoardMove } from '../engine/world/worldMutation';
 export interface GameSnapshot {
   pieces: Piece[];
@@ -541,6 +540,7 @@ export function buildPersistablePayload(state: GameState) {
   };
 }
 
+
 function updateAttackBoardWorld(
   world: ChessWorld,
   boardId: string,
@@ -550,44 +550,26 @@ function updateAttackBoardWorld(
   const board = world.boards.get(boardId);
   const pin = PIN_POSITIONS[pinId];
   if (!board || !pin) return;
-  
-  const isQueenLine = pinId.startsWith('QL');
-  const baseFile = isQueenLine ? 0 : 4;
-  
-  const files = [baseFile, baseFile + 1];
-  const ranks = [pin.rankOffset, pin.rankOffset + 1];
+
+  const fp = PIN_FOOTPRINT[pinId];
+  const files = fp.files;
+  const ranks = fp.ranks;
   
   const minFile = Math.min(...files);
   const maxFile = Math.max(...files);
   const minRank = Math.min(...ranks);
   const maxRank = Math.max(...ranks);
   
-  const fileToWorldX = (file: number) => {
-    const SQUARE_SIZE = 10;
-    const SQUARE_GAP = 1;
-    const SPACING = SQUARE_SIZE + SQUARE_GAP;
-    const FILE_OFFSET = 0;
-    return FILE_OFFSET + file * SPACING;
-  };
-  
-  const rankToWorldY = (rank: number) => {
-    const SQUARE_SIZE = 10;
-    const SQUARE_GAP = 1;
-    const SPACING = SQUARE_SIZE + SQUARE_GAP;
-    const RANK_OFFSET = 0;
-    return RANK_OFFSET + rank * SPACING;
-  };
   
   const centerX = (fileToWorldX(minFile) + fileToWorldX(maxFile)) / 2;
   const centerY = (rankToWorldY(minRank) + rankToWorldY(maxRank)) / 2;
-  const centerZ = pin.zHeight;
+  const centerZ = fp.z;
   
   console.log('[updateAttackBoardWorld]:', {
     boardId,
     pinId,
     pinLevel: pin.level,
     pinZHeight: pin.zHeight,
-    baseFile,
     files,
     ranks,
     centerX,
@@ -599,7 +581,7 @@ function updateAttackBoardWorld(
   board.centerX = centerX;
   board.centerY = centerY;
   board.centerZ = centerZ;
-  board.rotation = rotation;
+  board.rotation = (rotation % 360 === 180 ? 180 : 0);
   board.files = files;
   board.ranks = ranks;
   world.boards.set(boardId, board);
@@ -614,24 +596,17 @@ function updateAttackBoardWorld(
     { file: files[1], rank: ranks[1] },
   ];
   
-  const theta = (rotation * Math.PI) / 180;
+  const clampedRotation = rotation % 360 === 180 ? 180 : 0;
+  board.rotation = clampedRotation;
+
   boardSquares.forEach((sq, index) => {
     if (index < newSquarePositions.length) {
       const newPos = newSquarePositions[index];
       sq.file = newPos.file;
       sq.rank = newPos.rank;
 
-      const preX = fileToWorldX(newPos.file);
-      const preY = rankToWorldY(newPos.rank);
-
-      const dx = preX - centerX;
-      const dy = preY - centerY;
-
-      const rx = dx * Math.cos(theta) - dy * Math.sin(theta);
-      const ry = dx * Math.sin(theta) + dy * Math.cos(theta);
-
-      sq.worldX = centerX + rx;
-      sq.worldY = centerY + ry;
+      sq.worldX = fileToWorldX(newPos.file);
+      sq.worldY = rankToWorldY(newPos.rank);
       sq.worldZ = centerZ;
 
       world.squares.set(sq.id, sq);
