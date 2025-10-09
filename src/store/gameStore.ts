@@ -81,6 +81,7 @@ export interface Piece {
   rank: number;
   level: string;
   hasMoved: boolean;
+  movedByAB?: boolean;
 }
 
 export type Move = 
@@ -112,6 +113,10 @@ export interface GameState {
   attackBoardPositions: Record<string, string>;
   selectedBoardId: string | null;
   moveHistory: Move[];
+  trackStates?: {
+    QL: { whiteBoardPin: number; blackBoardPin: number; whiteRotation: 0 | 180; blackRotation: 0 | 180 };
+    KL: { whiteBoardPin: number; blackBoardPin: number; whiteRotation: 0 | 180; blackRotation: 0 | 180 };
+  };
   selectSquare: (squareId: string) => void;
   movePiece: (piece: Piece, toFile: number, toRank: number, toLevel: string) => void;
   clearSelection: () => void;
@@ -152,6 +157,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
   winner: null,
   gameOver: false,
   attackBoardPositions: getInitialPinPositions(),
+  trackStates: {
+    QL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
+    KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
+  },
   selectedBoardId: null,
   moveHistory: [],
   

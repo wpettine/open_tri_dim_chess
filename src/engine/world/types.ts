@@ -19,6 +19,10 @@ export interface BoardLayout {
   rotation: number;
   files: number[];
   ranks: number[];
+  track?: 'QL' | 'KL';
+  pin?: number;
+  isVisible?: boolean;
+  isAccessible?: boolean;
 }
 
 export interface PinPosition {
@@ -31,8 +35,19 @@ export interface PinPosition {
   inverted: boolean;
 }
 
+export interface PinNeighbor {
+  track: 'QL' | 'KL';
+  pin: number;
+}
+
+export interface PinAdjacencyGraph {
+  QL: Record<number, PinNeighbor[]>;
+  KL: Record<number, PinNeighbor[]>;
+}
+
 export interface ChessWorld {
   boards: Map<string, BoardLayout>;
   squares: Map<string, WorldSquare>;
   pins: Map<string, PinPosition>;
+  adjacencyGraph?: PinAdjacencyGraph;
 }
