@@ -47,3 +47,34 @@ export function classifyDirection(
   
   return distToAway < distFromAway ? 'forward' : 'backward';
 }
+
+export const PIN_RANK_OFFSETS: Record<number, number> = { 1: 0, 2: 4, 3: 2, 4: 6, 5: 4, 6: 8 };
+
+export function makeInstanceId(track: 'QL' | 'KL', pin: number, rotation: 0 | 180) {
+  return `${track}${pin}:${rotation}`;
+}
+
+export function parseInstanceId(id: string): { track: 'QL' | 'KL'; pin: number; rotation: 0 | 180 } | null {
+  const m = id.match(/^(QL|KL)([1-6]):(0|180)$/);
+  if (!m) return null;
+  return { track: m[1] as 'QL' | 'KL', pin: Number(m[2]), rotation: Number(m[3]) as 0 | 180 };
+}
+
+export const PIN_ADJACENCY = {
+  QL: {
+    1: [{ track: 'QL', pin: 2 }, { track: 'KL', pin: 1 }, { track: 'KL', pin: 2 }],
+    2: [{ track: 'QL', pin: 1 }, { track: 'QL', pin: 3 }, { track: 'KL', pin: 1 }, { track: 'KL', pin: 2 }, { track: 'KL', pin: 3 }],
+    3: [{ track: 'QL', pin: 2 }, { track: 'QL', pin: 4 }, { track: 'KL', pin: 2 }, { track: 'KL', pin: 3 }, { track: 'KL', pin: 4 }],
+    4: [{ track: 'QL', pin: 3 }, { track: 'QL', pin: 5 }, { track: 'KL', pin: 3 }, { track: 'KL', pin: 4 }, { track: 'KL', pin: 5 }],
+    5: [{ track: 'QL', pin: 4 }, { track: 'QL', pin: 6 }, { track: 'KL', pin: 4 }, { track: 'KL', pin: 5 }, { track: 'KL', pin: 6 }],
+    6: [{ track: 'QL', pin: 5 }, { track: 'KL', pin: 5 }, { track: 'KL', pin: 6 }],
+  },
+  KL: {
+    1: [{ track: 'KL', pin: 2 }, { track: 'QL', pin: 1 }, { track: 'QL', pin: 2 }],
+    2: [{ track: 'KL', pin: 1 }, { track: 'KL', pin: 3 }, { track: 'QL', pin: 1 }, { track: 'QL', pin: 2 }, { track: 'QL', pin: 3 }],
+    3: [{ track: 'KL', pin: 2 }, { track: 'KL', pin: 4 }, { track: 'QL', pin: 2 }, { track: 'QL', pin: 3 }, { track: 'QL', pin: 4 }],
+    4: [{ track: 'KL', pin: 3 }, { track: 'KL', pin: 5 }, { track: 'QL', pin: 3 }, { track: 'QL', pin: 4 }, { track: 'QL', pin: 5 }],
+    5: [{ track: 'KL', pin: 4 }, { track: 'KL', pin: 6 }, { track: 'QL', pin: 4 }, { track: 'QL', pin: 5 }, { track: 'QL', pin: 6 }],
+    6: [{ track: 'KL', pin: 5 }, { track: 'QL', pin: 5 }, { track: 'QL', pin: 6 }],
+  },
+};
