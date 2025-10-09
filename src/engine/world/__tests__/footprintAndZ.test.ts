@@ -20,21 +20,15 @@ describe('Footprint and Z invariants', () => {
     }
   });
 
-  it('levels have strictly increasing rank spans L1<L2<L3 and L4<L5<L6', () => {
-    const levelRanks = {
-      1: PIN_FOOTPRINT.QL1.ranks[0],
-      2: PIN_FOOTPRINT.QL2.ranks[0],
-      3: PIN_FOOTPRINT.QL3.ranks[0],
-      4: PIN_FOOTPRINT.QL4.ranks[0],
-      5: PIN_FOOTPRINT.QL5.ranks[0],
-      6: PIN_FOOTPRINT.QL6.ranks[0],
-    };
-    expect(levelRanks[1] < levelRanks[2]).toBe(true);
-    expect(levelRanks[2] > levelRanks[3]).toBe(false); // 2<3? No, check explicitly:
-    expect(levelRanks[2] > levelRanks[3]).toBe(false);
-    expect(levelRanks[1] < levelRanks[3]).toBe(true);
-    expect(levelRanks[4] < levelRanks[5]).toBe(true);
-    expect(levelRanks[5] < levelRanks[6]).toBe(true);
+  it('rank spans are monotonic within each side: White-side L1<L3<L2 and Black-side L4<L5<L6', () => {
+    const l1 = PIN_FOOTPRINT.QL1.ranks[0];
+    const l2 = PIN_FOOTPRINT.QL2.ranks[0];
+    const l3 = PIN_FOOTPRINT.QL3.ranks[0];
+    const l4 = PIN_FOOTPRINT.QL4.ranks[0];
+    const l5 = PIN_FOOTPRINT.QL5.ranks[0];
+    const l6 = PIN_FOOTPRINT.QL6.ranks[0];
+    expect(l1 < l3 && l3 < l2).toBe(true);
+    expect(l4 < l5 && l5 < l6).toBe(true);
   });
 
   it('Z is monotonic and between main planes', () => {
