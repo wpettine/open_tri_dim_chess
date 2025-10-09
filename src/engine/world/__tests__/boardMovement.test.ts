@@ -145,7 +145,7 @@ describe('Board Movement Validation', () => {
         type: 'pawn',
         color: 'white',
         file: 0,
-        rank: 2,
+        rank: 4,
         level: 'WQL',
         hasMoved: false,
       };
@@ -189,7 +189,7 @@ describe('Board Movement Validation', () => {
         type: 'bishop',
         color: 'white',
         file: 0,
-        rank: 2,
+        rank: 4,
         level: 'WQL',
         hasMoved: false,
       };
@@ -236,7 +236,7 @@ describe('Board Movement Validation', () => {
         type: 'rook',
         color: 'white',
         file: 0,
-        rank: 2,
+        rank: 4,
         level: 'N',
         hasMoved: false,
       };
@@ -262,7 +262,7 @@ describe('Board Movement Validation', () => {
         type: 'knight',
         color: 'white',
         file: 0,
-        rank: 2,
+        rank: 4,
         level: 'B',
         hasMoved: false,
       };
@@ -287,7 +287,7 @@ describe('Board Movement Validation', () => {
         type: 'bishop',
         color: 'black',
         file: 1,
-        rank: 3,
+        rank: 5,
         level: 'W',
         hasMoved: false,
       };
@@ -349,7 +349,7 @@ describe('Board Movement Validation', () => {
       const updatedPassenger = result.updatedPieces.find(p => p.id === 'passenger-pawn');
       
       expect(updatedPassenger?.file).toBe(0);
-      expect(updatedPassenger?.rank).toBe(2);
+      expect(updatedPassenger?.rank).toBe(4);
       expect(updatedPassenger?.hasMoved).toBe(true);
     });
 
@@ -388,10 +388,10 @@ describe('Board Movement Validation', () => {
       const updated1 = result.updatedPieces.find(p => p.id === 'passenger-1');
       const updated2 = result.updatedPieces.find(p => p.id === 'passenger-2');
       
-      expect(updated1?.file).toBe(1);
-      expect(updated1?.rank).toBe(3);
-      expect(updated2?.file).toBe(0);
-      expect(updated2?.rank).toBe(2);
+      expect(updated1?.file).toBe(0);
+      expect(updated1?.rank).toBe(5);
+      expect(updated2?.file).toBe(1);
+      expect(updated2?.rank).toBe(4);
     });
 
     it('should not update non-passenger pieces', () => {

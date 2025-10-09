@@ -99,6 +99,45 @@ When an attack board moves or is placed so that any of its four overhanging squa
 | KL4 | KL3, KL5, QL3, QL4, QL5 |
 | KL5 | KL4, KL6, QL4, QL5, QL6 |
 | KL6 | KL5, QL5, QL6 |
+### Map as structured JSON
+
+```json
+{
+  "adjacency": {
+    "QL1": ["QL2","KL1","KL2"],
+    "QL2": ["QL1","QL3","KL1","KL2","KL3"],
+    "QL3": ["QL2","QL4","KL2","KL3","KL4"],
+    "QL4": ["QL3","QL5","KL3","KL4","KL5"],
+    "QL5": ["QL4","QL6","KL4","KL5","KL6"],
+    "QL6": ["QL5","KL5","KL6"],
+    "KL1": ["KL2","QL1","QL2"],
+    "KL2": ["KL1","KL3","QL1","QL2","QL3"],
+    "KL3": ["KL2","KL4","QL2","QL3","QL4"],
+    "KL4": ["KL3","KL5","QL3","QL4","QL5"],
+    "KL5": ["KL4","KL6","QL4","QL5","QL6"],
+    "KL6": ["KL5","QL5","QL6"]
+  },
+  "pinFootprints": {
+    "QL1": {"files":[0,1], "ranks":[0,1]},
+    "KL1": {"files":[4,5], "ranks":[0,1]},
+    "QL2": {"files":[0,1], "ranks":[4,5]},
+    "KL2": {"files":[4,5], "ranks":[4,5]},
+    "QL3": {"files":[0,1], "ranks":[2,3]},
+    "KL3": {"files":[4,5], "ranks":[2,3]},
+    "QL4": {"files":[0,1], "ranks":[6,7]},
+    "KL4": {"files":[4,5], "ranks":[6,7]},
+    "QL5": {"files":[0,1], "ranks":[4,5]},
+    "KL5": {"files":[4,5], "ranks":[4,5]},
+    "QL6": {"files":[0,1], "ranks":[8,9]},
+    "KL6": {"files":[4,5], "ranks":[8,9]}
+  },
+  "rotation": {
+    "angles": [0,180],
+    "swap": {"q1":"q3","q3":"q1","q2":"q4","q4":"q2"}
+  }
+}
+```
+
 
 *(see diagram `attack_board_adjacency.svg/png`)*
 

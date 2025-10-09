@@ -29,6 +29,24 @@ This document provides a reference for debugging attack board movement functiona
    - QL5/KL5: 8 → 4 (ranks 4-5)
 2. **Vertical Shadow Z-Height Comparison** - Fixed validateVerticalShadow() to compare actual Z-heights instead of board centerZ values, properly handling both main board pieces and attack board pieces
 
+### Session 5: Align Tests and Docs with Static Footprints (THIS SESSION)
+- Updated unit tests to match the static PIN_FOOTPRINT model:
+  - QL1→QL2 destination ranks changed from [2,3] to [4,5].
+  - Passenger remap expectations updated:
+    - Non-rotating move preserves (file) and maps rank 0→4.
+    - Rotating move maps q1→q3 (0,0→0,5) and q4→q2 (1,1→1,4).
+  - Vertical shadow tests now check destination ranks 4/5 instead of 2/3.
+  - Backward-while-occupied tests place passengers on valid destination ranks (4/5) for QL2.
+- Added "Map as structured JSON" to ATTACK_BOARD_RULES.md with:
+  - Canonical adjacency.
+  - Canonical pin footprints (files/ranks) consistent with PIN_FOOTPRINT.
+  - Rotation semantics (0/180 with quadrant swap).
+
+Next Steps:
+1) Re-run full test suite and address any remaining failures (especially vertical shadow using exact Z_Ln heights and direction classification edge cases).
+2) Verify BoardRenderer visual behavior after moves/rotations with passengers (squares unrotated, platform rotates 0/π).
+3) If any gameplay docs/tests still assume older offsets, normalize them to the static footprint table to prevent drift or ambiguity.
+
 ### Session 4: Attack Board Rendering After Movement (INCOMPLETE)
 **Issue Identified:**
 Attack boards render with squares scattered around the platform rather than cohesively positioned on the platform. The squares follow a consistent pattern relative to the platform, suggesting a coordinate transformation error rather than random positioning.
