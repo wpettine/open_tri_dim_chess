@@ -8,8 +8,8 @@ import { createInitialPieces } from '../engine/initialSetup';
 import { getLegalMovesAvoidingCheck, isInCheck, isCheckmate, isStalemate } from '../engine/validation/checkDetection';
 import { createSquareId } from '../engine/world/coordinates';
 import { getInitialPinPositions } from '../engine/world/pinPositions';
-import { PIN_POSITIONS } from '../engine/world/pinPositions';
 import { validateBoardMove, executeBoardMove } from '../engine/world/worldMutation';
+import { isInstanceOfBase } from '../engine/world/boardInstances';
 export interface GameSnapshot {
   pieces: Piece[];
   currentTurn: 'white' | 'black';
@@ -66,7 +66,7 @@ function restoreSnapshot(
   const state = get();
   Object.entries(state.attackBoardPositions).forEach(([boardId, pinId]) => {
     const rotation = snap.boardRotations[boardId] ?? 0;
-    updateAttackBoardWorld(state.world, boardId, pinId, rotation);
+    ensureInstanceVisibility(state.world, boardId, pinId, rotation);
   });
   state.updateGameState();
 }
@@ -411,14 +411,13 @@ export const useGameStore = create<GameState>()((set, get) => ({
       attackBoardPositions: state.attackBoardPositions,
     });
 
-    const kingPieceBefore = state.pieces.find(p => p.type === 'king' && p.level === boardId);
-    const kingPieceAfter = result.updatedPieces.find(p => p.type === 'king' && p.level === boardId);
+    const kingPieceBefore = state.pieces.find(p => p.type === 'king' && isInstanceOfBase(p.level, boardId));
+    const kingPieceAfter = result.updatedPieces.find(p => p.type === 'king' && isInstanceOfBase(p.level, boardId));
     console.log('[moveAttackBoard] King before/after:', {
       before: kingPieceBefore ? { file: kingPieceBefore.file, rank: kingPieceBefore.rank, level: kingPieceBefore.level } : 'not found',
       after: kingPieceAfter ? { file: kingPieceAfter.file, rank: kingPieceAfter.rank, level: kingPieceAfter.level } : 'not found',
     });
 
-    updateAttackBoardWorld(state.world, boardId, toPinId, state.world.boards.get(boardId)?.rotation ?? 0);
 
     const move: Move = {
       type: 'board-move',
@@ -471,7 +470,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     if (!pinId) return;
 
     if (angle === 0) {
-      updateAttackBoardWorld(state.world, boardId, pinId, 0);
+      ensureInstanceVisibility(state.world, boardId, pinId, 0);
       set({
         moveHistory: state.moveHistory,
       });
@@ -499,7 +498,6 @@ export const useGameStore = create<GameState>()((set, get) => ({
       attackBoardPositions: state.attackBoardPositions,
     });
 
-    updateAttackBoardWorld(state.world, boardId, pinId, 180);
 
     const move: Move = {
       type: 'board-move',
@@ -541,90 +539,36 @@ export function buildPersistablePayload(state: GameState) {
   };
 }
 
-function updateAttackBoardWorld(
+function ensureInstanceVisibility(
   world: ChessWorld,
-  boardId: string,
+  baseId: string,
   pinId: string,
   rotation: number
 ) {
-  const board = world.boards.get(boardId);
-  const pin = PIN_POSITIONS[pinId];
-  if (!board || !pin) return;
+  const instanceId = rotation === 180 
+    ? `${baseId}_${pinId}_R180` 
+    : `${baseId}_${pinId}`;
   
-  const isQueenLine = pinId.startsWith('QL');
-  const baseFile = isQueenLine ? 0 : 4;
-  
-  const files = [baseFile, baseFile + 1];
-  const ranks = [pin.rankOffset, pin.rankOffset + 1];
-  
-  const minFile = Math.min(...files);
-  const maxFile = Math.max(...files);
-  const minRank = Math.min(...ranks);
-  const maxRank = Math.max(...ranks);
-  
-  const fileToWorldX = (file: number) => {
-    const SQUARE_SIZE = 10;
-    const SQUARE_GAP = 1;
-    const SPACING = SQUARE_SIZE + SQUARE_GAP;
-    const FILE_OFFSET = 0;
-    return FILE_OFFSET + file * SPACING;
-  };
-  
-  const rankToWorldY = (rank: number) => {
-    const SQUARE_SIZE = 10;
-    const SQUARE_GAP = 1;
-    const SPACING = SQUARE_SIZE + SQUARE_GAP;
-    const RANK_OFFSET = 0;
-    return RANK_OFFSET + rank * SPACING;
-  };
-  
-  const centerX = (fileToWorldX(minFile) + fileToWorldX(maxFile)) / 2;
-  const centerY = (rankToWorldY(minRank) + rankToWorldY(maxRank)) / 2;
-  const centerZ = pin.zHeight;
-  
-  console.log('[updateAttackBoardWorld]:', {
-    boardId,
+  console.log('[ensureInstanceVisibility]:', {
+    baseId,
     pinId,
-    pinLevel: pin.level,
-    pinZHeight: pin.zHeight,
-    baseFile,
-    files,
-    ranks,
-    centerX,
-    centerY,
-    centerZ,
     rotation,
+    instanceId,
   });
   
-  board.centerX = centerX;
-  board.centerY = centerY;
-  board.centerZ = centerZ;
-  board.rotation = rotation;
-  board.files = files;
-  board.ranks = ranks;
-  world.boards.set(boardId, board);
-  
-  const boardSquares = Array.from(world.squares.values())
-    .filter((sq) => sq.boardId === boardId);
-  
-  const newSquarePositions = [
-    { file: files[0], rank: ranks[0] },
-    { file: files[1], rank: ranks[0] },
-    { file: files[0], rank: ranks[1] },
-    { file: files[1], rank: ranks[1] },
-  ];
-  
-  boardSquares.forEach((sq, index) => {
-    if (index < newSquarePositions.length) {
-      const newPos = newSquarePositions[index];
-      sq.file = newPos.file;
-      sq.rank = newPos.rank;
-      sq.worldX = fileToWorldX(newPos.file);
-      sq.worldY = rankToWorldY(newPos.rank);
-      sq.worldZ = centerZ;
-      world.squares.set(sq.id, sq);
+  for (const [id, board] of world.boards.entries()) {
+    if (id.startsWith(baseId + '_')) {
+      if (id === instanceId) {
+        board.visible = true;
+        board.accessible = true;
+        world.boards.set(id, board);
+      } else {
+        board.visible = false;
+        board.accessible = false;
+        world.boards.set(id, board);
+      }
     }
-  });
+  }
 }
 
 export function hydrateFromPersisted(
@@ -648,8 +592,8 @@ export function hydrateFromPersisted(
   });
   const state = get();
   Object.entries(state.attackBoardPositions).forEach(([boardId, pinId]) => {
-    const rotation = state.world.boards.get(boardId)?.rotation ?? 0;
-    updateAttackBoardWorld(state.world, boardId, pinId, rotation);
+    const rotation = state.world.boards.get(`${boardId}_${pinId}`)?.rotation ?? 0;
+    ensureInstanceVisibility(state.world, boardId, pinId, rotation);
   });
   get().updateGameState();
 }

@@ -3,15 +3,18 @@ import type { BoardLayout, WorldSquare } from '../../engine/world/types';
 import { THEME } from '../../config/theme';
 import { PIN_POSITIONS } from '../../engine/world/pinPositions';
 import { fileToWorldX, rankToWorldY } from '../../engine/world/coordinates';
+import { getBaseIdFromInstance } from '../../engine/world/boardInstances';
 
 export function BoardRenderer() {
   const world = useGameStore(state => state.world);
 
   return (
     <group>
-      {Array.from(world.boards.values()).map(board => (
-        <SingleBoard key={board.id} board={board} />
-      ))}
+      {Array.from(world.boards.values())
+        .filter(board => board.visible)
+        .map(board => (
+          <SingleBoard key={board.id} board={board} />
+        ))}
     </group>
   );
 }
@@ -71,12 +74,12 @@ function SingleBoard({ board }: { board: BoardLayout }) {
             rotation={[Math.PI / 2, 0, 0]}
             onClick={(e) => {
               e.stopPropagation();
-              selectBoard(board.id);
+              selectBoard(getBaseIdFromInstance(board.id));
             }}
           >
             <cylinderGeometry args={[THEME.attackBoardSelector.radius, THEME.attackBoardSelector.radius, THEME.attackBoardSelector.thickness, 32]} />
             <meshStandardMaterial 
-              color={selectedBoardId === board.id ? THEME.squares.selectedColor : THEME.attackBoardSelector.color}
+              color={selectedBoardId === getBaseIdFromInstance(board.id) ? THEME.squares.selectedColor : THEME.attackBoardSelector.color}
             />
           </mesh>
         )}

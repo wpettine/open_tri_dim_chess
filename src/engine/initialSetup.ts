@@ -33,10 +33,10 @@ export function createInitialPieces(): Piece[] {
 
   const mapLevel = (level: 'W' | 'B' | 'QL1' | 'KL1' | 'QL6' | 'KL6'): string => {
     if (level === 'W' || level === 'B') return level;
-    if (level === 'QL1') return 'WQL';
-    if (level === 'KL1') return 'WKL';
-    if (level === 'QL6') return 'BQL';
-    return 'BKL';
+    if (level === 'QL1') return 'WQL_QL1';
+    if (level === 'KL1') return 'WKL_KL1';
+    if (level === 'QL6') return 'BQL_QL6';
+    return 'BKL_KL6';
   };
 
   type JsonPiece = {

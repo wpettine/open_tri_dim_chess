@@ -288,7 +288,7 @@ describe('moveValidation', () => {
           color: 'white',
           file: 1,
           rank: 1,
-          level: 'WQL',
+          level: 'WQL_QL1',
           hasMoved: false,
         },
       ];
@@ -525,7 +525,7 @@ describe('moveValidation', () => {
           color: 'white',
           file: 1,
           rank: 0,
-          level: 'WQL',
+          level: 'WQL_QL1',
           hasMoved: false,
         },
         {

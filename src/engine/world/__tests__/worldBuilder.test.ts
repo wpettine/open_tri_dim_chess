@@ -5,37 +5,43 @@ import type { WorldSquare } from '../types';
 describe('World Builder', () => {
   const world = createChessWorld();
 
-  it('should create 7 boards', () => {
-    expect(world.boards.size).toBe(7);
-    expect(world.boards.has('WL')).toBe(true);
-    expect(world.boards.has('NL')).toBe(true);
-    expect(world.boards.has('BL')).toBe(true);
-    expect(world.boards.has('WQL')).toBe(true);
-    expect(world.boards.has('WKL')).toBe(true);
-    expect(world.boards.has('BQL')).toBe(true);
-    expect(world.boards.has('BKL')).toBe(true);
+  it('should create 99 boards (3 main + 96 attack board instances)', () => {
+    expect(world.boards.size).toBe(99);
+    expect(world.boards.has('W')).toBe(true);
+    expect(world.boards.has('N')).toBe(true);
+    expect(world.boards.has('B')).toBe(true);
+    
+    const attackBoardBases = ['WQL', 'WKL', 'BQL', 'BKL'];
+    const pins = ['QL1', 'QL2', 'QL3', 'QL4', 'QL5', 'QL6', 'KL1', 'KL2', 'KL3', 'KL4', 'KL5', 'KL6'];
+    
+    attackBoardBases.forEach(base => {
+      pins.forEach(pin => {
+        expect(world.boards.has(`${base}_${pin}`)).toBe(true);
+        expect(world.boards.has(`${base}_${pin}_R180`)).toBe(true);
+      });
+    });
   });
 
   it('should create correct number of squares for main boards', () => {
-    const wlSquares = Array.from(world.squares.values()).filter((sq: WorldSquare) => sq.boardId === 'WL');
-    const nlSquares = Array.from(world.squares.values()).filter((sq: WorldSquare) => sq.boardId === 'NL');
-    const blSquares = Array.from(world.squares.values()).filter((sq: WorldSquare) => sq.boardId === 'BL');
+    const wSquares = Array.from(world.squares.values()).filter((sq: WorldSquare) => sq.boardId === 'W');
+    const nSquares = Array.from(world.squares.values()).filter((sq: WorldSquare) => sq.boardId === 'N');
+    const bSquares = Array.from(world.squares.values()).filter((sq: WorldSquare) => sq.boardId === 'B');
     
-    expect(wlSquares.length).toBe(16);
-    expect(nlSquares.length).toBe(16);
-    expect(blSquares.length).toBe(16);
+    expect(wSquares.length).toBe(16);
+    expect(nSquares.length).toBe(16);
+    expect(bSquares.length).toBe(16);
   });
 
-  it('should create correct number of squares for attack boards', () => {
-    const wqlSquares = Array.from(world.squares.values()).filter((sq: WorldSquare) => sq.boardId === 'WQL');
-    const wklSquares = Array.from(world.squares.values()).filter((sq: WorldSquare) => sq.boardId === 'WKL');
-    const bqlSquares = Array.from(world.squares.values()).filter((sq: WorldSquare) => sq.boardId === 'BQL');
-    const bklSquares = Array.from(world.squares.values()).filter((sq: WorldSquare) => sq.boardId === 'BKL');
+  it('should create correct number of squares for attack board instances', () => {
+    const wqlSquares = Array.from(world.squares.values()).filter((sq: WorldSquare) => sq.boardId.startsWith('WQL_'));
+    const wklSquares = Array.from(world.squares.values()).filter((sq: WorldSquare) => sq.boardId.startsWith('WKL_'));
+    const bqlSquares = Array.from(world.squares.values()).filter((sq: WorldSquare) => sq.boardId.startsWith('BQL_'));
+    const bklSquares = Array.from(world.squares.values()).filter((sq: WorldSquare) => sq.boardId.startsWith('BKL_'));
     
-    expect(wqlSquares.length).toBe(4);
-    expect(wklSquares.length).toBe(4);
-    expect(bqlSquares.length).toBe(4);
-    expect(bklSquares.length).toBe(4);
+    expect(wqlSquares.length).toBe(96);
+    expect(wklSquares.length).toBe(96);
+    expect(bqlSquares.length).toBe(96);
+    expect(bklSquares.length).toBe(96);
   });
 
   it('should have unique square IDs', () => {

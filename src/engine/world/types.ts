@@ -19,6 +19,10 @@ export interface BoardLayout {
   rotation: number;
   files: number[];
   ranks: number[];
+  visible: boolean;
+  accessible: boolean;
+  pinId?: string;
+  rotationState?: 0 | 180;
 }
 
 export interface PinPosition {

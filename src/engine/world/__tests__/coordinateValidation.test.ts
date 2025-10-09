@@ -43,8 +43,8 @@ describe('Coordinate Validation', () => {
   });
 
   it('should align attack board coordinates with rank system', () => {
-    const rank0WQL = world.squares.get('z0WQL');
-    const rank1WQL = world.squares.get('z1WQL');
+    const rank0WQL = world.squares.get('z0WQL_QL1');
+    const rank1WQL = world.squares.get('z1WQL_QL1');
     
     expect(rank0WQL).toBeDefined();
     expect(rank1WQL).toBeDefined();
@@ -54,8 +54,8 @@ describe('Coordinate Validation', () => {
       expect(rank1WQL.worldY - rank0WQL.worldY).toBeCloseTo(2.1, 1);
     }
 
-    const rank8BQL = world.squares.get('z8BQL');
-    const rank9BQL = world.squares.get('z9BQL');
+    const rank8BQL = world.squares.get('z8BQL_QL6');
+    const rank9BQL = world.squares.get('z9BQL_QL6');
     
     expect(rank8BQL).toBeDefined();
     expect(rank9BQL).toBeDefined();

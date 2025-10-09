@@ -1,7 +1,8 @@
 import type { ChessWorld } from './types';
 import type { Piece } from '../../store/gameStore';
 import { PIN_POSITIONS } from './pinPositions';
-import { ATTACK_BOARD_ADJACENCY, classifyDirection } from './attackBoardAdjacency';
+import { ATTACK_BOARD_ADJACENCY } from './attackBoardAdjacency';
+import { getInstanceId, toggleBoardVisibility, getVisibleInstanceForBase, isInstanceOfBase } from './boardInstances';
 
 export interface BoardMoveContext {
   boardId: string;
@@ -82,12 +83,10 @@ function validateAdjacency(context: BoardMoveContext): BoardMoveValidation {
   }
 
   const controller = getBoardController(context.boardId, context.fromPinId, context.pieces);
-  const direction = classifyDirection(context.fromPinId, context.toPinId, controller);
-  
   const passengerPieces = getPassengerPieces(context.boardId, context.fromPinId, context.pieces);
   const isOccupied = passengerPieces.length > 0;
   
-  if (isOccupied && direction === 'backward') {
+  if (isOccupied && isBackwardMovement(context.fromPinId, context.toPinId, controller)) {
     return { 
       isValid: false, 
       reason: 'Cannot move backward while occupied' 
@@ -95,6 +94,19 @@ function validateAdjacency(context: BoardMoveContext): BoardMoveValidation {
   }
 
   return { isValid: true };
+}
+
+function isBackwardMovement(fromPinId: string, toPinId: string, controller: 'white' | 'black'): boolean {
+  const fromLevel = fromPinId.charAt(2);
+  const toLevel = toPinId.charAt(2);
+  const fromLevelNum = parseInt(fromLevel);
+  const toLevelNum = parseInt(toLevel);
+  
+  if (controller === 'white') {
+    return toLevelNum < fromLevelNum;
+  } else {
+    return toLevelNum > fromLevelNum;
+  }
 }
 
 function validateOccupancy(context: BoardMoveContext): BoardMoveValidation {
@@ -117,7 +129,6 @@ function validateVerticalShadow(context: BoardMoveContext): BoardMoveValidation 
   }
 
   const destinationSquares = getBoardSquaresForBoardAtPin(context.boardId, context.toPinId);
-  const destinationZHeight = toPin.zHeight;
 
   for (const square of destinationSquares) {
     const blockingPiece = context.pieces.find(p => {
@@ -129,33 +140,11 @@ function validateVerticalShadow(context: BoardMoveContext): BoardMoveValidation 
         return false;
       }
       
-      if (p.level === context.boardId) {
+      if (isInstanceOfBase(p.level, context.boardId)) {
         return false;
       }
       
-      let pieceZHeight: number;
-      const pieceLevel = p.level;
-      
-      if (pieceLevel === 'W' || pieceLevel === 'N' || pieceLevel === 'B') {
-        const mainLevelZ: Record<string, number> = {
-          'W': 0,
-          'N': 5,
-          'B': 10
-        };
-        pieceZHeight = mainLevelZ[pieceLevel];
-      } else {
-        const piecePinId = context.attackBoardPositions[pieceLevel];
-        if (!piecePinId) {
-          return true;
-        }
-        const piecePin = PIN_POSITIONS[piecePinId];
-        if (!piecePin) {
-          return true;
-        }
-        pieceZHeight = piecePin.zHeight;
-      }
-      
-      return pieceZHeight !== destinationZHeight;
+      return true;
     });
     
     if (blockingPiece) {
@@ -189,7 +178,7 @@ function getPassengerPieces(
   return pieces.filter(piece => {
     const pieceSquareId = `${piece.file}-${piece.rank}`;
     const isOnBoardSquare = boardSquares.some(sq => `${sq.file}-${sq.rank}` === pieceSquareId);
-    const isOnThisBoard = piece.level === boardId;
+    const isOnThisBoard = isInstanceOfBase(piece.level, boardId);
     return isOnBoardSquare && isOnThisBoard;
   });
 }
@@ -215,6 +204,8 @@ function getBoardSquaresForBoardAtPin(
 export interface BoardMoveResult {
   updatedPieces: Piece[];
   updatedPositions: Record<string, string>;
+  oldInstanceId: string;
+  newInstanceId: string;
 }
 
 export function executeBoardMove(context: BoardMoveContext): BoardMoveResult {
@@ -222,6 +213,12 @@ export function executeBoardMove(context: BoardMoveContext): BoardMoveResult {
     ...context.attackBoardPositions,
     [context.boardId]: context.toPinId,
   };
+
+  const currentRotation = context.world.boards.get(getVisibleInstanceForBase(context.world, context.boardId) || '')?.rotationState || 0;
+  const newRotation = context.rotate ? 180 : currentRotation;
+  
+  const oldInstanceId = getInstanceId(context.boardId, context.fromPinId, currentRotation);
+  const newInstanceId = getInstanceId(context.boardId, context.toPinId, newRotation as 0 | 180);
 
   const passengerPieces = getPassengerPieces(
     context.boardId,
@@ -231,6 +228,7 @@ export function executeBoardMove(context: BoardMoveContext): BoardMoveResult {
 
   console.log('[executeBoardMove] Passenger count:', passengerPieces.length);
   console.log('[executeBoardMove] Passenger IDs:', passengerPieces.map(p => `${p.type}@${p.file},${p.rank},${p.level}`));
+  console.log('[executeBoardMove] Instance transition:', { oldInstanceId, newInstanceId });
 
   const fromPin = PIN_POSITIONS[context.fromPinId];
   const toPin = PIN_POSITIONS[context.toPinId];
@@ -259,19 +257,24 @@ export function executeBoardMove(context: BoardMoveContext): BoardMoveResult {
     console.log('[executeBoardMove] Remapping passenger:', {
       type: piece.type,
       from: `${piece.file},${piece.rank},${piece.level}`,
-      to: `${newFile},${newRank},${piece.level}`,
+      to: `${newFile},${newRank},${newInstanceId}`,
     });
 
     return {
       ...piece,
       file: newFile,
       rank: newRank,
+      level: newInstanceId,
       hasMoved: true,
     };
   });
 
+  toggleBoardVisibility(context.world, oldInstanceId, newInstanceId);
+
   return {
     updatedPieces,
     updatedPositions,
+    oldInstanceId,
+    newInstanceId,
   };
 }

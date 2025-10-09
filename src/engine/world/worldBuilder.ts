@@ -7,13 +7,13 @@ export function createChessWorld(): ChessWorld {
   const squares = new Map<string, WorldSquare>();
   const pins = new Map(Object.entries(PIN_POSITIONS));
 
-  const mainWhite = createMainBoard('WL', 'W', [1, 2, 3, 4], [1, 2, 3, 4], Z_WHITE_MAIN);
-  const mainNeutral = createMainBoard('NL', 'N', [1, 2, 3, 4], [3, 4, 5, 6], Z_NEUTRAL_MAIN);
-  const mainBlack = createMainBoard('BL', 'B', [1, 2, 3, 4], [5, 6, 7, 8], Z_BLACK_MAIN);
+  const mainWhite = createMainBoard('W', 'W', [1, 2, 3, 4], [1, 2, 3, 4], Z_WHITE_MAIN);
+  const mainNeutral = createMainBoard('N', 'N', [1, 2, 3, 4], [3, 4, 5, 6], Z_NEUTRAL_MAIN);
+  const mainBlack = createMainBoard('B', 'B', [1, 2, 3, 4], [5, 6, 7, 8], Z_BLACK_MAIN);
 
-  boards.set('WL', mainWhite.board);
-  boards.set('NL', mainNeutral.board);
-  boards.set('BL', mainBlack.board);
+  boards.set('W', mainWhite.board);
+  boards.set('N', mainNeutral.board);
+  boards.set('B', mainBlack.board);
 
   mainWhite.squares.forEach((sq) => squares.set(sq.id, sq));
   mainNeutral.squares.forEach((sq) => squares.set(sq.id, sq));
@@ -21,20 +21,34 @@ export function createChessWorld(): ChessWorld {
 
   const initialPins = getInitialPinPositions();
   
-  const wql = createAttackBoard('WQL', initialPins.WQL, [0, 1], [0, 1]);
-  const wkl = createAttackBoard('WKL', initialPins.WKL, [4, 5], [0, 1]);
-  const bql = createAttackBoard('BQL', initialPins.BQL, [0, 1], [8, 9]);
-  const bkl = createAttackBoard('BKL', initialPins.BKL, [4, 5], [8, 9]);
+  const allPins = ['QL1', 'QL2', 'QL3', 'QL4', 'QL5', 'QL6', 'KL1', 'KL2', 'KL3', 'KL4', 'KL5', 'KL6'];
+  
+  const attackBoardConfigs = [
+    { baseId: 'WQL', initialPin: initialPins.WQL },
+    { baseId: 'WKL', initialPin: initialPins.WKL },
+    { baseId: 'BQL', initialPin: initialPins.BQL },
+    { baseId: 'BKL', initialPin: initialPins.BKL },
+  ];
 
-  boards.set('WQL', wql.board);
-  boards.set('WKL', wkl.board);
-  boards.set('BQL', bql.board);
-  boards.set('BKL', bkl.board);
-
-  wql.squares.forEach((sq) => squares.set(sq.id, sq));
-  wkl.squares.forEach((sq) => squares.set(sq.id, sq));
-  bql.squares.forEach((sq) => squares.set(sq.id, sq));
-  bkl.squares.forEach((sq) => squares.set(sq.id, sq));
+  for (const config of attackBoardConfigs) {
+    for (const pinId of allPins) {
+      for (const rotation of [0, 180] as const) {
+        const isInitialPosition = pinId === config.initialPin && rotation === 0;
+        const instanceId = rotation === 0 ? `${config.baseId}_${pinId}` : `${config.baseId}_${pinId}_R180`;
+        
+        const instance = createAttackBoardInstance(
+          instanceId,
+          config.baseId,
+          pinId,
+          rotation,
+          isInitialPosition
+        );
+        
+        boards.set(instanceId, instance.board);
+        instance.squares.forEach((sq) => squares.set(sq.id, sq));
+      }
+    }
+  }
 
   return { boards, squares, pins };
 }
@@ -68,6 +82,8 @@ function createMainBoard(
     rotation: 0,
     files,
     ranks,
+    visible: true,
+    accessible: true,
   };
 
   const squares: WorldSquare[] = [];
@@ -95,15 +111,27 @@ function createMainBoard(
   return { board, squares };
 }
 
-function createAttackBoard(
-  id: string,
+function createAttackBoardInstance(
+  instanceId: string,
+  baseId: string,
   pinId: string,
-  files: number[],
-  ranks: number[]
+  rotation: 0 | 180,
+  isVisible: boolean
 ): { board: BoardLayout; squares: WorldSquare[] } {
   const pin = PIN_POSITIONS[pinId];
   if (!pin) {
     throw new Error(`Invalid pin ID: ${pinId}`);
+  }
+
+  const isQueenLine = pinId.startsWith('QL');
+  const baseFile = isQueenLine ? 0 : 4;
+  
+  let files = [baseFile, baseFile + 1];
+  let ranks = [pin.rankOffset, pin.rankOffset + 1];
+  
+  if (rotation === 180) {
+    files = [baseFile + 1, baseFile];
+    ranks = [pin.rankOffset + 1, pin.rankOffset];
   }
 
   const minFile = Math.min(...files);
@@ -119,15 +147,19 @@ function createAttackBoard(
   const height = maxRank - minRank + 1;
 
   const board: BoardLayout = {
-    id,
+    id: instanceId,
     type: 'attack',
     centerX,
     centerY,
     centerZ,
     size: { width, height },
-    rotation: 0,
+    rotation,
     files,
     ranks,
+    visible: isVisible,
+    accessible: isVisible,
+    pinId: pinId,
+    rotationState: rotation,
   };
 
   const squares: WorldSquare[] = [];
@@ -137,11 +169,11 @@ function createAttackBoard(
       const worldY = rankToWorldY(rank);
       const worldZ = pin.zHeight;
       const color = (file + rank) % 2 === 0 ? 'dark' : 'light';
-      const squareId = createSquareId(file, rank, id);
+      const squareId = createSquareId(file, rank, instanceId);
 
       squares.push({
         id: squareId,
-        boardId: id,
+        boardId: instanceId,
         file,
         rank,
         worldX,
