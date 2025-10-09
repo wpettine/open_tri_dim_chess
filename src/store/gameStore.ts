@@ -614,14 +614,26 @@ function updateAttackBoardWorld(
     { file: files[1], rank: ranks[1] },
   ];
   
+  const theta = (rotation * Math.PI) / 180;
   boardSquares.forEach((sq, index) => {
     if (index < newSquarePositions.length) {
       const newPos = newSquarePositions[index];
       sq.file = newPos.file;
       sq.rank = newPos.rank;
-      sq.worldX = fileToWorldX(newPos.file);
-      sq.worldY = rankToWorldY(newPos.rank);
+
+      const preX = fileToWorldX(newPos.file);
+      const preY = rankToWorldY(newPos.rank);
+
+      const dx = preX - centerX;
+      const dy = preY - centerY;
+
+      const rx = dx * Math.cos(theta) - dy * Math.sin(theta);
+      const ry = dx * Math.sin(theta) + dy * Math.cos(theta);
+
+      sq.worldX = centerX + rx;
+      sq.worldY = centerY + ry;
       sq.worldZ = centerZ;
+
       world.squares.set(sq.id, sq);
     }
   });
