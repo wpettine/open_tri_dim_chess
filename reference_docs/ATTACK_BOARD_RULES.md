@@ -383,6 +383,85 @@ Corner pins:
     ]
   }
 }
+
+{
+  "pinRankMap": {
+    "QL1": {
+      "ranks": [0, 1],
+      "anchoredTo": "White Main Board (front pin)",
+      "overhangDirection": "forward",
+      "description": "Front overhang in front of White main board; starting castling position for White."
+    },
+    "QL2": {
+      "ranks": [4, 5],
+      "anchoredTo": "White Main Board (rear pin)",
+      "overhangDirection": "forward",
+      "description": "Attached to rear pin of White main board; overhangs forward into neutral space."
+    },
+    "QL3": {
+      "ranks": [2, 3],
+      "anchoredTo": "Neutral Board (front pin)",
+      "overhangDirection": "backward",
+      "description": "Lower neutral bridge; faces backward toward White board."
+    },
+    "QL4": {
+      "ranks": [6, 7],
+      "anchoredTo": "Neutral Board (rear pin)",
+      "overhangDirection": "forward",
+      "description": "Upper neutral bridge; extends forward toward Black."
+    },
+    "QL5": {
+      "ranks": [4, 5],
+      "anchoredTo": "Black Main Board (front pin)",
+      "overhangDirection": "backward",
+      "description": "Mounted on front pin of Black main board; overhangs backward into neutral zone."
+    },
+    "QL6": {
+      "ranks": [8, 9],
+      "anchoredTo": "Black Main Board (rear pin)",
+      "overhangDirection": "forward",
+      "description": "Rearmost attack board; behind Black main board, spanning ranks 8–9."
+    },
+
+    "KL1": {
+      "ranks": [0, 1],
+      "anchoredTo": "White Main Board (front pin)",
+      "overhangDirection": "forward",
+      "description": "Front overhang on White’s kingside; used for castling and attack deployment."
+    },
+    "KL2": {
+      "ranks": [4, 5],
+      "anchoredTo": "White Main Board (rear pin)",
+      "overhangDirection": "forward",
+      "description": "Rear pin of White main board, kingside; overhangs forward into neutral space."
+    },
+    "KL3": {
+      "ranks": [2, 3],
+      "anchoredTo": "Neutral Board (front pin)",
+      "overhangDirection": "backward",
+      "description": "Lower neutral bridge, kingside; faces backward toward White."
+    },
+    "KL4": {
+      "ranks": [6, 7],
+      "anchoredTo": "Neutral Board (rear pin)",
+      "overhangDirection": "forward",
+      "description": "Upper neutral bridge, kingside; extends forward toward Black."
+    },
+    "KL5": {
+      "ranks": [4, 5],
+      "anchoredTo": "Black Main Board (front pin)",
+      "overhangDirection": "backward",
+      "description": "Front pin of Black main board, kingside; overhangs backward into neutral zone."
+    },
+    "KL6": {
+      "ranks": [8, 9],
+      "anchoredTo": "Black Main Board (rear pin)",
+      "overhangDirection": "forward",
+      "description": "Rearmost attack board on Black’s kingside; covers ranks 8–9."
+    }
+  }
+}
+
 ```
 
 ### Detailed Implementation

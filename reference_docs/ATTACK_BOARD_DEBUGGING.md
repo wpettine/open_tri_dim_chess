@@ -118,6 +118,63 @@ Added comprehensive console logging in three key locations:
 
 ---
 
+---
+
+## Session 3 Progress (Completed) ✅
+
+### Issue Fixed: Pin Rank Offset Configuration & Vertical Shadow Validation
+
+**Problem**: Pin positions had incorrect rankOffset values that didn't match the game's spatial design. Additionally, the vertical shadow validation was incorrectly using board centerZ instead of pin zHeight.
+
+**Root Cause Analysis**:
+1. Pin rankOffset values were using a simple incrementing pattern (0,2,4,6,8) that didn't match the actual board attachment points
+2. The pinRankMap in ATTACK_BOARD_RULES.md specified the correct rank mappings that differed from the code
+3. Vertical shadow validation was comparing board centerZ values instead of pin zHeight values
+
+**Solution Implemented**:
+
+1. **Updated Pin Positions** (`src/engine/world/pinPositions.ts`):
+   - QL1/KL1: rankOffset=0 (ranks 0-1) ✅ - Front overhang in front of White main board
+   - QL2/KL2: rankOffset=4 → ranks 4-5 (was 2) - Rear pin of White main board
+   - QL3/KL3: rankOffset=2 → ranks 2-3 (was 4) - Lower neutral bridge, faces backward
+   - QL4/KL4: rankOffset=6 (ranks 6-7) ✅ - Upper neutral bridge
+   - QL5/KL5: rankOffset=4 → ranks 4-5 (was 8) - Front pin of Black main board, overhangs backward
+   - QL6/KL6: rankOffset=8 (ranks 8-9) ✅ - Rearmost attack boards
+
+2. **Fixed Vertical Shadow Validation** (`src/engine/world/worldMutation.ts`):
+   - Changed from comparing `board.centerZ` to comparing actual Z-heights
+   - For main board pieces: Use level-based Z-height (W=0, N=5, B=10)
+   - For attack board pieces: Look up the pin's zHeight from attackBoardPositions
+   - Only block if piece and destination are at DIFFERENT Z-heights with same file/rank
+
+**Code Changes**:
+```typescript
+// Now correctly compares Z-heights instead of board centers
+let pieceZHeight: number;
+if (pieceLevel === 'W' || pieceLevel === 'N' || pieceLevel === 'B') {
+  pieceZHeight = mainLevelZ[pieceLevel];
+} else {
+  const piecePinId = context.attackBoardPositions[pieceLevel];
+  const piecePin = PIN_POSITIONS[piecePinId];
+  pieceZHeight = piecePin.zHeight;
+}
+return pieceZHeight !== destinationZHeight;
+```
+
+**Testing Results** ✅:
+- Pin positions now match the documented pinRankMap from ATTACK_BOARD_RULES.md
+- Vertical shadow correctly prevents overlapping boards at different Z-heights
+- Vertical shadow correctly ALLOWS boards at the same Z-height even with shared file/rank
+- "King and Pawn" game shows proper blocking when pieces create vertical shadows
+- Attack boards properly validate movement based on actual 3D spatial positions
+
+**Files Modified**:
+1. `src/engine/world/pinPositions.ts` - Updated rankOffset values for pins
+2. `src/engine/world/worldMutation.ts` - Fixed vertical shadow Z-height comparison logic
+3. `reference_docs/ATTACK_BOARD_DEBUGGING.md` - This document
+
+---
+
 ## All Issues Resolved ✅
 
 All attack board movement issues have been successfully debugged and fixed:
@@ -126,8 +183,10 @@ All attack board movement issues have been successfully debugged and fixed:
 3. ✅ Visual position updates
 4. ✅ Pieces staying visible during moves
 5. ✅ Player-relative direction logic
+6. ✅ Pin rank offset configuration
+7. ✅ Vertical shadow validation
 
-The attack board movement system is now fully functional for both White and Black players.
+The attack board movement system is now fully functional for both White and Black players with correct spatial positioning and vertical shadow rules.
 
 ---
 

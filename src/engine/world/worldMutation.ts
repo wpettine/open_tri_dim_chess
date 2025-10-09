@@ -117,14 +117,46 @@ function validateVerticalShadow(context: BoardMoveContext): BoardMoveValidation 
   }
 
   const destinationSquares = getBoardSquaresForBoardAtPin(context.boardId, context.toPinId);
+  const destinationZHeight = toPin.zHeight;
 
   for (const square of destinationSquares) {
-    const blockingPiece = context.pieces.find(p => 
-      p.file === square.file &&
-      p.rank === square.rank &&
-      p.type !== 'knight' &&
-      p.level !== context.boardId
-    );
+    const blockingPiece = context.pieces.find(p => {
+      if (p.file !== square.file || p.rank !== square.rank) {
+        return false;
+      }
+      
+      if (p.type === 'knight') {
+        return false;
+      }
+      
+      if (p.level === context.boardId) {
+        return false;
+      }
+      
+      let pieceZHeight: number;
+      const pieceLevel = p.level;
+      
+      if (pieceLevel === 'W' || pieceLevel === 'N' || pieceLevel === 'B') {
+        const mainLevelZ: Record<string, number> = {
+          'W': 0,
+          'N': 5,
+          'B': 10
+        };
+        pieceZHeight = mainLevelZ[pieceLevel];
+      } else {
+        const piecePinId = context.attackBoardPositions[pieceLevel];
+        if (!piecePinId) {
+          return true;
+        }
+        const piecePin = PIN_POSITIONS[piecePinId];
+        if (!piecePin) {
+          return true;
+        }
+        pieceZHeight = piecePin.zHeight;
+      }
+      
+      return pieceZHeight !== destinationZHeight;
+    });
     
     if (blockingPiece) {
       const fileNames = ['z', 'a', 'b', 'c', 'd', 'e'];
