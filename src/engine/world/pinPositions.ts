@@ -18,7 +18,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
   QL2: {
     id: 'QL2',
     fileOffset: 0,
-    rankOffset: 2,
+    rankOffset: 4,
     zHeight: Z_WHITE_MAIN,
     adjacentPins: ['QL1', 'QL3', 'KL1', 'KL2', 'KL3'],
     level: 1,
@@ -27,7 +27,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
   QL3: {
     id: 'QL3',
     fileOffset: 0,
-    rankOffset: 4,
+    rankOffset: 2,
     zHeight: Z_NEUTRAL_MAIN,
     adjacentPins: ['QL2', 'QL4', 'KL2', 'KL3', 'KL4'],
     level: 2,
@@ -45,7 +45,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
   QL5: {
     id: 'QL5',
     fileOffset: 0,
-    rankOffset: 8,
+    rankOffset: 4,
     zHeight: Z_BLACK_MAIN,
     adjacentPins: ['QL4', 'QL6', 'KL4', 'KL5', 'KL6'],
     level: 4,
@@ -72,7 +72,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
   KL2: {
     id: 'KL2',
     fileOffset: 4,
-    rankOffset: 2,
+    rankOffset: 4,
     zHeight: Z_WHITE_MAIN,
     adjacentPins: ['KL1', 'KL3', 'QL1', 'QL2', 'QL3'],
     level: 1,
@@ -81,7 +81,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
   KL3: {
     id: 'KL3',
     fileOffset: 4,
-    rankOffset: 4,
+    rankOffset: 2,
     zHeight: Z_NEUTRAL_MAIN,
     adjacentPins: ['KL2', 'KL4', 'QL2', 'QL3', 'QL4'],
     level: 2,
@@ -99,7 +99,7 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
   KL5: {
     id: 'KL5',
     fileOffset: 4,
-    rankOffset: 8,
+    rankOffset: 4,
     zHeight: Z_BLACK_MAIN,
     adjacentPins: ['KL4', 'KL6', 'QL4', 'QL5', 'QL6'],
     level: 4,

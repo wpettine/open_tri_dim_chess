@@ -1,7 +1,7 @@
 import type { ChessWorld } from './types';
 import type { Piece } from '../../store/gameStore';
 import { PIN_POSITIONS } from './pinPositions';
-import { ATTACK_BOARD_ADJACENCY } from './attackBoardAdjacency';
+import { ATTACK_BOARD_ADJACENCY, classifyDirection } from './attackBoardAdjacency';
 
 export interface BoardMoveContext {
   boardId: string;
@@ -52,6 +52,24 @@ function validateRotation(context: BoardMoveContext): BoardMoveValidation {
   return { isValid: true };
 }
 
+function getBoardOwner(boardId: string): 'white' | 'black' {
+  return boardId.startsWith('W') ? 'white' : 'black';
+}
+
+function getBoardController(
+  boardId: string,
+  fromPinId: string,
+  pieces: Piece[]
+): 'white' | 'black' {
+  const passengerPieces = getPassengerPieces(boardId, fromPinId, pieces);
+  
+  if (passengerPieces.length > 0) {
+    return passengerPieces[0].color;
+  }
+  
+  return getBoardOwner(boardId);
+}
+
 function validateAdjacency(context: BoardMoveContext): BoardMoveValidation {
   const adjacencyList = ATTACK_BOARD_ADJACENCY[context.fromPinId];
   
@@ -59,20 +77,21 @@ function validateAdjacency(context: BoardMoveContext): BoardMoveValidation {
     return { isValid: false, reason: 'Invalid source pin' };
   }
 
-  const edge = adjacencyList.find(e => e.to === context.toPinId);
-  
-  if (!edge) {
+  if (!adjacencyList.includes(context.toPinId)) {
     return { isValid: false, reason: 'Destination pin is not adjacent' };
   }
 
-  if (edge.requiresEmpty) {
-    const passengerPieces = getPassengerPieces(context.boardId, context.fromPinId, context.pieces);
-    if (passengerPieces.length > 0) {
-      return { 
-        isValid: false, 
-        reason: 'Cannot move backward or backward+side while occupied' 
-      };
-    }
+  const controller = getBoardController(context.boardId, context.fromPinId, context.pieces);
+  const direction = classifyDirection(context.fromPinId, context.toPinId, controller);
+  
+  const passengerPieces = getPassengerPieces(context.boardId, context.fromPinId, context.pieces);
+  const isOccupied = passengerPieces.length > 0;
+  
+  if (isOccupied && direction === 'backward') {
+    return { 
+      isValid: false, 
+      reason: 'Cannot move backward while occupied' 
+    };
   }
 
   return { isValid: true };
@@ -98,14 +117,46 @@ function validateVerticalShadow(context: BoardMoveContext): BoardMoveValidation 
   }
 
   const destinationSquares = getBoardSquaresForBoardAtPin(context.boardId, context.toPinId);
+  const destinationZHeight = toPin.zHeight;
 
   for (const square of destinationSquares) {
-    const blockingPiece = context.pieces.find(p => 
-      p.file === square.file &&
-      p.rank === square.rank &&
-      p.type !== 'knight' &&
-      p.level !== context.boardId
-    );
+    const blockingPiece = context.pieces.find(p => {
+      if (p.file !== square.file || p.rank !== square.rank) {
+        return false;
+      }
+      
+      if (p.type === 'knight') {
+        return false;
+      }
+      
+      if (p.level === context.boardId) {
+        return false;
+      }
+      
+      let pieceZHeight: number;
+      const pieceLevel = p.level;
+      
+      if (pieceLevel === 'W' || pieceLevel === 'N' || pieceLevel === 'B') {
+        const mainLevelZ: Record<string, number> = {
+          'W': 0,
+          'N': 5,
+          'B': 10
+        };
+        pieceZHeight = mainLevelZ[pieceLevel];
+      } else {
+        const piecePinId = context.attackBoardPositions[pieceLevel];
+        if (!piecePinId) {
+          return true;
+        }
+        const piecePin = PIN_POSITIONS[piecePinId];
+        if (!piecePin) {
+          return true;
+        }
+        pieceZHeight = piecePin.zHeight;
+      }
+      
+      return pieceZHeight !== destinationZHeight;
+    });
     
     if (blockingPiece) {
       const fileNames = ['z', 'a', 'b', 'c', 'd', 'e'];

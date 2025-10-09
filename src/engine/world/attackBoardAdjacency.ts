@@ -1,84 +1,49 @@
-export interface AdjacencyEdge {
-  to: string;
-  dir: string[];
-  requiresEmpty: boolean;
+export const ATTACK_BOARD_ADJACENCY: Record<string, string[]> = {
+  QL1: ['QL2', 'KL1', 'KL2'],
+  QL2: ['QL1', 'QL3', 'KL1', 'KL2', 'KL3'],
+  QL3: ['QL2', 'QL4', 'KL2', 'KL3', 'KL4'],
+  QL4: ['QL3', 'QL5', 'KL3', 'KL4', 'KL5'],
+  QL5: ['QL4', 'QL6', 'KL4', 'KL5', 'KL6'],
+  QL6: ['QL5', 'KL5', 'KL6'],
+  KL1: ['KL2', 'QL1', 'QL2'],
+  KL2: ['KL1', 'KL3', 'QL1', 'QL2', 'QL3'],
+  KL3: ['KL2', 'KL4', 'QL2', 'QL3', 'QL4'],
+  KL4: ['KL3', 'KL5', 'QL3', 'QL4', 'QL5'],
+  KL5: ['KL4', 'KL6', 'QL4', 'QL5', 'QL6'],
+  KL6: ['KL5', 'QL5', 'QL6'],
+};
+
+const PIN_LEVEL_INDEX: Record<string, number> = {
+  QL1: 1, QL2: 2, QL3: 3, QL4: 4, QL5: 5, QL6: 6,
+  KL1: 1, KL2: 2, KL3: 3, KL4: 4, KL5: 5, KL6: 6,
+};
+
+export function getPinLevel(pinId: string): number {
+  return PIN_LEVEL_INDEX[pinId];
 }
 
-export const ATTACK_BOARD_ADJACENCY: Record<string, AdjacencyEdge[]> = {
-  QL1: [
-    { to: 'QL2', dir: ['forward'], requiresEmpty: false },
-    { to: 'KL1', dir: ['side'], requiresEmpty: false },
-    { to: 'KL2', dir: ['forward', 'side'], requiresEmpty: false },
-  ],
-  QL2: [
-    { to: 'QL1', dir: ['backward'], requiresEmpty: true },
-    { to: 'QL3', dir: ['forward'], requiresEmpty: false },
-    { to: 'KL1', dir: ['side', 'backward'], requiresEmpty: true },
-    { to: 'KL2', dir: ['side'], requiresEmpty: false },
-    { to: 'KL3', dir: ['forward', 'side'], requiresEmpty: false },
-  ],
-  QL3: [
-    { to: 'QL2', dir: ['backward'], requiresEmpty: true },
-    { to: 'QL4', dir: ['forward'], requiresEmpty: false },
-    { to: 'KL2', dir: ['side', 'backward'], requiresEmpty: true },
-    { to: 'KL3', dir: ['side'], requiresEmpty: false },
-    { to: 'KL4', dir: ['forward', 'side'], requiresEmpty: false },
-  ],
-  QL4: [
-    { to: 'QL3', dir: ['backward'], requiresEmpty: true },
-    { to: 'QL5', dir: ['forward'], requiresEmpty: false },
-    { to: 'KL3', dir: ['side', 'backward'], requiresEmpty: true },
-    { to: 'KL4', dir: ['side'], requiresEmpty: false },
-    { to: 'KL5', dir: ['forward', 'side'], requiresEmpty: false },
-  ],
-  QL5: [
-    { to: 'QL4', dir: ['backward'], requiresEmpty: true },
-    { to: 'QL6', dir: ['forward'], requiresEmpty: false },
-    { to: 'KL4', dir: ['side', 'backward'], requiresEmpty: true },
-    { to: 'KL5', dir: ['side'], requiresEmpty: false },
-    { to: 'KL6', dir: ['forward', 'side'], requiresEmpty: false },
-  ],
-  QL6: [
-    { to: 'QL5', dir: ['backward'], requiresEmpty: true },
-    { to: 'KL5', dir: ['side', 'backward'], requiresEmpty: true },
-    { to: 'KL6', dir: ['side'], requiresEmpty: false },
-  ],
-  KL1: [
-    { to: 'KL2', dir: ['forward'], requiresEmpty: false },
-    { to: 'QL1', dir: ['side'], requiresEmpty: false },
-    { to: 'QL2', dir: ['forward', 'side'], requiresEmpty: false },
-  ],
-  KL2: [
-    { to: 'KL1', dir: ['backward'], requiresEmpty: true },
-    { to: 'KL3', dir: ['forward'], requiresEmpty: false },
-    { to: 'QL1', dir: ['side', 'backward'], requiresEmpty: true },
-    { to: 'QL2', dir: ['side'], requiresEmpty: false },
-    { to: 'QL3', dir: ['forward', 'side'], requiresEmpty: false },
-  ],
-  KL3: [
-    { to: 'KL2', dir: ['backward'], requiresEmpty: true },
-    { to: 'KL4', dir: ['forward'], requiresEmpty: false },
-    { to: 'QL2', dir: ['side', 'backward'], requiresEmpty: true },
-    { to: 'QL3', dir: ['side'], requiresEmpty: false },
-    { to: 'QL4', dir: ['forward', 'side'], requiresEmpty: false },
-  ],
-  KL4: [
-    { to: 'KL3', dir: ['backward'], requiresEmpty: true },
-    { to: 'KL5', dir: ['forward'], requiresEmpty: false },
-    { to: 'QL3', dir: ['side', 'backward'], requiresEmpty: true },
-    { to: 'QL4', dir: ['side'], requiresEmpty: false },
-    { to: 'QL5', dir: ['forward', 'side'], requiresEmpty: false },
-  ],
-  KL5: [
-    { to: 'KL4', dir: ['backward'], requiresEmpty: true },
-    { to: 'KL6', dir: ['forward'], requiresEmpty: false },
-    { to: 'QL4', dir: ['side', 'backward'], requiresEmpty: true },
-    { to: 'QL5', dir: ['side'], requiresEmpty: false },
-    { to: 'QL6', dir: ['forward', 'side'], requiresEmpty: false },
-  ],
-  KL6: [
-    { to: 'KL5', dir: ['backward'], requiresEmpty: true },
-    { to: 'QL5', dir: ['side', 'backward'], requiresEmpty: true },
-    { to: 'QL6', dir: ['side'], requiresEmpty: false },
-  ],
-};
+export function getPinColumn(pinId: string): 'QL' | 'KL' {
+  return pinId.substring(0, 2) as 'QL' | 'KL';
+}
+
+export function classifyDirection(
+  fromPinId: string,
+  toPinId: string,
+  controller: 'white' | 'black'
+): 'forward' | 'backward' | 'side' {
+  const fromColumn = getPinColumn(fromPinId);
+  const toColumn = getPinColumn(toPinId);
+  
+  if (fromColumn !== toColumn) {
+    return 'side';
+  }
+  
+  const fromLevel = getPinLevel(fromPinId);
+  const toLevel = getPinLevel(toPinId);
+  const awayLevel = controller === 'white' ? 6 : 1;
+  
+  const distFromAway = Math.abs(fromLevel - awayLevel);
+  const distToAway = Math.abs(toLevel - awayLevel);
+  
+  return distToAway < distFromAway ? 'forward' : 'backward';
+}
