@@ -1,3 +1,26 @@
+Attack Board Debugging — Session Update
+
+What’s done
+- Corrected PIN_FOOTPRINT rank spans: fixed L4/L5 swap and removed L2/L5 duplication. All pins use consecutive file/rank pairs; QLx and KLx use distinct file pairs.
+- Removed absolute z from footprints; introduced theme-derived Z via attackSquareZ(pinId). Z is monotonic and positioned between main planes:
+  Z_WHITE_MAIN < L1 < L3 < L2 < Z_NEUTRAL_MAIN < L4 < L5 < L6 < Z_BLACK_MAIN (exact fractions from theme params).
+- Updated worldBuilder/worldMutation to use attackSquareZ for attack-board centers and squares.
+- Enforced rotation = 0° or 180° only; 180° flips swap quadrant labels (q1↔q3, q2↔q4) without moving square coordinates.
+- Rider remap now uses the destination pin’s footprint and derived Z; mapping is index/quadrant-based, no coordinate rotation.
+- Direction/legality is controller-relative; when occupied, backward is illegal while side and forward are allowed.
+- Updated ATTACK_BOARD_RULES.md with “Map as structured JSON” and pin footprints for clarity and test consumption.
+- Added invariant tests (footprint and Z): consecutive spans, side file-pair, 180° rotation preserves coords, Z monotonicity, and rank-order sanity. All tests pass locally.
+
+Next steps
+- Mesh-aware piece Z offsets: add pieceZOnAttackBoard(pin, pieceType) using attackSquareZ + per-mesh base offsets to prevent visual “sinking.”
+- Visual verification: run app, move KL6→KL5 and QL2→QL1, verify kings/pieces remain visible and platforms/squares align; capture screenshots.
+- Theme tuning: adjust Z_PARAMS fractions to match art direction; keep tests tolerant to monotonic ordering rather than exact values.
+- Documentation polish: include a small diagram showing quadrant orientation (from White POV) and the index mapping used for rider remap.
+- Optional optimization: centralize footprint→world placement helper used by both worldBuilder and worldMutation to ensure math parity.
+
+References
+- COORDINATE_SYSTEM_EXPLAINED.md for the plain-language logic overview.
+- ATTACK_BOARD_RULES.md for adjacency, rotation semantics, and pin footprints JSON.
 # Attack Board Movement - Debugging Reference
 
 This document provides a reference for debugging attack board movement functionality, including a history of fixes and a guide to relevant files.
