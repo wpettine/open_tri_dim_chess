@@ -604,14 +604,27 @@ function updateAttackBoardWorld(
   board.ranks = ranks;
   world.boards.set(boardId, board);
   
-  Array.from(world.squares.values())
-    .filter((sq) => sq.boardId === boardId)
-    .forEach((sq) => {
-      sq.worldX = fileToWorldX(sq.file);
-      sq.worldY = rankToWorldY(sq.rank);
+  const boardSquares = Array.from(world.squares.values())
+    .filter((sq) => sq.boardId === boardId);
+  
+  const newSquarePositions = [
+    { file: files[0], rank: ranks[0] },
+    { file: files[1], rank: ranks[0] },
+    { file: files[0], rank: ranks[1] },
+    { file: files[1], rank: ranks[1] },
+  ];
+  
+  boardSquares.forEach((sq, index) => {
+    if (index < newSquarePositions.length) {
+      const newPos = newSquarePositions[index];
+      sq.file = newPos.file;
+      sq.rank = newPos.rank;
+      sq.worldX = fileToWorldX(newPos.file);
+      sq.worldY = rankToWorldY(newPos.rank);
       sq.worldZ = centerZ;
       world.squares.set(sq.id, sq);
-    });
+    }
+  });
 }
 
 export function hydrateFromPersisted(
@@ -632,6 +645,11 @@ export function hydrateFromPersisted(
     selectedSquareId: null,
     highlightedSquareIds: [],
     selectedBoardId: null,
+  });
+  const state = get();
+  Object.entries(state.attackBoardPositions).forEach(([boardId, pinId]) => {
+    const rotation = state.world.boards.get(boardId)?.rotation ?? 0;
+    updateAttackBoardWorld(state.world, boardId, pinId, rotation);
   });
   get().updateGameState();
 }
