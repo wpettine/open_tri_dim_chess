@@ -9,6 +9,8 @@ import { getLegalMovesAvoidingCheck, isInCheck, isCheckmate, isStalemate } from 
 import { createSquareId } from '../engine/world/coordinates';
 import { getInitialPinPositions } from '../engine/world/pinPositions';
 import { PIN_POSITIONS } from '../engine/world/pinPositions';
+import { makeInstanceId, parseInstanceId } from '../engine/world/attackBoardAdjacency';
+
 import { validateBoardMove, executeBoardMove } from '../engine/world/worldMutation';
 export interface GameSnapshot {
   pieces: Piece[];
@@ -111,6 +113,7 @@ export interface GameState {
   winner: 'white' | 'black' | null;
   gameOver: boolean;
   attackBoardPositions: Record<string, string>;
+  attackBoardStates?: Record<string, { activeInstanceId: string }>;
   selectedBoardId: string | null;
   moveHistory: Move[];
   trackStates?: {
@@ -134,6 +137,8 @@ export interface GameState {
   canRotate: (boardId: string, angle: 0 | 180) => { allowed: boolean; reason?: string };
   rotateAttackBoard: (boardId: string, angle: 0 | 180) => void;
   undoMove: () => void;
+  getActiveInstance: (boardId: string) => string;
+  setActiveInstance: (boardId: string, instanceId: string) => void;
 }
 const __persistence = new LocalStoragePersistence();
 
@@ -157,6 +162,12 @@ export const useGameStore = create<GameState>()((set, get) => ({
   winner: null,
   gameOver: false,
   attackBoardPositions: getInitialPinPositions(),
+  attackBoardStates: {
+    WQL: { activeInstanceId: 'QL1:0' },
+    WKL: { activeInstanceId: 'KL1:0' },
+    BQL: { activeInstanceId: 'QL6:0' },
+    BKL: { activeInstanceId: 'KL6:0' },
+  },
   trackStates: {
     QL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
     KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
@@ -445,12 +456,24 @@ export const useGameStore = create<GameState>()((set, get) => ({
     });
 
     __snapshots.push(takeSnapshot(state));
+    const targetPinForInstance = toPinId;
+
     set({
       pieces: result.updatedPieces,
       attackBoardPositions: result.updatedPositions,
       moveHistory: [...state.moveHistory, move],
       selectedBoardId: boardId,
       currentTurn: nextTurn,
+      attackBoardStates: {
+        ...(state.attackBoardStates ?? {}),
+        [boardId]: {
+          activeInstanceId: makeInstanceId(
+            (boardId.endsWith('QL') ? 'QL' : 'KL') as 'QL' | 'KL',
+            Number(targetPinForInstance.slice(2)),
+            (state.world.boards.get(boardId)?.rotation === 180 ? 180 : 0) as 0 | 180
+          ),
+        },
+      },
     });
 
     get().updateGameState();
@@ -481,7 +504,15 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
     if (angle === 0) {
       updateAttackBoardWorld(state.world, boardId, pinId, 0);
+      const prev = get().attackBoardStates?.[boardId]?.activeInstanceId;
+      const track = boardId.endsWith('QL') ? 'QL' : 'KL';
+      const pinNum = Number(pinId.slice(2));
+      const newInstanceId = makeInstanceId(track as 'QL' | 'KL', pinNum, 0);
       set({
+        attackBoardStates: {
+          ...(get().attackBoardStates ?? {}),
+          [boardId]: { activeInstanceId: prev ? newInstanceId : newInstanceId },
+        },
         moveHistory: state.moveHistory,
       });
       return;
@@ -510,7 +541,9 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
     updateAttackBoardWorld(state.world, boardId, pinId, 180);
 
+    const targetPinForInstance = pinId;
     const move: Move = {
+
       type: 'board-move',
       from: pinId,
       to: pinId,
@@ -527,6 +560,16 @@ export const useGameStore = create<GameState>()((set, get) => ({
       moveHistory: [...state.moveHistory, move],
       selectedBoardId: boardId,
       currentTurn: nextTurn,
+      attackBoardStates: {
+        ...(state.attackBoardStates ?? {}),
+        [boardId]: {
+          activeInstanceId: makeInstanceId(
+            (boardId.endsWith('QL') ? 'QL' : 'KL') as 'QL' | 'KL',
+            Number(targetPinForInstance.slice(2)),
+            (state.world.boards.get(boardId)?.rotation === 180 ? 180 : 0) as 0 | 180
+          ),
+        },
+      },
     });
 
     get().updateGameState();
@@ -535,8 +578,35 @@ export const useGameStore = create<GameState>()((set, get) => ({
     const doc = await __persistence.importGame(json);
     hydrateFromPersisted(set, get, doc.payload);
   },
+
+  getActiveInstance: (boardId: string) => {
+    const state = get();
+    const existing = state.attackBoardStates?.[boardId]?.activeInstanceId;
+    if (existing) return existing;
+    const pin = state.attackBoardPositions[boardId];
+    const rotation = state.world.boards.get(boardId)?.rotation === 180 ? 180 : 0;
+    const track = boardId.endsWith('QL') ? 'QL' : 'KL';
+    const pinNum = Number(pin.slice(2));
+    return makeInstanceId(track as 'QL' | 'KL', pinNum, rotation as 0 | 180);
+  },
+
+  setActiveInstance: (boardId: string, instanceId: string) => {
+    const parsed = parseInstanceId(instanceId);
+    if (!parsed) return;
+    set((s) => ({
+      attackBoardStates: {
+        ...(s.attackBoardStates ?? {}),
+        [boardId]: { activeInstanceId: instanceId },
+      },
+    }));
+  },
 }));
+
 export function buildPersistablePayload(state: GameState) {
+  const boardRotations: Record<string, number> = {};
+  Array.from(state.world.boards.keys()).forEach((id) => {
+    boardRotations[id] = state.world.boards.get(id)?.rotation ?? 0;
+  });
   return {
     pieces: state.pieces,
     currentTurn: state.currentTurn,
@@ -546,9 +616,12 @@ export function buildPersistablePayload(state: GameState) {
     winner: state.winner,
     gameOver: state.gameOver,
     attackBoardPositions: state.attackBoardPositions,
+    attackBoardStates: state.attackBoardStates,
     moveHistory: state.moveHistory,
+    boardRotations,
   };
 }
+
 
 function updateAttackBoardWorld(
   world: ChessWorld,
@@ -636,10 +709,23 @@ function updateAttackBoardWorld(
   });
 }
 
+
 export function hydrateFromPersisted(
   set: (partial: Partial<GameState>) => void,
   get: () => GameState,
-  payload: ReturnType<typeof buildPersistablePayload>
+  payload: {
+    pieces: Piece[];
+    currentTurn: 'white' | 'black';
+    isCheck?: boolean;
+    isCheckmate?: boolean;
+    isStalemate?: boolean;
+    winner?: 'white' | 'black' | null;
+    gameOver?: boolean;
+    attackBoardPositions?: Record<string, string>;
+    attackBoardStates?: Record<string, { activeInstanceId: string }>;
+    moveHistory?: Move[];
+    boardRotations?: Record<string, number>;
+  }
 ) {
   set({
     pieces: payload.pieces,
