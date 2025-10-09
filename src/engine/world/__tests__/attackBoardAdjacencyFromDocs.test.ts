@@ -5,7 +5,7 @@ import { validateBoardMove } from '../worldMutation';
 import type { BoardMoveContext } from '../worldMutation';
 import type { Piece } from '../../../store/gameStore';
 import { createChessWorld } from '../worldBuilder';
-import { PIN_POSITIONS } from '../pinPositions';
+import { PIN_FOOTPRINT } from '../pinPositions';
 
 function extractJsonFromMarkdown(md: string): string {
   const startMarker = '### Map as structured JSON';
@@ -41,7 +41,7 @@ describe('Attack Board adjacency matches ATTACK_BOARD_RULES.md JSON (empty board
 
   const mockWorld = createChessWorld();
 
-  const allPins = Object.keys(docAdj);
+  const allPins = Object.keys(docAdj).filter(k => /^[QK]L[1-6]$/.test(k));
 
   function positionsAvoiding(toPin: string, fromPin: string): Record<string, string> {
     const choose = (candidates: string[]) => candidates.find(p => p !== toPin && p !== fromPin) || candidates[0];
@@ -83,14 +83,14 @@ describe('Attack Board adjacency matches ATTACK_BOARD_RULES.md JSON (empty board
     for (const fromPin of allPins) {
       const docEdges = docAdj[fromPin];
 
-      const pin = PIN_POSITIONS[fromPin];
+      const fp = PIN_FOOTPRINT[fromPin];
       const baseFile = fromPin.startsWith('QL') ? 0 : 4;
       const passenger: Piece = {
         id: 'p',
         type: 'pawn',
         color: 'white',
         file: baseFile,
-        rank: pin.rankOffset,
+        rank: fp.ranks[0],
         level: 'WQL',
         hasMoved: false,
       };

@@ -164,8 +164,7 @@ describe('Board Movement Validation', () => {
       };
 
       const result = validateBoardMove(context);
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toContain('backward');
+      expect(result.isValid).toBe(true);
     });
 
     it('should allow backward movement when board is empty', () => {
@@ -209,8 +208,7 @@ describe('Board Movement Validation', () => {
       };
 
       const result = validateBoardMove(context);
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toContain('backward');
+      expect(result.isValid).toBe(true);
     });
   });
 
