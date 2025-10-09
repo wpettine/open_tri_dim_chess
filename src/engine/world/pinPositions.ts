@@ -1,5 +1,34 @@
 import type { PinPosition } from './types';
 
+export const Z_PARAMS = {
+  a1: 0.2,
+  a2: 0.45,
+  a3: 0.7,
+  b1: 0.2,
+  b2: 0.5,
+  b3: 0.8,
+};
+
+export function getPinLevelIndex(pinId: string): 1|2|3|4|5|6 {
+  const n = Number(pinId.slice(2));
+  if (n >= 1 && n <= 6) return n as 1|2|3|4|5|6;
+  return 1;
+}
+
+export function attackSquareZ(pinId: string): number {
+  const level = getPinLevelIndex(pinId);
+  const gapWN = Z_NEUTRAL_MAIN - Z_WHITE_MAIN;
+  const gapNB = Z_BLACK_MAIN - Z_NEUTRAL_MAIN;
+  switch (level) {
+    case 1: return Z_WHITE_MAIN + Z_PARAMS.a1 * gapWN;
+    case 2: return Z_WHITE_MAIN + Z_PARAMS.a2 * gapWN;
+    case 3: return Z_WHITE_MAIN + Z_PARAMS.a3 * gapWN;
+    case 4: return Z_NEUTRAL_MAIN + Z_PARAMS.b1 * gapNB;
+    case 5: return Z_NEUTRAL_MAIN + Z_PARAMS.b2 * gapNB;
+    case 6: return Z_NEUTRAL_MAIN + Z_PARAMS.b3 * gapNB;
+    default: return Z_WHITE_MAIN + Z_PARAMS.a1 * gapWN;
+  }
+}
 export const Z_WHITE_MAIN = 0;
 export const Z_NEUTRAL_MAIN = 5;
 export const Z_BLACK_MAIN = 10;
@@ -122,19 +151,19 @@ export const PIN_POSITIONS: Record<string, PinPosition> = {
   },
 };
 
-export const PIN_FOOTPRINT: Record<string, { files: [number, number]; ranks: [number, number]; z: number }> = {
-  QL1: { files: [0, 1], ranks: [0, 1], z: Z_L1 },
-  KL1: { files: [4, 5], ranks: [0, 1], z: Z_L1 },
-  QL2: { files: [0, 1], ranks: [4, 5], z: Z_L2 },
-  KL2: { files: [4, 5], ranks: [4, 5], z: Z_L2 },
-  QL3: { files: [0, 1], ranks: [2, 3], z: Z_L3 },
-  KL3: { files: [4, 5], ranks: [2, 3], z: Z_L3 },
-  QL4: { files: [0, 1], ranks: [6, 7], z: Z_L4 },
-  KL4: { files: [4, 5], ranks: [6, 7], z: Z_L4 },
-  QL5: { files: [0, 1], ranks: [4, 5], z: Z_L5 },
-  KL5: { files: [4, 5], ranks: [4, 5], z: Z_L5 },
-  QL6: { files: [0, 1], ranks: [8, 9], z: Z_L6 },
-  KL6: { files: [4, 5], ranks: [8, 9], z: Z_L6 },
+export const PIN_FOOTPRINT: Record<string, { files: [number, number]; ranks: [number, number] }> = {
+  QL1: { files: [0, 1], ranks: [0, 1] },
+  KL1: { files: [4, 5], ranks: [0, 1] },
+  QL2: { files: [0, 1], ranks: [4, 5] },
+  KL2: { files: [4, 5], ranks: [4, 5] },
+  QL3: { files: [0, 1], ranks: [2, 3] },
+  KL3: { files: [4, 5], ranks: [2, 3] },
+  QL4: { files: [0, 1], ranks: [5, 6] },
+  KL4: { files: [4, 5], ranks: [5, 6] },
+  QL5: { files: [0, 1], ranks: [6, 7] },
+  KL5: { files: [4, 5], ranks: [6, 7] },
+  QL6: { files: [0, 1], ranks: [8, 9] },
+  KL6: { files: [4, 5], ranks: [8, 9] },
 };
 
 export function getInitialPinPositions(): Record<string, string> {

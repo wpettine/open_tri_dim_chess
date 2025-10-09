@@ -1,4 +1,5 @@
 import type { ChessWorld, BoardLayout, WorldSquare } from './types';
+import { attackSquareZ } from './pinPositions';
 import { PIN_POSITIONS, getInitialPinPositions, Z_WHITE_MAIN, Z_NEUTRAL_MAIN, Z_BLACK_MAIN } from './pinPositions';
 import { fileToWorldX, rankToWorldY, createSquareId } from './coordinates';
 
@@ -113,7 +114,7 @@ function createAttackBoard(
 
   const centerX = (fileToWorldX(minFile) + fileToWorldX(maxFile)) / 2;
   const centerY = (rankToWorldY(minRank) + rankToWorldY(maxRank)) / 2;
-  const centerZ = pin.zHeight;
+  const centerZ = attackSquareZ(pinId);
 
   const width = maxFile - minFile + 1;
   const height = maxRank - minRank + 1;
@@ -135,7 +136,7 @@ function createAttackBoard(
     for (const rank of ranks) {
       const worldX = fileToWorldX(file);
       const worldY = rankToWorldY(rank);
-      const worldZ = pin.zHeight;
+      const worldZ = attackSquareZ(pinId);
       const color = (file + rank) % 2 === 0 ? 'dark' : 'light';
       const squareId = createSquareId(file, rank, id);
 

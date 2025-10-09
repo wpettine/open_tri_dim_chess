@@ -1,5 +1,6 @@
 import type { ChessWorld } from './types';
 import type { Piece } from '../../store/gameStore';
+import { attackSquareZ } from './pinPositions';
 import { PIN_POSITIONS, PIN_FOOTPRINT } from './pinPositions';
 import { ATTACK_BOARD_ADJACENCY, classifyDirection } from './attackBoardAdjacency';
 
@@ -117,7 +118,7 @@ function validateVerticalShadow(context: BoardMoveContext): BoardMoveValidation 
   }
 
   const destinationSquares = getBoardSquaresForBoardAtPin(context.boardId, context.toPinId);
-  const destinationZHeight = toPin.zHeight;
+  const destinationZHeight = attackSquareZ(context.toPinId);
 
   for (const square of destinationSquares) {
     const blockingPiece = context.pieces.find(p => {
