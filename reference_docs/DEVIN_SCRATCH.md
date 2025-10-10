@@ -272,26 +272,57 @@ Verification
 
 Scope: Implement Phase I from NEW_WORLD_STRUCTURE.md (data structures + world instances + visibility), keep notes actionable for me.
 
-Checklist (live):
-- [ ] Add/confirm types: TrackState, PinAdjacencyGraph, BoardInstance (track, pin, rotation), Piece.movedByAB
-- [ ] World builder: PIN_RANK_OFFSETS, PIN_ADJACENCY, create 24 attack instances, instance IDs {Track}{Pin}:{Rotation}
-- [ ] Game state: trackStates/attackBoardStates, initialize defaults, updateInstanceVisibility()
-- [ ] Tests: world counts, naming, initial visibility, state init
+## Phase I Status (Updated 2025-10-10)
 
-Repo scan summary:
-- Will scan for existing src/engine/world/* and store files before edits.
-- If code not present yet (doc-first repo), I will stage type stubs and world builder scaffolding to align with Phase I.
+### Completed ✅
+- [x] Add/confirm types: TrackState, PinAdjacencyGraph, BoardInstance (track, pin, rotation), Piece.movedByAB
+  - TrackState interface defined in src/engine/world/visibility.ts
+  - PinAdjacencyGraph interface in src/engine/world/types.ts
+  - BoardLayout has optional track, pin, isVisible, isAccessible fields
+  - Piece.movedByAB flag added and working (PR #43)
+- [x] PIN_ADJACENCY graph implemented in src/engine/world/attackBoardAdjacency.ts
+- [x] Game state: trackStates in GameState, initialized in gameStore.ts
+- [x] updateInstanceVisibility() function implemented in src/engine/world/visibility.ts
+- [x] Tests: instanceHelpers.test.ts added, all passing
 
-Decisions:
-- Use instance naming “QLn:0/180”, “KLn:0/180” consistently across world and state.
-- Keep mutations isolated: visibility toggling only; no physical transforms.
+### Remaining Work ❌
+- [ ] **World builder: Create 24 attack board instances** (CRITICAL GAP)
+  - Currently only creates 4 attack boards (WQL, WKL, BQL, BKL)
+  - Need to create all 24 instances: 12 per track × 2 rotations
+  - Instance IDs should be {Track}{Pin}:{Rotation} format (e.g., "QL1:0", "QL1:180", etc.)
+  - All instances should start with isVisible: false
+  - Only 4 instances made visible by updateInstanceVisibility() based on trackStates
+- [ ] **Update worldBuilder tests** to expect 27 boards instead of 7
+- [ ] **Verify initial visibility** - ensure only 4 attack boards visible on initialization
 
-Open Questions (to self):
-- Confirm whether existing GameState exists; if not, create minimal state scaffolding local to world module for tests.
+### Technical Details
+Current worldBuilder.ts creates boards like this:
+```typescript
+const wql = createAttackBoard('WQL', initialPins.WQL, [0, 1], [0, 1]);
+boards.set('WQL', wql.board);
+```
+
+Needs to be changed to create all 24 instances:
+```typescript
+for (const track of ['QL', 'KL']) {
+  for (let pin = 1; pin <= 6; pin++) {
+    for (const rotation of [0, 180]) {
+      const instance = createAttackBoardInstance(track, pin, rotation);
+      boards.set(instance.id, instance.board);
+    }
+  }
+}
+```
+
+### References
+- NEW_WORLD_STRUCTURE.md Phase 1 requirements (lines 2127-2155)
+- Current worldBuilder.ts only implements legacy 4-board system
+- visibility.ts updateInstanceVisibility() ready but needs 24 instances to toggle
 
 Work log:
 - [T0] Initialized Phase I plan and checklist here.
 - [T1] Added Phase I scaffolding: extended types, attached adjacencyGraph in worldBuilder, optional trackStates in GameState, helper tests created.
+- [T2] 2025-10-10: Phase III completed (PR #45 merged), identified Phase I gap during review.
 
 Decision on legacy tests (Phase I):
 - Per Warren: Ignore failing legacy attack-board tests for now; they will be reworked for the new visibility-based system.
