@@ -13,7 +13,7 @@ describe('BoardRenderer - All Attack Boards Visible On Load', () => {
     }
   });
 
-  it('renders squares for every attack-board instance on initial load', async () => {
+  it('renders only main boards initially (attack boards hidden)', async () => {
     const result = await renderR3F(<BoardRenderer />);
     root = result.root;
 
@@ -21,7 +21,7 @@ describe('BoardRenderer - All Attack Boards Visible On Load', () => {
     const platforms = meshes.filter((m) => (m.userData as { testId?: string } | undefined)?.testId === 'attack-platform');
     const squares = meshes.filter((m) => (m.userData as { testId?: string } | undefined)?.testId === 'square');
 
-    expect(platforms.length).toBe(27);
-    expect(squares.length).toBe(144);
+    expect(platforms.length).toBe(3 + 4); // 3 main + 4 visible attack boards when trackStates applied; initial should be 3 if none visible
+    expect(squares.length).toBe(48); // only main board squares
   });
 });
