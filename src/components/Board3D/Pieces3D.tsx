@@ -56,7 +56,7 @@ function SimplePiece({
   };
 
   return (
-    <mesh position={position}>
+    <mesh position={position} userData={{ testId: 'piece' }}>
       {getGeometry()}
       <meshStandardMaterial
         color={color}

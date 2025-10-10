@@ -45,7 +45,7 @@ function SingleBoard({ board }: { board: BoardLayout }) {
         position={[board.centerX, board.centerY, board.centerZ]}
         rotation={[0, 0, (board.rotation * Math.PI) / 180]}
       >
-        <mesh position={[0, 0, -0.15]}>
+        <mesh position={[0, 0, -0.15]} userData={{ testId: 'attack-platform' }}>
           <boxGeometry
             args={[
               board.size.width * 2.1,
@@ -69,6 +69,7 @@ function SingleBoard({ board }: { board: BoardLayout }) {
           <mesh
             position={[0, 0, 0]}
             rotation={[Math.PI / 2, 0, 0]}
+            userData={{ testId: 'selector-disk' }}
             onClick={(e) => {
               e.stopPropagation();
               selectBoard(board.id);
@@ -146,6 +147,7 @@ function SingleBoard({ board }: { board: BoardLayout }) {
               key={`${board.id}-${corner.key}`}
               position={[pinX, pinY, board.centerZ]}
               rotation={[Math.PI / 2, 0, 0]}
+              userData={{ testId: 'pin-marker' }}
             >
               <cylinderGeometry args={[THEME.pinLocationDisk.radius, THEME.pinLocationDisk.radius, THEME.pinLocationDisk.thickness, 32]} />
               <meshStandardMaterial 
@@ -164,6 +166,7 @@ function SingleBoard({ board }: { board: BoardLayout }) {
           <mesh
             key={square.id}
             position={[square.worldX, square.worldY, square.worldZ]}
+            userData={{ testId: 'square' }}
             onClick={() => {
               if (board.type === 'main') {
                 selectBoard(null);

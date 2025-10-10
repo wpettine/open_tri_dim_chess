@@ -21,8 +21,12 @@ export async function renderR3F(
   }
   
   const root = await create(ui);
-  const scene = root.scene;
-  
+
+  const store = (root as any)?.getInstance?.();
+  const scene =
+    store?.getState?.()?.scene ??
+    (root as any)?.scene;
+
   return { root, scene };
 }
 
@@ -41,13 +45,19 @@ export function findMeshes(
 ): any[] {
   if (!node) return out;
   
-  const threeObj = node.__fiber?.stateNode || node.instance;
-  if (threeObj?.type === 'Mesh' && predicate(threeObj)) {
-    out.push(threeObj);
+  const start =
+    (node as any)?.instance ??
+    (node as any)?._fiber?.object ??
+    (node as any)?.__fiber?.stateNode ??
+    node;
+
+  if (start?.type === 'Mesh' && predicate(start)) {
+    out.push(start);
   }
   
-  if (threeObj?.children) {
-    threeObj.children.forEach((child: any) => findMeshes(child, predicate, out));
+  const children = Array.isArray(start?.children) ? start.children : [];
+  for (const child of children) {
+    findMeshes(child, predicate, out);
   }
   
   return out;
@@ -82,15 +92,21 @@ export function findByUserData(
   
   function traverse(obj: any) {
     if (!obj) return;
+
+    const start =
+      (obj as any)?.instance ??
+      (obj as any)?._fiber?.object ??
+      (obj as any)?.__fiber?.stateNode ??
+      obj;
     
-    if (obj.userData && key in obj.userData) {
-      if (value === undefined || obj.userData[key] === value) {
-        results.push(obj);
+    if (start?.userData && key in start.userData) {
+      if (value === undefined || start.userData[key] === value) {
+        results.push(start);
       }
     }
     
-    if (obj.children) {
-      obj.children.forEach((child: any) => traverse(child));
+    if (start?.children) {
+      start.children.forEach((child: any) => traverse(child));
     }
   }
   
