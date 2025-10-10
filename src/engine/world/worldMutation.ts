@@ -1,5 +1,5 @@
 import { makeInstanceId } from './attackBoardAdjacency';
-import { translatePassenger, rotatePassenger180 } from './coordinatesTransform';
+import { translatePassenger, rotatePassenger180, type ArrivalChoice } from './coordinatesTransform';
 
 import type { ChessWorld } from './types';
 import type { Piece } from '../../store/gameStore';
@@ -29,6 +29,7 @@ export interface ActivationContext {
   pieces: Piece[];
   world: ChessWorld;
   attackBoardPositions: Record<string, string>;
+  arrivalChoice?: ArrivalChoice;
 }
 
 export interface ActivationResult {
