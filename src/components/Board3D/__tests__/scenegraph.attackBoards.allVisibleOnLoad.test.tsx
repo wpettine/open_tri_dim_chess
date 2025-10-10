@@ -20,6 +20,6 @@ describe('BoardRenderer - All Attack Boards Visible On Load', () => {
     const meshes = findMeshes(result.scene, () => true);
     const squares = meshes.filter((m) => (m.userData as { testId?: string } | undefined)?.testId === 'square');
 
-    expect(squares.length).toBe(48); // only main board squares
+    expect(squares.length).toBe(64); // main board squares + four attack instances (16 squares)
   });
 });
