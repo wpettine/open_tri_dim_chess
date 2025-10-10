@@ -93,6 +93,29 @@ HMR note (2025-10-10): Addressed dev-time error "RefreshRuntime.getRefreshReg is
 - clear caches when switching Node versions: rm -rf node_modules node_modules/.vite && npm install
 - retest via npm run dev
 
+Summary of work completed in PR #43 (movedByAB implementation)
+- Implemented Phase III Step 5: pawn transport semantics with movedByAB flag
+  - Modified executeBoardMove in src/engine/world/worldMutation.ts:
+    - Set movedByAB flag for pawns when transported via attack board activation
+  - Modified validatePawnMove in src/engine/validation/pieceMovement.ts:
+    - Added !piece.movedByAB check to two-square advance validation
+    - Transported pawns can still make one-square advances and captures
+  - Added comprehensive test coverage:
+    - Created src/engine/validation/__tests__/pawnTransportSemantics.test.ts
+    - 4 new tests covering all transport scenarios
+  - Fixed TypeScript linting errors in activationValidation.test.ts
+- All tests passing: 99/99 tests green
+- CI: GitGuardian Security passed
+- Lint: Clean (only pre-existing warnings)
+
+References:
+- PR: https://github.com/wpettine/open_tri_dim_chess/pull/43
+- Devin run: https://app.devin.ai/sessions/27662a0921b64deb9d55d811863ae80f
+- Changed files:
+  - src/engine/world/worldMutation.ts (added movedByAB flag setting)
+  - src/engine/validation/pieceMovement.ts (added movedByAB check)
+  - src/engine/validation/__tests__/pawnTransportSemantics.test.ts (new file)
+  - src/engine/world/__tests__/activationValidation.test.ts (fixed types)
 
 Summary of work completed in PR #37
 - Implemented initial Phase III scaffolding:
