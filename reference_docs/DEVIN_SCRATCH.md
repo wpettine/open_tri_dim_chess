@@ -380,3 +380,121 @@ Follow-ups for next session:
 - Add store-level tests around attackBoardStates init/hydration (optional).
 - Extend king safety validation once finalized.
 - Remove any residual doc-based test scaffolding if reintroduced elsewhere.
+
+# Attack Board Z-Axis Positioning Fix (2025-10-10)
+
+## Issue Description (Reported by Warren)
+The attack boards are not all rendering with correct z-axis placement:
+- ✅ QL1/KL1: Correct - appropriate distance above white main board
+- ❌ QL2/KL2: WRONG - at same level as white main board (should be above)
+- ❌ QL3/KL3: WRONG - level with neutral board (should be above)
+- ❌ QL4/KL4: WRONG - at level of black main board (should be above neutral)
+- ❌ QL5/KL5: WRONG - level with black board (should be above)
+- ✅ QL6/KL6: Correct - appropriate distance above black main board
+
+## Root Cause Analysis
+
+Looking at `src/engine/world/pinPositions.ts`, the current z-height values are:
+
+```typescript
+// CURRENT (INCORRECT) VALUES:
+QL1/KL1: Z_WHITE_MAIN + ATTACK_OFFSET  // = 0 + 2.5 = 2.5  ✅ CORRECT
+QL2/KL2: Z_WHITE_MAIN                   // = 0             ❌ WRONG (missing offset)
+QL3/KL3: Z_NEUTRAL_MAIN                 // = 5             ❌ WRONG (missing offset)
+QL4/KL4: Z_BLACK_MAIN                   // = 10            ❌ WRONG (wrong base + missing offset)
+QL5/KL5: Z_BLACK_MAIN                   // = 10            ❌ WRONG (missing offset)
+QL6/KL6: Z_BLACK_MAIN + ATTACK_OFFSET   // = 10 + 2.5 = 12.5 ✅ CORRECT
+```
+
+### Correct Pattern (Based on Rank Ranges)
+The z-height should be determined by which main board each pin is adjacent to:
+
+**Pins 1-2**: Adjacent to White main board (ranks 1-4)
+- Pin 1: ranks 0-1 (below white board's bottom edge at rank 1)
+- Pin 2: ranks 4-5 (overlaps white board's top edge at rank 4)
+- Both should be: `Z_WHITE_MAIN + ATTACK_OFFSET`
+
+**Pins 3-4**: Adjacent to Neutral main board (ranks 3-6)
+- Pin 3: ranks 2-3 (overlaps neutral board's bottom edge at rank 3)
+- Pin 4: ranks 6-7 (overlaps neutral board's top edge at rank 6)
+- Both should be: `Z_NEUTRAL_MAIN + ATTACK_OFFSET`
+
+**Pins 5-6**: Adjacent to Black main board (ranks 5-8)
+- Pin 5: ranks 4-5 (NOTE: overlaps black board's bottom vicinity at rank 5)
+- Pin 6: ranks 8-9 (above black board's top edge at rank 8)
+- Both should be: `Z_BLACK_MAIN + ATTACK_OFFSET`
+
+Wait, this doesn't match Warren's description. Let me reconsider...
+
+### Re-Analysis Based on Warren's Feedback
+
+Warren said:
+- QL4/KL4 should be "even on the z-axis as QL3/KL3, which is the distance above the neutral board as QL1/KL1 are above the white main board"
+
+This means **pins 3 AND 4 should both be at the same height above neutral**, not separate levels.
+
+Looking at the rank patterns more carefully:
+- Pin 1 (ranks 0-1): Below/adjacent to white (rank 1-4)
+- Pin 2 (ranks 4-5): Overlaps white/neutral boundary
+- Pin 3 (ranks 2-3): Between white and neutral
+- Pin 4 (ranks 6-7): Between neutral and black
+- Pin 5 (ranks 4-5): Same as pin 2 (overlaps white/neutral)
+- Pin 6 (ranks 8-9): Above black (rank 5-8)
+
+The correct interpretation based on visual spacing:
+- **Pins 1, 2**: Above white main board → `Z_WHITE_MAIN + ATTACK_OFFSET`
+- **Pins 3, 4**: Above neutral main board → `Z_NEUTRAL_MAIN + ATTACK_OFFSET`
+- **Pins 5, 6**: Above black main board → `Z_BLACK_MAIN + ATTACK_OFFSET`
+
+This creates a uniform pattern: all attack boards float at the same relative height (ATTACK_OFFSET) above their associated main board level.
+
+## Fix Plan
+
+### Step 1: Update pinPositions.ts z-heights
+
+Change in `src/engine/world/pinPositions.ts`:
+
+```typescript
+// Pin 2: Currently Z_WHITE_MAIN, should be Z_WHITE_MAIN + ATTACK_OFFSET
+QL2: { ..., zHeight: Z_WHITE_MAIN + ATTACK_OFFSET }
+KL2: { ..., zHeight: Z_WHITE_MAIN + ATTACK_OFFSET }
+
+// Pin 3: Currently Z_NEUTRAL_MAIN, should be Z_NEUTRAL_MAIN + ATTACK_OFFSET  
+QL3: { ..., zHeight: Z_NEUTRAL_MAIN + ATTACK_OFFSET }
+KL3: { ..., zHeight: Z_NEUTRAL_MAIN + ATTACK_OFFSET }
+
+// Pin 4: Currently Z_BLACK_MAIN, should be Z_NEUTRAL_MAIN + ATTACK_OFFSET
+QL4: { ..., zHeight: Z_NEUTRAL_MAIN + ATTACK_OFFSET }
+KL4: { ..., zHeight: Z_NEUTRAL_MAIN + ATTACK_OFFSET }
+
+// Pin 5: Currently Z_BLACK_MAIN, should be Z_BLACK_MAIN + ATTACK_OFFSET
+QL5: { ..., zHeight: Z_BLACK_MAIN + ATTACK_OFFSET }
+KL5: { ..., zHeight: Z_BLACK_MAIN + ATTACK_OFFSET }
+```
+
+### Step 2: Create z-positioning test
+
+Create `src/engine/world/__tests__/attackBoardZPositioning.test.ts` to verify:
+- All pin instances have correct z-height per the pattern above
+- Both rotations (0° and 180°) of each pin have identical z-heights
+- All squares within an instance have the same worldZ as the board's centerZ
+
+### Step 3: Verify worldBuilder uses pin z-heights correctly
+
+The `createAttackBoardInstance()` function already reads from `pinPosition.zHeight`, so it should automatically pick up the corrected values.
+
+### Step 4: Visual verification
+
+After fix, verify in browser that:
+- All attack boards appear at consistent height above their main boards
+- No attack boards sit flush with main board surfaces
+- Vertical spacing is uniform throughout the stack
+
+## Implementation Checklist
+
+- [ ] Update PIN_POSITIONS in pinPositions.ts with corrected z-heights
+- [ ] Create attackBoardZPositioning.test.ts to validate fix
+- [ ] Run tests to verify all 24 instances have correct z-heights
+- [ ] Visual check in browser (npm run dev)
+- [ ] Update PR #46 with the fix
+- [ ] Document in RENDERING_TEST_PLAN.md (already done)
