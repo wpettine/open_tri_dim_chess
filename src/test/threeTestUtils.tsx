@@ -41,12 +41,13 @@ export function findMeshes(
 ): any[] {
   if (!node) return out;
   
-  if (node.type === 'Mesh' && predicate(node)) {
-    out.push(node);
+  const threeObj = node.__fiber?.stateNode || node.instance;
+  if (threeObj?.type === 'Mesh' && predicate(threeObj)) {
+    out.push(threeObj);
   }
   
-  if (node.children) {
-    node.children.forEach((child: any) => findMeshes(child, predicate, out));
+  if (threeObj?.children) {
+    threeObj.children.forEach((child: any) => findMeshes(child, predicate, out));
   }
   
   return out;
