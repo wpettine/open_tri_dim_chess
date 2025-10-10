@@ -1,3 +1,51 @@
+RENDERING TEST PLAN - Updates (React 19, R3F v9)
+
+Accomplished this iteration:
+- Centralized resolveBoardId into src/utils/resolveBoardId.ts and refactored Pieces3D and scenegraph tests to use it.
+- Fixed scenegraph test infra issues for React 19 and @react-three/fiber v9, including cleanup handling.
+- Implemented startup visibility sync for attack boards:
+  - Added showAllAttackInstances(world) in src/engine/world/visibility.ts.
+  - On store init and hydrate, call updateInstanceVisibility(...) followed by showAllAttackInstances(...) to ensure all attack-board instances render their squares on initial load.
+- Added scenegraph tests:
+  - scenegraph.attackBoards.allVisibleOnLoad.test.tsx asserts 27 platforms and 144 squares on initial load.
+  - initial-visibility test retained to guard the renderer gating (squares only when board.isVisible).
+- Verified locally: dev server shows attack-board tiles for all instances on initial load.
+
+Root cause addressed:
+- Platforms rendered unconditionally, but squares were gated by board.isVisible; initialization only made a subset of attack-board instances visible. The new show-all sync after world creation/hydration ensures squares render for all instances initially.
+
+Next steps – Tier-2 Pixel Test Scaffolding with Playwright:
+- Test harness:
+  - Use Playwright test runner with @react-three/fiber scene hosted via Vite dev server (or static build) to capture deterministic screenshots.
+  - Seed game state deterministically using hydrateFromPersisted and stable camera parameters.
+- Scenarios to capture:
+  - Initial load: all main and attack-board tiles visible; verify baseline image.
+  - Toggle visibility states: activate single attack-board instance; ensure only 4 instance squares visible and others hidden.
+  - Pieces layout: minimal set of pieces across levels; confirm pixel alignment of meshes to world-square coords.
+  - Selector/marker UI: verify pin eligibility markers and selector disks per state.
+- Stability controls:
+  - Lock devicePixelRatio, canvas size, and camera position/rotation.
+  - Disable animations and time-based effects during snapshot.
+  - Use deterministic materials and lighting for consistent renders; avoid color management divergence.
+- Implementation outline:
+  - Add playwright.config.ts with per-test viewport and retries.
+  - Create /e2e/visual/ with utils to:
+    - Start test app with fixed seed params.
+    - Wait for scene stabilization (no pending R3F frames).
+    - Capture canvases via page.screenshot with clip around the canvas.
+  - Baseline management:
+    - Commit baseline images to repo.
+    - Use Playwright’s toMatchSnapshot for diffs; document update process.
+- CI integration:
+  - Add GitHub Actions job to run Playwright, cache browsers, and upload diff artifacts on failure.
+- Risks/mitigations:
+  - GPU variance: use software rendering in CI or headless settings known to be deterministic.
+  - Font/antialias differences: disable text layers in 3D and control antialias flag for WebGL.
+
+Rollout plan:
+- Land playwright scaffolding + one baseline test (initial load).
+- Expand scenarios incrementally (visibility toggles, pieces layout, selectors).
+- Gate merges on pixel stability for Tier-1 critical scenes.
 # Rendering Test Plan — Updated Approach and Next Steps
 
 This section summarizes the approach implemented in this branch and provides an actionable checklist to complete the rollout.
