@@ -8,7 +8,6 @@ import { createInitialPieces } from '../engine/initialSetup';
 import { getLegalMovesAvoidingCheck, isInCheck, isCheckmate, isStalemate } from '../engine/validation/checkDetection';
 import { createSquareId } from '../engine/world/coordinates';
 import { getInitialPinPositions } from '../engine/world/pinPositions';
-import { PIN_POSITIONS } from '../engine/world/pinPositions';
 import { makeInstanceId, parseInstanceId } from '../engine/world/attackBoardAdjacency';
 import { updateInstanceVisibility } from '../engine/world/visibility';
 import { validateActivation, executeActivation } from '../engine/world/worldMutation';
@@ -66,10 +65,17 @@ function restoreSnapshot(
     selectedBoardId: null,
   });
   const state = get();
-  Object.entries(state.attackBoardPositions).forEach(([boardId, pinId]) => {
-    const rotation = snap.boardRotations[boardId] ?? 0;
-    updateAttackBoardWorld(state.world, boardId, pinId, rotation);
-  });
+  
+  const pinNum = (id: string | undefined) => Number((id ?? '').slice(2)) || 1;
+  const rot = (boardId: string) => ((snap.boardRotations[boardId] ?? 0) === 180 ? 180 : 0) as 0 | 180;
+  const derivedTrackStates = {
+    QL: { whiteBoardPin: pinNum(snap.attackBoardPositions['WQL']), blackBoardPin: pinNum(snap.attackBoardPositions['BQL']), whiteRotation: rot('WQL'), blackRotation: rot('BQL') },
+    KL: { whiteBoardPin: pinNum(snap.attackBoardPositions['WKL']), blackBoardPin: pinNum(snap.attackBoardPositions['BKL']), whiteRotation: rot('WKL'), blackRotation: rot('BKL') },
+  };
+  
+  set({ trackStates: derivedTrackStates });
+  updateInstanceVisibility(state.world, derivedTrackStates);
+  
   state.updateGameState();
 }
 
@@ -438,8 +444,6 @@ export const useGameStore = create<GameState>()((set, get) => ({
       after: kingPieceAfter ? { file: kingPieceAfter.file, rank: kingPieceAfter.rank, level: kingPieceAfter.level } : 'not found',
     });
 
-    updateAttackBoardWorld(state.world, boardId, toPinId, state.world.boards.get(boardId)?.rotation ?? 0);
-
     const move: Move = {
       type: 'board-move',
       from: fromPinId,
@@ -512,7 +516,6 @@ export const useGameStore = create<GameState>()((set, get) => ({
     if (!pinId) return;
 
     if (angle === 0) {
-      updateAttackBoardWorld(state.world, boardId, pinId, 0);
       const track = boardId.endsWith('QL') ? 'QL' : 'KL';
       const pinNum = Number(pinId.slice(2));
       const newInstanceId = makeInstanceId(track as 'QL' | 'KL', pinNum, 0);
@@ -559,8 +562,6 @@ export const useGameStore = create<GameState>()((set, get) => ({
       world: state.world,
       attackBoardPositions: state.attackBoardPositions,
     });
-
-    updateAttackBoardWorld(state.world, boardId, pinId, 180);
 
     const move: Move = {
 
@@ -652,94 +653,6 @@ export function buildPersistablePayload(state: GameState) {
   };
 }
 
-
-function updateAttackBoardWorld(
-  world: ChessWorld,
-  boardId: string,
-  pinId: string,
-  rotation: number
-) {
-  const board = world.boards.get(boardId);
-  const pin = PIN_POSITIONS[pinId];
-  if (!board || !pin) return;
-  
-  const isQueenLine = pinId.startsWith('QL');
-  const baseFile = isQueenLine ? 0 : 4;
-  
-  const files = [baseFile, baseFile + 1];
-  const ranks = [pin.rankOffset, pin.rankOffset + 1];
-  
-  const minFile = Math.min(...files);
-  const maxFile = Math.max(...files);
-  const minRank = Math.min(...ranks);
-  const maxRank = Math.max(...ranks);
-  
-  const fileToWorldX = (file: number) => {
-    const SQUARE_SIZE = 10;
-    const SQUARE_GAP = 1;
-    const SPACING = SQUARE_SIZE + SQUARE_GAP;
-    const FILE_OFFSET = 0;
-    return FILE_OFFSET + file * SPACING;
-  };
-  
-  const rankToWorldY = (rank: number) => {
-    const SQUARE_SIZE = 10;
-    const SQUARE_GAP = 1;
-    const SPACING = SQUARE_SIZE + SQUARE_GAP;
-    const RANK_OFFSET = 0;
-    return RANK_OFFSET + rank * SPACING;
-  };
-  
-  const centerX = (fileToWorldX(minFile) + fileToWorldX(maxFile)) / 2;
-  const centerY = (rankToWorldY(minRank) + rankToWorldY(maxRank)) / 2;
-  const centerZ = pin.zHeight;
-  
-  console.log('[updateAttackBoardWorld]:', {
-    boardId,
-    pinId,
-    pinLevel: pin.level,
-    pinZHeight: pin.zHeight,
-    baseFile,
-    files,
-    ranks,
-    centerX,
-    centerY,
-    centerZ,
-    rotation,
-  });
-  
-  board.centerX = centerX;
-  board.centerY = centerY;
-  board.centerZ = centerZ;
-  board.rotation = rotation;
-  board.files = files;
-  board.ranks = ranks;
-  world.boards.set(boardId, board);
-  
-  const boardSquares = Array.from(world.squares.values())
-    .filter((sq) => sq.boardId === boardId);
-  
-  const newSquarePositions = [
-    { file: files[0], rank: ranks[0] },
-    { file: files[1], rank: ranks[0] },
-    { file: files[0], rank: ranks[1] },
-    { file: files[1], rank: ranks[1] },
-  ];
-  
-  boardSquares.forEach((sq, index) => {
-    if (index < newSquarePositions.length) {
-      const newPos = newSquarePositions[index];
-      sq.file = newPos.file;
-      sq.rank = newPos.rank;
-      sq.worldX = fileToWorldX(newPos.file);
-      sq.worldY = rankToWorldY(newPos.rank);
-      sq.worldZ = centerZ;
-      world.squares.set(sq.id, sq);
-    }
-  });
-}
-
-
 export function hydrateFromPersisted(
   set: (partial: Partial<GameState>) => void,
   get: () => GameState,
@@ -784,11 +697,6 @@ export function hydrateFromPersisted(
   });
 
   const state = get();
-
-  Object.entries(attackBoardPositions).forEach(([boardId, pinId]) => {
-    const rotation = boardRotations[boardId] ?? 0;
-    updateAttackBoardWorld(state.world, boardId, pinId, rotation);
-  });
 
   const pinNum = (id: string | undefined) => Number((id ?? '').slice(2)) || 1;
   const rot = (boardId: string) => ((boardRotations[boardId] ?? 0) === 180 ? 180 : 0) as 0 | 180;
