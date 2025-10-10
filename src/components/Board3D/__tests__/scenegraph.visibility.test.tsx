@@ -5,7 +5,7 @@ import { BoardRenderer } from '../BoardRenderer';
 import { THEME } from '../../../config/theme';
 
 describe('BoardRenderer - Visibility and Attack Board Controls', () => {
-  let root: any;
+  let root: { unmount?: () => void } | null;
 
   afterEach(() => {
     if (root) {
@@ -25,7 +25,7 @@ describe('BoardRenderer - Visibility and Attack Board Controls', () => {
     const squareMeshes = findMeshes(
       scene,
       (mesh) => {
-        const geo = mesh.geometry;
+        const geo = mesh.geometry as { type?: string; parameters?: { width?: number; height?: number } };
         return (
           geo?.type === 'BoxGeometry' &&
           geo.parameters?.width === THEME.squares.size &&
@@ -39,10 +39,11 @@ describe('BoardRenderer - Visibility and Attack Board Controls', () => {
     const visibleBoardIds = new Set(['WL', 'NL', 'BL', 'QL1:0', 'KL1:0', 'QL6:0', 'KL6:0']);
     
     for (const mesh of squareMeshes) {
+      const pos = mesh.position as { x: number; y: number; z: number };
       const matchingSquare = Array.from(world.squares.values()).find((sq) =>
-        closeTo(sq.worldX, mesh.position.x) &&
-        closeTo(sq.worldY, mesh.position.y) &&
-        closeTo(sq.worldZ, mesh.position.z)
+        closeTo(sq.worldX, pos.x) &&
+        closeTo(sq.worldY, pos.y) &&
+        closeTo(sq.worldZ, pos.z)
       );
 
       expect(matchingSquare).toBeDefined();
@@ -63,12 +64,12 @@ describe('BoardRenderer - Visibility and Attack Board Controls', () => {
     const selectorDisks = findMeshes(
       scene,
       (mesh) => {
-        const geo = mesh.geometry;
+        const geo = mesh.geometry as { type?: string; parameters?: { radiusTop?: number; radiusBottom?: number; height?: number } };
         return (
           geo?.type === 'CylinderGeometry' &&
-          closeTo(geo.parameters?.radiusTop, THEME.attackBoardSelector.radius) &&
-          closeTo(geo.parameters?.radiusBottom, THEME.attackBoardSelector.radius) &&
-          closeTo(geo.parameters?.height, THEME.attackBoardSelector.thickness)
+          closeTo(geo.parameters?.radiusTop as number, THEME.attackBoardSelector.radius) &&
+          closeTo(geo.parameters?.radiusBottom as number, THEME.attackBoardSelector.radius) &&
+          closeTo(geo.parameters?.height as number, THEME.attackBoardSelector.thickness)
         );
       }
     );
@@ -87,10 +88,10 @@ describe('BoardRenderer - Visibility and Attack Board Controls', () => {
     const selectorDisks = findMeshes(
       scene,
       (mesh) => {
-        const geo = mesh.geometry;
+        const geo = mesh.geometry as { type?: string; parameters?: { radiusTop?: number } };
         return (
           geo?.type === 'CylinderGeometry' &&
-          closeTo(geo.parameters?.radiusTop, THEME.attackBoardSelector.radius)
+          closeTo(geo.parameters?.radiusTop as number, THEME.attackBoardSelector.radius)
         );
       }
     );
@@ -114,12 +115,12 @@ describe('BoardRenderer - Visibility and Attack Board Controls', () => {
     const attackBoardPlatforms = findMeshes(
       scene,
       (mesh) => {
-        const geo = mesh.geometry;
+        const geo = mesh.geometry as { type?: string; parameters?: { width?: number; height?: number; depth?: number } };
         return (
           geo?.type === 'BoxGeometry' &&
-          closeTo(geo.parameters?.width, 2 * 2.1) && // 2×2 board with 2.1 multiplier
-          closeTo(geo.parameters?.height, 2 * 2.1) &&
-          closeTo(geo.parameters?.depth, THEME.platforms.thickness)
+          closeTo(geo.parameters?.width as number, 2 * 2.1) && // 2×2 board with 2.1 multiplier
+          closeTo(geo.parameters?.height as number, 2 * 2.1) &&
+          closeTo(geo.parameters?.depth as number, THEME.platforms.thickness)
         );
       }
     );
@@ -141,12 +142,12 @@ describe('BoardRenderer - Visibility and Attack Board Controls', () => {
     const pinMarkers = findMeshes(
       scene,
       (mesh) => {
-        const geo = mesh.geometry;
+        const geo = mesh.geometry as { type?: string; parameters?: { radiusTop?: number; radiusBottom?: number; height?: number } };
         return (
           geo?.type === 'CylinderGeometry' &&
-          closeTo(geo.parameters?.radiusTop, THEME.pinLocationDisk.radius) &&
-          closeTo(geo.parameters?.radiusBottom, THEME.pinLocationDisk.radius) &&
-          closeTo(geo.parameters?.height, THEME.pinLocationDisk.thickness)
+          closeTo(geo.parameters?.radiusTop as number, THEME.pinLocationDisk.radius) &&
+          closeTo(geo.parameters?.radiusBottom as number, THEME.pinLocationDisk.radius) &&
+          closeTo(geo.parameters?.height as number, THEME.pinLocationDisk.thickness)
         );
       }
     );
@@ -165,7 +166,7 @@ describe('BoardRenderer - Visibility and Attack Board Controls', () => {
     const squareMeshes = findMeshes(
       scene,
       (mesh) => {
-        const geo = mesh.geometry;
+        const geo = mesh.geometry as { type?: string; parameters?: { width?: number } };
         return (
           geo?.type === 'BoxGeometry' &&
           geo.parameters?.width === THEME.squares.size
@@ -176,10 +177,11 @@ describe('BoardRenderer - Visibility and Attack Board Controls', () => {
     expect(squareMeshes.length).toBe(48);
 
     for (const mesh of squareMeshes) {
+      const pos = mesh.position as { x: number; y: number; z: number };
       const matchingSquare = Array.from(world.squares.values()).find((sq) =>
-        closeTo(sq.worldX, mesh.position.x) &&
-        closeTo(sq.worldY, mesh.position.y) &&
-        closeTo(sq.worldZ, mesh.position.z)
+        closeTo(sq.worldX, pos.x) &&
+        closeTo(sq.worldY, pos.y) &&
+        closeTo(sq.worldZ, pos.z)
       );
 
       if (matchingSquare) {
@@ -199,7 +201,7 @@ describe('BoardRenderer - Visibility and Attack Board Controls', () => {
     const squaresRotation0 = findMeshes(
       scene1,
       (mesh) => {
-        const geo = mesh.geometry;
+        const geo = mesh.geometry as { type?: string; parameters?: { width?: number } };
         return geo?.type === 'BoxGeometry' && geo.parameters?.width === THEME.squares.size;
       }
     );
@@ -218,7 +220,7 @@ describe('BoardRenderer - Visibility and Attack Board Controls', () => {
     const squaresRotation180 = findMeshes(
       scene2,
       (mesh) => {
-        const geo = mesh.geometry;
+        const geo = mesh.geometry as { type?: string; parameters?: { width?: number } };
         return geo?.type === 'BoxGeometry' && geo.parameters?.width === THEME.squares.size;
       }
     );
@@ -227,8 +229,9 @@ describe('BoardRenderer - Visibility and Attack Board Controls', () => {
 
     const boardIds0 = squaresRotation0
       .map(m => {
+        const pos = m.position as { x: number; y: number; z: number };
         const sq = Array.from(worldWithRotation0.squares.values()).find(s =>
-          closeTo(s.worldX, m.position.x) && closeTo(s.worldY, m.position.y) && closeTo(s.worldZ, m.position.z)
+          closeTo(s.worldX, pos.x) && closeTo(s.worldY, pos.y) && closeTo(s.worldZ, pos.z)
         );
         return sq?.boardId;
       })
@@ -236,8 +239,9 @@ describe('BoardRenderer - Visibility and Attack Board Controls', () => {
 
     const boardIds180 = squaresRotation180
       .map(m => {
+        const pos = m.position as { x: number; y: number; z: number };
         const sq = Array.from(worldWithRotation180.squares.values()).find(s =>
-          closeTo(s.worldX, m.position.x) && closeTo(s.worldY, m.position.y) && closeTo(s.worldZ, m.position.z)
+          closeTo(s.worldX, pos.x) && closeTo(s.worldY, pos.y) && closeTo(s.worldZ, pos.z)
         );
         return sq?.boardId;
       })

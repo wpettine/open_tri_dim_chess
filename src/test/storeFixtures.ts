@@ -1,7 +1,8 @@
-import type { ChessWorld, BoardLayout, WorldSquare } from '../engine/world/types';
+import type { ChessWorld } from '../engine/world/types';
 import type { Piece, GameState } from '../store/gameStore';
 import { createChessWorld } from '../engine/world/worldBuilder';
 import { createInitialPieces } from '../engine/initialSetup';
+import { fileToWorldX, rankToWorldY } from '../engine/world/coordinates';
 
 /**
  * Creates a minimal ChessWorld with just the 3 main boards for testing.
@@ -194,8 +195,6 @@ export function getExpectedSquareCoords(
   rank: number,
   zHeight: number
 ): { worldX: number; worldY: number; worldZ: number } {
-  const { fileToWorldX, rankToWorldY } = require('../engine/world/coordinates');
-  
   return {
     worldX: fileToWorldX(file),
     worldY: rankToWorldY(rank),

@@ -1,3 +1,48 @@
+Phase IV — Arrival Mapping: Progress Summary and Next Steps (handoff)
+
+What’s done
+- Implemented Phase IV baseline: engine helpers for arrival mapping, store scaffolding, and minimal UI overlay to choose identity vs 180°.
+- PR #54 merged: Arrival mapping plumbing (engine, store, UI) and tests added; GitGuardian passed.
+- Test lint cleanup in a follow-up branch devin/1760129496-test-lint-cleanup:
+  - Replaced any with unknown in test utils and scenegraph tests; added structural casts only where needed.
+  - Fixed unused variables in visual tests; converted require() to import in store fixtures.
+- Visibility investigations and tests updated:
+  - scenegraph.visibility tests refined to assert 4 visible attack boards rule and type-safe geometry/position checks.
+  - scenegraph.attackBoards.allVisibleOnLoad updated to assert only main-board squares on initial load.
+
+Open issues discovered
+- Initial render still shows attack-board squares (144 total) in allVisibleOnLoad test, indicating initial visibility isn’t applied. BoardRenderer properly checks (board.type === 'main' || board.isVisible), so store/world initialization likely sets attack boards to visible by default or calls showAllAttackInstances during restore. Need to ensure updateInstanceVisibility runs on initial world creation and that showAllAttackInstances is not used for initial state.
+- One legacy rook movement test still failing pre-migration (not introduced by Phase IV).
+
+Next steps
+1) Fix initial visibility on app startup
+- In gameStore initializer, after creating world and default trackStates, call updateInstanceVisibility(world, trackStates).
+- Ensure no call to showAllAttackInstances() runs during initial load; keep it only for debug/dev utilities.
+- Re-run scenegraph.attackBoards.allVisibleOnLoad to confirm only 48 main-board squares render initially.
+
+2) Strengthen engine-level visibility guarantees
+- Add a unit test for updateInstanceVisibility to assert exactly four attack instances (QL/KL × white/black) are visible based on trackStates.
+- Verify that canMoveBoard/selectors only surface for visible instances.
+
+3) Arrival mapping UI integration polish
+- Wire setArrivalSelection to compute arrivalOptions using engine calculateArrivalCoordinates/getArrivalOptions, not placeholders.
+- finalizeActivation should pass the chosen arrivalChoice into executeActivation and update trackStates and visibility accordingly.
+- Add unit tests for arrivalChoice application and movement flags (hasMoved, movedByAB).
+
+4) Re-run lint and tests
+- npm run lint must be 0 errors.
+- npm test should pass; if rook test remains failing and is pre-migration, quarantine or update per design doc in a separate PR.
+
+5) PR
+- Continue on devin/1760129496-test-lint-cleanup or create a new branch “fix/attack-visibility-init”:
+  - Commit: “store: apply updateInstanceVisibility on init; remove all-visible default”
+  - Commit: “tests: assert main-only squares on load; 4-only attack visibility”
+- Open PR titled “Fix attack-board visibility on init + test lint cleanup” with link to Devin run and @wpettine.
+
+Notes for reviewer
+- All changes are minimal and scoped; no relaxation of lint rules.
+- BoardRenderer already guards rendering by isVisible; fix focuses on world/store initialization.
+- Do not re-introduce showAllAttackInstances in app flow; keep behind explicit debug/visual tests only.
 ## Implementation checklist and comprehensive unit test plan
 
 Implementation checklist (files/modules to create or modify)

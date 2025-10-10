@@ -22,6 +22,6 @@ test.describe('Board Visibility Transitions', () => {
     });
   });
 
-  test.skip('visibility toggles when track states change', async ({ page }) => {
+  test.skip('visibility toggles when track states change', async () => {
   });
 });

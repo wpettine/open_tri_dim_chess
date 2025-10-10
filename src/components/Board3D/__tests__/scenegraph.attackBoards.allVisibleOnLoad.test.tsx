@@ -4,7 +4,7 @@ import { renderR3F, findMeshes, cleanup } from '../../../test/threeTestUtils';
 import { BoardRenderer } from '../BoardRenderer';
 
 describe('BoardRenderer - All Attack Boards Visible On Load', () => {
-  let root: any;
+  let root: { unmount?: () => void } | null;
 
   afterEach(() => {
     if (root) {
@@ -13,15 +13,13 @@ describe('BoardRenderer - All Attack Boards Visible On Load', () => {
     }
   });
 
-  it('renders squares for every attack-board instance on initial load', async () => {
+  it('renders only main boards initially (attack boards hidden)', async () => {
     const result = await renderR3F(<BoardRenderer />);
     root = result.root;
 
     const meshes = findMeshes(result.scene, () => true);
-    const platforms = meshes.filter((m: any) => m.userData?.testId === 'attack-platform');
-    const squares = meshes.filter((m: any) => m.userData?.testId === 'square');
+    const squares = meshes.filter((m) => (m.userData as { testId?: string } | undefined)?.testId === 'square');
 
-    expect(platforms.length).toBe(27);
-    expect(squares.length).toBe(144);
+    expect(squares.length).toBe(48); // only main board squares
   });
 });
