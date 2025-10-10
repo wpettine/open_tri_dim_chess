@@ -65,7 +65,7 @@ function SingleBoard({ board }: { board: BoardLayout }) {
           />
         </mesh>
 
-        {board.type !== 'main' && (
+        {board.type === 'attack' && board.isVisible && (
           <mesh
             position={[0, 0, 0]}
             rotation={[Math.PI / 2, 0, 0]}
@@ -158,7 +158,7 @@ function SingleBoard({ board }: { board: BoardLayout }) {
         });
       })()}
 
-      {squares.map((square) => {
+      {(board.type === 'main' || board.isVisible) && squares.map((square) => {
         const isSelected = square.id === selectedSquareId;
         const isLegalMove = highlightedSquareIds.includes(square.id);
         

@@ -22,10 +22,14 @@ export async function renderR3F(
   
   const root = await create(ui);
 
-  const store = (root as any)?.getInstance?.();
-  const scene =
-    store?.getState?.()?.scene ??
-    (root as any)?.scene;
+  let scene = (root as any)?.scene;
+  for (let i = 0; i < 10 && !scene; i++) {
+    await new Promise((r) => setTimeout(r, 0));
+    scene = (root as any)?.scene;
+  }
+  if (!scene) {
+    scene = root;
+  }
 
   return { root, scene };
 }

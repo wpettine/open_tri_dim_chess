@@ -96,7 +96,9 @@ describe('BoardRenderer - Square Mesh Positioning', () => {
     root = result.root;
     const scene = result.scene;
 
-    const whiteMainSquare = world.squares.get('1-2-W'); // file a, rank 2, White board
+    const whiteMainSquare = Array.from(world.squares.values()).find(
+      (sq) => sq.file === 1 && sq.rank === 2 && sq.boardId === 'WL'
+    );
     expect(whiteMainSquare).toBeDefined();
 
     if (whiteMainSquare) {
