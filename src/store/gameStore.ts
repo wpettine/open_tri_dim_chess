@@ -757,24 +757,48 @@ export function hydrateFromPersisted(
     boardRotations?: Record<string, number>;
   }
 ) {
+  const pieces = payload.pieces ?? [];
+  const currentTurn = payload.currentTurn ?? 'white';
+  const isCheck = payload.isCheck ?? false;
+  const isCheckmate = payload.isCheckmate ?? false;
+  const isStalemate = payload.isStalemate ?? false;
+  const winner = payload.winner ?? null;
+  const gameOver = payload.gameOver ?? false;
+  const attackBoardPositions = payload.attackBoardPositions ?? getInitialPinPositions();
+  const moveHistory = payload.moveHistory ?? [];
+  const boardRotations = payload.boardRotations ?? {};
+
   set({
-    pieces: payload.pieces,
-    currentTurn: payload.currentTurn,
-    isCheck: payload.isCheck,
-    isCheckmate: payload.isCheckmate,
-    isStalemate: payload.isStalemate,
-    winner: payload.winner,
-    gameOver: payload.gameOver,
-    attackBoardPositions: payload.attackBoardPositions,
-    moveHistory: payload.moveHistory,
+    pieces,
+    currentTurn,
+    isCheck,
+    isCheckmate,
+    isStalemate,
+    winner,
+    gameOver,
+    attackBoardPositions,
+    moveHistory,
     selectedSquareId: null,
     highlightedSquareIds: [],
     selectedBoardId: null,
   });
+
   const state = get();
-  Object.entries(state.attackBoardPositions).forEach(([boardId, pinId]) => {
-    const rotation = state.world.boards.get(boardId)?.rotation ?? 0;
+
+  Object.entries(attackBoardPositions).forEach(([boardId, pinId]) => {
+    const rotation = boardRotations[boardId] ?? 0;
     updateAttackBoardWorld(state.world, boardId, pinId, rotation);
   });
-  get().updateGameState();
+
+  const pinNum = (id: string | undefined) => Number((id ?? '').slice(2)) || 1;
+  const rot = (boardId: string) => ((boardRotations[boardId] ?? 0) === 180 ? 180 : 0) as 0 | 180;
+  const derivedTrackStates = {
+    QL: { whiteBoardPin: pinNum(attackBoardPositions['WQL']), blackBoardPin: pinNum(attackBoardPositions['BQL']), whiteRotation: rot('WQL'), blackRotation: rot('BQL') },
+    KL: { whiteBoardPin: pinNum(attackBoardPositions['WKL']), blackBoardPin: pinNum(attackBoardPositions['BKL']), whiteRotation: rot('WKL'), blackRotation: rot('BKL') },
+  };
+
+  set({ trackStates: derivedTrackStates });
+  updateInstanceVisibility(state.world, derivedTrackStates);
+
+  state.updateGameState();
 }
