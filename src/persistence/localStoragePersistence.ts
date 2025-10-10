@@ -73,6 +73,16 @@ export class LocalStoragePersistence implements GamePersistence {
             BQL: 'QL6',
             BKL: 'KL6',
           },
+          attackBoardStates: {
+            WQL: { activeInstanceId: 'QL1:0' },
+            WKL: { activeInstanceId: 'KL1:0' },
+            BQL: { activeInstanceId: 'QL6:0' },
+            BKL: { activeInstanceId: 'KL6:0' },
+          },
+          trackStates: {
+            QL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
+            KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
+          },
           moveHistory: [],
         },
         integrity: { schemaVersion: SCHEMA_VERSION },
@@ -147,6 +157,16 @@ export class LocalStoragePersistence implements GamePersistence {
             WKL: 'KL1',
             BQL: 'QL6',
             BKL: 'KL6',
+          },
+          attackBoardStates: {
+            WQL: { activeInstanceId: 'QL1:0' },
+            WKL: { activeInstanceId: 'KL1:0' },
+            BQL: { activeInstanceId: 'QL6:0' },
+            BKL: { activeInstanceId: 'KL6:0' },
+          },
+          trackStates: {
+            QL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
+            KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
           },
           moveHistory: [],
         },
