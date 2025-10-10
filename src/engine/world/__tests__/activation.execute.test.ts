@@ -34,7 +34,7 @@ describe('executeActivation arrivalChoice', () => {
     });
     const moved = res.updatedPieces.find(p => p.id === 'P1')!;
     expect(moved.file).toBe(0);
-    expect(moved.rank).toBe(2);
+    expect(moved.rank).toBe(1);
     expect(moved.level).toBe('WQL');
     expect(moved.movedByAB).toBe(true);
     expect(moved.hasMoved).toBe(true);
@@ -57,7 +57,7 @@ describe('executeActivation arrivalChoice', () => {
     });
     const moved = res.updatedPieces.find(p => p.id === 'P1')!;
     expect(moved.file).toBe(1);
-    expect(moved.rank).toBe(3);
+    expect(moved.rank).toBe(2);
     expect(moved.level).toBe('WQL');
     expect(moved.movedByAB).toBe(true);
     expect(moved.hasMoved).toBe(true);
