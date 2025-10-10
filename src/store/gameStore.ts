@@ -127,6 +127,9 @@ export interface GameState {
     QL: { whiteBoardPin: number; blackBoardPin: number; whiteRotation: 0 | 180; blackRotation: 0 | 180 };
     KL: { whiteBoardPin: number; blackBoardPin: number; whiteRotation: 0 | 180; blackRotation: 0 | 180 };
   };
+  interactionMode?: 'idle' | 'selectPin' | 'selectArrival';
+  arrivalOptions?: Array<{ choice: 'identity' | 'rot180'; file: number; rank: number }> | null;
+
   selectSquare: (squareId: string) => void;
   movePiece: (piece: Piece, toFile: number, toRank: number, toLevel: string) => void;
   clearSelection: () => void;
@@ -181,6 +184,9 @@ export const useGameStore = create<GameState>()((set, get) => ({
   },
   selectedBoardId: null,
   moveHistory: [],
+  interactionMode: 'idle',
+  arrivalOptions: null,
+
   
   selectSquare: (squareId: string) => {
     const state = get();
