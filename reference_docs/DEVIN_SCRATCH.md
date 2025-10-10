@@ -1,6 +1,13 @@
 Phase III Progress and Handoff Notes (Devin)
 Updated: 2025-10-10
 
+HMR note (2025-10-10): Addressed dev-time error "RefreshRuntime.getRefreshReg is not a function" observed in BoardRenderer.tsx during Vite hot reload. Root cause was environment mismatch: @vitejs/plugin-react@5 with Vite 7 requires Node >=20.19. On Node <20, Fast Refresh runtime can misbehave. Resolution:
+- enforce Node engines ">=20.19.0" in package.json
+- update README to require Node 20.19+
+- clear caches when switching Node versions: rm -rf node_modules node_modules/.vite && npm install
+- retest via npm run dev
+
+
 Summary of work completed in PR #37
 - Implemented initial Phase III scaffolding:
   - Added instance-based activation API in src/engine/world/worldMutation.ts:

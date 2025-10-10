@@ -17,9 +17,8 @@ The game follows the Meder rules for Tri-Dimensional Chess, featuring a main boa
 
 ### Prerequisites
 
-- Node.js (v18 or higher recommended)
+- Node.js v20.19+ (required for Vite 7 and @vitejs/plugin-react 5)
 - npm or pnpm
-
 ### Installation
 
 ```bash
@@ -107,13 +106,12 @@ Current test coverage: **58 passing tests**
 
 ## Technologies
 
-- **React 19** - UI framework
+- **React 18** - UI framework
 - **TypeScript** - Type-safe development
 - **Three.js** - 3D graphics rendering
 - **Zustand** - State management
 - **Vitest** - Testing framework
 - **Vite** - Build tool and dev server
-
 ## Documentation
 
 Detailed documentation is available in the `reference_docs/` directory:
