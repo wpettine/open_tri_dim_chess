@@ -327,6 +327,58 @@ Work log:
 Decision on legacy tests (Phase I):
 - Per Warren: Ignore failing legacy attack-board tests for now; they will be reworked for the new visibility-based system.
 - Main board-related tests remain relevant.
+## Phase IV Plan (Updated for React 19/R3F v9 Rendering Tests)
+
+Scope
+- Implement arrival mapping and minimal UI to leverage existing scenegraph and Playwright tests without duplicating coverage.
+
+Prerequisites
+- World instances: worldBuilder must pre-create all attack-board instances (12 per track × 2 rotations) and wire updateInstanceVisibility(world, trackStates).
+- Rendering startup behavior: Preserve showAllAttackInstances on init/hydrate so all attack-board tiles are visible at load (per scenegraph + Playwright initial tests).
+
+Engine tasks
+1) calculateArrivalCoordinates(fromPin, toPin, localFile, localRank, choice)
+- Mapping for identity vs 180° rotation over 2×2 local coords; respect track-specific orientation.
+
+2) getArrivalOptions(boardId, fromPinId, toPinId, pieces)
+- Produce the two candidate squares (identity, rot180) if legal for occupied boards.
+
+3) validateArrivalSquares(boardId, fromPinId, toPinId, pieces, options)
+- Filter options against occupancy/capture rules and any Phase III validation constraints.
+
+4) Wire executeActivation(ctx, arrivalChoice)
+- Apply chosen mapping to passenger; set movedByAB for pawns; update positions and activeInstanceId; update trackStates; call updateInstanceVisibility.
+
+UI tasks
+5) BoardRenderer compatibility-only tweaks
+- Keep existing visibility filtering and selector/pin markers behavior as covered by scenegraph tests.
+
+6) ArrivalOverlay
+- Render two options (identity/rot180) on destination instance with click-to-confirm; ESC/cancel; integrate with store interactionMode and selection state.
+
+Store/API
+7) Store state and actions
+- selectedAttackBoard, eligiblePins, arrivalOptions, interactionMode ('idle' | 'selectPin' | 'selectArrival').
+- Actions: selectBoard, computeEligiblePins (uses validateActivation), selectPin (computes arrivalOptions), finalizeActivation({ boardId, fromPinId, toPinId, arrivalChoice }).
+
+Tests
+8) Unit tests (engine)
+- calculateArrivalCoordinates
+- getArrivalOptions
+- validateArrivalSquares
+
+9) Playwright visual tests
+- Unskip and implement tests/visual/board.arrivalMapping.spec.ts to snapshot identity vs rot180 mapping.
+- Reuse existing waitForReady and compareWithGolden utilities; do not duplicate scenegraph assertions already covered.
+
+Out of scope for Phase IV
+- Deep king-safety logic beyond current scaffolding.
+- Additional scenegraph assertions already covered (visibility counts, selector disks, pin markers, rotation-state differences).
+
+References
+- NEW_WORLD_STRUCTURE Phase 4 requirements: arrival mapping + rendering updates.
+- RENDERING_TEST_PLAN: React 19/R3F v9 constraints, userData selectors, showAllAttackInstances, existing scenegraph/Playwright coverage.
+
 - New tests added in this phase (instanceHelpers) must pass; they do.
 # Phase II Execution Notes (Ownership/Adjacency + Game State Integration)
 
