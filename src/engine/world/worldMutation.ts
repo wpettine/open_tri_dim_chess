@@ -15,6 +15,7 @@ export interface BoardMoveContext {
   pieces: Piece[];
   world: ChessWorld;
   attackBoardPositions: Record<string, string>;
+  arrivalChoice?: ArrivalChoice;
 }
 
 export interface BoardMoveValidation {
@@ -59,6 +60,7 @@ export function executeActivation(context: ActivationContext): ActivationResult 
     pieces: context.pieces,
     world: context.world,
     attackBoardPositions: context.attackBoardPositions,
+    arrivalChoice: context.arrivalChoice,
   });
 
   const rotation: 0 | 180 = (context.rotate || (context.world.boards.get(context.boardId)?.rotation === 180))
@@ -309,7 +311,8 @@ export function executeBoardMove(context: BoardMoveContext): BoardMoveResult {
     let newFile = piece.file + fileOffsetCells;
     let newRank = piece.rank + rankOffsetCells;
 
-    if (context.rotate) {
+    const applyArrivalRotation = context.rotate || context.arrivalChoice === 'rot180';
+    if (applyArrivalRotation) {
       const relativeFile = piece.file - fromPin.fileOffset;
       const relativeRankCells = piece.rank - (fromPin.rankOffset / 2);
 
