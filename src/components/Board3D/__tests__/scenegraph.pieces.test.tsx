@@ -1,7 +1,9 @@
-mport { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { renderR3F, findMeshes, closeTo, cleanup } from '../../../test/threeTestUtils';
 import { buildStoreState, buildPiecesMinimal, createTestPiece } from '../../../test/storeFixtures';
 import { Pieces3D } from '../Pieces3D';
+import { resolveBoardId } from '../../../utils/resolveBoardId';
+
 
 describe('Pieces3D - Piece Mesh Positioning', () => {
   let root: any;
@@ -34,10 +36,6 @@ describe('Pieces3D - Piece Mesh Positioning', () => {
       }
     );
 
-    const resolveBoardId = (level: string): string => {
-      if (level === 'W' || level === 'N' || level === 'B') return level;
-      return (storeState as any).attackBoardStates?.[level]?.activeInstanceId ?? level;
-    };
 
     expect(pieceMeshes.length).toBe(pieces.length);
 
@@ -119,10 +117,6 @@ describe('Pieces3D - Piece Mesh Positioning', () => {
       }
     );
 
-    const resolveBoardId = (level: string): string => {
-      if (level === 'W' || level === 'N' || level === 'B') return level;
-      return (storeState as any).attackBoardStates?.[level]?.activeInstanceId ?? level;
-    };
 
     const world = storeState.world!;
 
@@ -162,10 +156,6 @@ describe('Pieces3D - Piece Mesh Positioning', () => {
       }
     );
 
-    const resolveBoardId = (level: string): string => {
-      if (level === 'W' || level === 'N' || level === 'B') return level;
-      return (storeState as any).attackBoardStates?.[level]?.activeInstanceId ?? level;
-    };
 
     expect(pieceMeshes.length).toBe(2);
 
