@@ -6,7 +6,7 @@ import { resolveBoardId } from '../../../utils/resolveBoardId';
 
 
 describe('Pieces3D - Piece Mesh Positioning', () => {
-  let root: any;
+  let root: { unmount?: () => void } | null;
 
   afterEach(() => {
     if (root) {

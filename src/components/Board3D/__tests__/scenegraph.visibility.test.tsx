@@ -5,7 +5,7 @@ import { BoardRenderer } from '../BoardRenderer';
 import { THEME } from '../../../config/theme';
 
 describe('BoardRenderer - Visibility and Attack Board Controls', () => {
-  let root: any;
+  let root: { unmount?: () => void } | null;
 
   afterEach(() => {
     if (root) {

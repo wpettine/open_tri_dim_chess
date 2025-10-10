@@ -5,7 +5,7 @@ import { BoardRenderer } from '../BoardRenderer';
 import { THEME } from '../../../config/theme';
 
 describe('BoardRenderer - Square Mesh Positioning', () => {
-  let root: any;
+  let root: { unmount?: () => void } | null;
 
   afterEach(() => {
     if (root) {

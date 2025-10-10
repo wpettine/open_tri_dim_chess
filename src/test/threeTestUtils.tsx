@@ -14,7 +14,7 @@ import type { GameState } from '../store/gameStore';
 export async function renderR3F(
   ui: ReactNode, 
   options?: { storeState?: Partial<GameState> }
-) {
+): Promise<{ root: { unmount: () => void }; scene: unknown }> {
   if (options?.storeState) {
     const original = useGameStore.getState();
     useGameStore.setState({ ...original, ...options.storeState }, true);
@@ -22,16 +22,16 @@ export async function renderR3F(
   
   const root = await create(ui);
 
-  let scene = (root as any)?.scene;
+  let scene: unknown = (root as unknown as { scene?: unknown })?.scene;
   for (let i = 0; i < 10 && !scene; i++) {
     await new Promise((r) => setTimeout(r, 0));
-    scene = (root as any)?.scene;
+    scene = (root as unknown as { scene?: unknown })?.scene;
   }
   if (!scene) {
-    scene = root;
+    scene = root as unknown;
   }
 
-  return { root, scene };
+  return { root: root as unknown as { unmount: () => void }, scene };
 }
 
 /**
@@ -42,24 +42,44 @@ export async function renderR3F(
  * @param out - Accumulator array for results (internal use)
  * @returns Array of matching mesh objects
  */
-export function findMeshes(
-  node: any, 
-  predicate: (obj: any) => boolean, 
-  out: any[] = []
-): any[] {
-  if (!node) return out;
-  
-  const start =
-    (node as any)?.instance ??
-    (node as any)?._fiber?.object ??
-    (node as any)?.__fiber?.stateNode ??
-    node;
+export type MeshInfo = {
+  type?: string;
+  geometry?: unknown;
+  userData?: Record<string, unknown>;
+  position?: unknown;
+  children?: unknown[];
+};
 
-  if (start?.type === 'Mesh' && predicate(start)) {
-    out.push(start);
+type FiberLike = {
+  instance?: unknown;
+  _fiber?: { object?: unknown; stateNode?: unknown };
+  __fiber?: { stateNode?: unknown };
+  children?: unknown[];
+  type?: string;
+  userData?: Record<string, unknown>;
+  geometry?: unknown;
+  position?: unknown;
+};
+
+export function findMeshes(
+  node: unknown, 
+  predicate: (obj: MeshInfo) => boolean, 
+  out: MeshInfo[] = []
+): MeshInfo[] {
+  if (!node) return out;
+  const n = node as FiberLike;
+  const start: FiberLike =
+    (n.instance as unknown as FiberLike) ??
+    (n._fiber?.object as unknown as FiberLike) ??
+    (n._fiber?.stateNode as unknown as FiberLike) ??
+    (n.__fiber?.stateNode as unknown as FiberLike) ??
+    (n as FiberLike);
+
+  if ((start?.type) === 'Mesh' && predicate(start as MeshInfo)) {
+    out.push(start as MeshInfo);
   }
   
-  const children = Array.isArray(start?.children) ? start.children : [];
+  const children = Array.isArray(start?.children) ? start.children! : [];
   for (const child of children) {
     findMeshes(child, predicate, out);
   }
@@ -88,29 +108,31 @@ export function closeTo(a: number, b: number, epsilon = 1e-5): boolean {
  * @returns Array of matching objects
  */
 export function findByUserData(
-  node: any,
+  node: unknown,
   key: string,
-  value?: any
-): any[] {
-  const results: any[] = [];
+  value?: unknown
+) {
+  const results: unknown[] = [];
   
-  function traverse(obj: any) {
+  function traverse(obj: unknown) {
     if (!obj) return;
 
+    const o = obj as { instance?: unknown; _fiber?: { object?: unknown; stateNode?: unknown }; __fiber?: { stateNode?: unknown }; userData?: Record<string, unknown>; children?: unknown[] };
     const start =
-      (obj as any)?.instance ??
-      (obj as any)?._fiber?.object ??
-      (obj as any)?.__fiber?.stateNode ??
-      obj;
+      o?.instance ??
+      o?._fiber?.object ??
+      o?.__fiber?.stateNode ??
+      o;
     
-    if (start?.userData && key in start.userData) {
-      if (value === undefined || start.userData[key] === value) {
+    const s = start as { userData?: Record<string, unknown>; children?: unknown[] };
+    if (s?.userData && key in s.userData) {
+      if (value === undefined || s.userData[key] === value) {
         results.push(start);
       }
     }
     
-    if (start?.children) {
-      start.children.forEach((child: any) => traverse(child));
+    if (Array.isArray(s?.children)) {
+      s.children.forEach((child: unknown) => traverse(child));
     }
   }
   
@@ -123,8 +145,8 @@ export function findByUserData(
  * 
  * @param root - The test renderer root to clean up
  */
-export function cleanup(root: any) {
-  if (root) {
+export function cleanup(root: { unmount?: () => void } | null) {
+  if (root?.unmount) {
     root.unmount();
   }
   useGameStore.getState().resetGame();

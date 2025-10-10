@@ -107,21 +107,27 @@ export async function compareWithGolden(
  * Waits for the page to be ready for screenshot.
  * Ensures camera animations have settled and rendering is complete.
  */
-export async function waitForReady(page: any, timeout = 5000): Promise<void> {
-  await page.waitForFunction(
+type PageLike = {
+  waitForFunction: (fn: () => unknown, options?: { timeout?: number }) => Promise<unknown>;
+  evaluate: <T>(fn: () => T) => Promise<T>;
+};
+
+export async function waitForReady(page: unknown, timeout = 5000): Promise<void> {
+  const pg = page as PageLike;
+  await pg.waitForFunction(
     () => {
-      if (typeof (window as any).__ready === 'boolean') {
-        return (window as any).__ready === true;
+      if (typeof (window as unknown as { __ready?: boolean }).__ready === 'boolean') {
+        return (window as unknown as { __ready?: boolean }).__ready === true;
       }
       return document.querySelector('canvas') !== null;
     },
     { timeout }
   );
 
-  await page.evaluate(() => {
-    return new Promise((resolve) => {
+  await (page as PageLike).evaluate(() => {
+    return new Promise<void>((resolve) => {
       requestAnimationFrame(() => {
-        requestAnimationFrame(resolve);
+        requestAnimationFrame(() => resolve());
       });
     });
   });
