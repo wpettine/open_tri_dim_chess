@@ -9,7 +9,7 @@ import { getLegalMovesAvoidingCheck, isInCheck, isCheckmate, isStalemate } from 
 import { createSquareId } from '../engine/world/coordinates';
 import { getInitialPinPositions } from '../engine/world/pinPositions';
 import { makeInstanceId, parseInstanceId } from '../engine/world/attackBoardAdjacency';
-import { updateInstanceVisibility, showAllAttackInstances } from '../engine/world/visibility';
+import { updateInstanceVisibility } from '../engine/world/visibility';
 import { validateActivation, executeActivation } from '../engine/world/worldMutation';
 export interface GameSnapshot {
   pieces: Piece[];
@@ -75,7 +75,6 @@ function restoreSnapshot(
   
   set({ trackStates: derivedTrackStates });
   updateInstanceVisibility(state.world, derivedTrackStates);
-  showAllAttackInstances(state.world);
 
   state.updateGameState();
 }
@@ -667,7 +666,6 @@ export const useGameStore = create<GameState>()((set, get) => ({
 }));
 const __state = useGameStore.getState();
 updateInstanceVisibility(__state.world, __state.trackStates!);
-showAllAttackInstances(__state.world);
 
 export function buildPersistablePayload(state: GameState) {
   const boardRotations: Record<string, number> = {};
@@ -743,7 +741,6 @@ export function hydrateFromPersisted(
 
   set({ trackStates: derivedTrackStates });
   updateInstanceVisibility(state.world, derivedTrackStates);
-  showAllAttackInstances(state.world);
 
   state.updateGameState();
 }
