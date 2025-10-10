@@ -234,9 +234,38 @@ Mapping to Current Components
 - Visibility:
   - Exactly four attack-board instances visible after updateInstanceVisibility; tests should assert only these render.
 
+Attack Board Z-Axis Positioning Tests
+- Critical: Verify attack boards are positioned at correct z-heights relative to main boards
+- Pattern: All attack boards should be ATTACK_OFFSET (2.5 units) above their adjacent main board
+- Required z-height tests:
+  - QL1/KL1: Z_WHITE_MAIN + ATTACK_OFFSET (above white board)
+  - QL2/KL2: Z_WHITE_MAIN + ATTACK_OFFSET (above white board, NOT at white board level)
+  - QL3/KL3: Z_NEUTRAL_MAIN + ATTACK_OFFSET (above neutral board)
+  - QL4/KL4: Z_NEUTRAL_MAIN + ATTACK_OFFSET (above neutral board, NOT at black board level)
+  - QL5/KL5: Z_BLACK_MAIN + ATTACK_OFFSET (above black board, NOT at black board level)
+  - QL6/KL6: Z_BLACK_MAIN + ATTACK_OFFSET (above black board)
+- Scene-graph test: For each pin position, assert board.centerZ equals expected z-height
+- Visual test: Screenshot from side view showing vertical spacing between main boards and attack boards
+- Regression test: Ensure all 24 instances of each pin (0° and 180° rotations) have identical z-heights
+
+Test File: src/engine/world/__tests__/attackBoardZPositioning.test.ts
+- Load world from worldBuilder
+- For each pin 1-6 on both tracks:
+  - Get both rotation instances (QL{pin}:0 and QL{pin}:180)
+  - Assert centerZ matches expected value per pin:
+    - Pin 1: Z_WHITE_MAIN + ATTACK_OFFSET
+    - Pin 2: Z_WHITE_MAIN + ATTACK_OFFSET
+    - Pin 3: Z_NEUTRAL_MAIN + ATTACK_OFFSET
+    - Pin 4: Z_NEUTRAL_MAIN + ATTACK_OFFSET
+    - Pin 5: Z_BLACK_MAIN + ATTACK_OFFSET
+    - Pin 6: Z_BLACK_MAIN + ATTACK_OFFSET
+  - Assert both rotations have same centerZ
+  - Assert all squares on that board instance have same worldZ
+
 Appendix: Execution Checklist
 - Install deps.
 - Add scene-graph helpers and fixtures.
 - Implement three scene-graph tests.
 - Add Playwright config and one baseline pixel test.
 - Add CI steps and commit golden images.
+- Add attack board z-positioning tests before visual implementation.
