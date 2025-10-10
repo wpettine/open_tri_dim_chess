@@ -42,47 +42,49 @@ function SingleBoard({ board }: { board: BoardLayout }) {
 
   return (
     <group>
-      <group
-        position={[board.centerX, board.centerY, board.centerZ]}
-        rotation={[0, 0, (board.rotation * Math.PI) / 180]}
-      >
-        <mesh position={[0, 0, -0.15]} userData={{ testId: 'attack-platform' }}>
-          <boxGeometry
-            args={[
-              board.size.width * 2.1,
-              board.size.height * 2.1,
-              THEME.platforms.thickness,
-            ]}
-          />
-          <meshStandardMaterial
-            color={
-              board.type === 'attack' ? THEME.platforms.attack :
-              board.id === 'WL' ? THEME.platforms.whiteMain :
-              board.id === 'NL' ? THEME.platforms.neutralMain :
-              THEME.platforms.blackMain
-            }
-            transparent
-            opacity={THEME.platforms.opacity}
-          />
-        </mesh>
-
-        {board.type === 'attack' && board.isVisible && (
-          <mesh
-            position={[0, 0, 0]}
-            rotation={[Math.PI / 2, 0, 0]}
-            userData={{ testId: 'selector-disk' }}
-            onClick={(e) => {
-              e.stopPropagation();
-              selectBoard(board.id);
-            }}
-          >
-            <cylinderGeometry args={[THEME.attackBoardSelector.radius, THEME.attackBoardSelector.radius, THEME.attackBoardSelector.thickness, 32]} />
-            <meshStandardMaterial 
-              color={selectedBoardId === board.id ? THEME.squares.selectedColor : THEME.attackBoardSelector.color}
+      {(board.type === 'main' || board.isVisible) && (
+        <group
+          position={[board.centerX, board.centerY, board.centerZ]}
+          rotation={[0, 0, (board.rotation * Math.PI) / 180]}
+        >
+          <mesh position={[0, 0, -0.15]} userData={{ testId: 'attack-platform' }}>
+            <boxGeometry
+              args={[
+                board.size.width * 2.1,
+                board.size.height * 2.1,
+                THEME.platforms.thickness,
+              ]}
+            />
+            <meshStandardMaterial
+              color={
+                board.type === 'attack' ? THEME.platforms.attack :
+                board.id === 'WL' ? THEME.platforms.whiteMain :
+                board.id === 'NL' ? THEME.platforms.neutralMain :
+                THEME.platforms.blackMain
+              }
+              transparent
+              opacity={THEME.platforms.opacity}
             />
           </mesh>
-        )}
-      </group>
+
+          {board.type === 'attack' && board.isVisible && (
+            <mesh
+              position={[0, 0, 0]}
+              rotation={[Math.PI / 2, 0, 0]}
+              userData={{ testId: 'selector-disk' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                selectBoard(board.id);
+              }}
+            >
+              <cylinderGeometry args={[THEME.attackBoardSelector.radius, THEME.attackBoardSelector.radius, THEME.attackBoardSelector.thickness, 32]} />
+              <meshStandardMaterial 
+                color={selectedBoardId === board.id ? THEME.squares.selectedColor : THEME.attackBoardSelector.color}
+              />
+            </mesh>
+          )}
+        </group>
+      )}
 
       {board.type === 'main' && (() => {
         const minMainRank = Math.min(...board.ranks);

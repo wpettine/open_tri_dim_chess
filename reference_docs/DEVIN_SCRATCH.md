@@ -1,24 +1,22 @@
 Phase IV — Arrival Mapping: Progress Summary and Next Steps (handoff)
 
-What’s done
+What's done
 - Implemented Phase IV baseline: engine helpers for arrival mapping, store scaffolding, and minimal UI overlay to choose identity vs 180°.
 - PR #54 merged: Arrival mapping plumbing (engine, store, UI) and tests added; GitGuardian passed.
 - Test lint cleanup in a follow-up branch devin/1760129496-test-lint-cleanup:
   - Replaced any with unknown in test utils and scenegraph tests; added structural casts only where needed.
   - Fixed unused variables in visual tests; converted require() to import in store fixtures.
-- Visibility investigations and tests updated:
+- Visibility fixes completed (PR #56):
   - scenegraph.visibility tests refined to assert 4 visible attack boards rule and type-safe geometry/position checks.
-  - scenegraph.attackBoards.allVisibleOnLoad updated to assert only main-board squares on initial load.
+  - scenegraph.attackBoards.allVisibleOnLoad updated to correctly expect 64 squares (48 main + 16 attack board squares from 4 active instances).
+  - Fixed BoardRenderer to only render attack board platforms when board.isVisible is true.
+  - Store initialization properly calls updateInstanceVisibility to make 4 active instances (QL1:0, KL1:0, QL6:0, KL6:0) visible.
+  - Removed all showAllAttackInstances calls from initialization/restore paths.
 
 Open issues discovered
-- Initial render still shows attack-board squares (144 total) in allVisibleOnLoad test, indicating initial visibility isn’t applied. BoardRenderer properly checks (board.type === 'main' || board.isVisible), so store/world initialization likely sets attack boards to visible by default or calls showAllAttackInstances during restore. Need to ensure updateInstanceVisibility runs on initial world creation and that showAllAttackInstances is not used for initial state.
 - One legacy rook movement test still failing pre-migration (not introduced by Phase IV).
 
-Next steps
-1) Fix initial visibility on app startup
-- In gameStore initializer, after creating world and default trackStates, call updateInstanceVisibility(world, trackStates).
-- Ensure no call to showAllAttackInstances() runs during initial load; keep it only for debug/dev utilities.
-- Re-run scenegraph.attackBoards.allVisibleOnLoad to confirm only 48 main-board squares render initially.
+Next steps (visibility issues resolved)
 
 2) Strengthen engine-level visibility guarantees
 - Add a unit test for updateInstanceVisibility to assert exactly four attack instances (QL/KL × white/black) are visible based on trackStates.

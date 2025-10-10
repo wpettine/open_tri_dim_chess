@@ -169,6 +169,8 @@ const initialTrackStates = {
   KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 } as const,
 };
 
+updateInstanceVisibility(initialWorld, initialTrackStates);
+
 export const useGameStore = create<GameState>()((set, get) => ({
   world: initialWorld,
   pieces: createInitialPieces(),
