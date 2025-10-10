@@ -11,6 +11,7 @@ import { getInitialPinPositions } from '../engine/world/pinPositions';
 import { makeInstanceId, parseInstanceId } from '../engine/world/attackBoardAdjacency';
 import { updateInstanceVisibility } from '../engine/world/visibility';
 import { validateActivation, executeActivation } from '../engine/world/worldMutation';
+import { getArrivalOptions } from '../engine/world/coordinatesTransform';
 export interface GameSnapshot {
   pieces: Piece[];
   currentTurn: 'white' | 'black';
@@ -192,10 +193,77 @@ export const useGameStore = create<GameState>()((set, get) => ({
   trackStates: initialTrackStates,
   selectedBoardId: null,
   setArrivalSelection: (toPinId: string) => {
-    const options = [
-      { choice: 'identity' as const, file: 0, rank: 0 },
-      { choice: 'rot180' as const, file: 0, rank: 0 },
-    ];
+    const state = get();
+    const boardId = state.selectedBoardId;
+    if (!boardId) {
+      set({
+        interactionMode: 'idle',
+        arrivalOptions: null,
+        selectedToPinId: null,
+      });
+      return;
+    }
+
+    const fromPinId = state.attackBoardPositions[boardId];
+    if (!fromPinId) {
+      set({
+        interactionMode: 'idle',
+        arrivalOptions: null,
+        selectedToPinId: null,
+      });
+      return;
+    }
+
+    const track = (boardId.includes('QL') ? 'QL' : 'KL') as 'QL' | 'KL';
+    const fromPin = parseInt(fromPinId.slice(2), 10);
+    const toPin = parseInt(toPinId.slice(2), 10);
+
+    const trackState = state.trackStates?.[track];
+    if (!trackState) {
+      set({
+        interactionMode: 'idle',
+        arrivalOptions: null,
+        selectedToPinId: null,
+      });
+      return;
+    }
+
+    const isWhiteBoard = boardId.startsWith('W');
+    const fromRotation = isWhiteBoard ? trackState.whiteRotation : trackState.blackRotation;
+    const toRotation = fromRotation; // For now, assume no rotation change (will be handled separately)
+
+    const passengers = state.pieces.filter(p => p.level === boardId);
+    
+    if (passengers.length === 0) {
+      const options = [
+        { choice: 'identity' as const, file: 0, rank: 0 },
+      ];
+      set({
+        interactionMode: 'selectArrival',
+        arrivalOptions: options,
+        selectedToPinId: toPinId,
+      });
+      return;
+    }
+
+    const passenger = passengers[0];
+    const baseFile = track === 'QL' ? 0 : 4;
+    const pinRankOffsets: Record<number, number> = { 1: 0, 2: 4, 3: 2, 4: 6, 5: 4, 6: 8 };
+    const baseRank = pinRankOffsets[fromPin];
+    
+    const localFile = passenger.file - baseFile;
+    const localRank = passenger.rank - baseRank;
+
+    const options = getArrivalOptions(
+      track,
+      fromPin,
+      toPin,
+      fromRotation,
+      toRotation,
+      localFile,
+      localRank
+    );
+
     set({
       interactionMode: 'selectArrival',
       arrivalOptions: options,
