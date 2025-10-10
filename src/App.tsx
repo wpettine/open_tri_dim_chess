@@ -6,9 +6,16 @@ import { AttackBoardControls } from './components/UI/AttackBoardControls';
 import { useGameStore } from './store/gameStore';
 import { logWorldCoordinates } from './utils/debugLogger';
 import { useEffect } from 'react';
+import ArrivalOverlay from './components/UI/ArrivalOverlay';
 
 function App() {
   const world = useGameStore(state => state.world);
+  const interactionMode = useGameStore(state => state.interactionMode);
+  const arrivalOptions = useGameStore(state => state.arrivalOptions) || [];
+  const selectedBoardId = useGameStore(state => state.selectedBoardId);
+  const selectedToPinId = useGameStore(state => state.selectedToPinId || null);
+  const moveAttackBoard = useGameStore(state => state.moveAttackBoard);
+  const clearArrivalSelection = useGameStore(state => state.clearArrivalSelection!);
 
   useEffect(() => {
     logWorldCoordinates(world);
@@ -21,6 +28,18 @@ function App() {
       <MoveHistory />
       <GameStatus />
       <AttackBoardControls />
+      {interactionMode === 'selectArrival' && selectedBoardId && selectedToPinId && (
+        <ArrivalOverlay
+          options={arrivalOptions}
+          onConfirm={(choice) => {
+            moveAttackBoard(selectedBoardId, selectedToPinId, false, choice);
+            clearArrivalSelection();
+          }}
+          onCancel={() => {
+            clearArrivalSelection();
+          }}
+        />
+      )}
     </div>
   );
 }

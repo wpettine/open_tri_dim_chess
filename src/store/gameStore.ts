@@ -127,6 +127,13 @@ export interface GameState {
     QL: { whiteBoardPin: number; blackBoardPin: number; whiteRotation: 0 | 180; blackRotation: 0 | 180 };
     KL: { whiteBoardPin: number; blackBoardPin: number; whiteRotation: 0 | 180; blackRotation: 0 | 180 };
   };
+  interactionMode?: 'idle' | 'selectPin' | 'selectArrival';
+  arrivalOptions?: Array<{ choice: 'identity' | 'rot180'; file: number; rank: number }> | null;
+  selectedToPinId?: string | null;
+  setArrivalSelection?: (toPinId: string) => void;
+  clearArrivalSelection?: () => void;
+
+
   selectSquare: (squareId: string) => void;
   movePiece: (piece: Piece, toFile: number, toRank: number, toLevel: string) => void;
   clearSelection: () => void;
@@ -140,7 +147,7 @@ export interface GameState {
   importGameFromJson: (json: string) => Promise<void>;
   selectBoard: (boardId: string | null) => void;
   canMoveBoard: (boardId: string, toPinId: string) => { allowed: boolean; reason?: string };
-  moveAttackBoard: (boardId: string, toPinId: string, rotate?: boolean) => void;
+  moveAttackBoard: (boardId: string, toPinId: string, rotate?: boolean, arrivalChoice?: 'identity' | 'rot180') => void;
   canRotate: (boardId: string, angle: 0 | 180) => { allowed: boolean; reason?: string };
   rotateAttackBoard: (boardId: string, angle: 0 | 180) => void;
   undoMove: () => void;
@@ -180,7 +187,31 @@ export const useGameStore = create<GameState>()((set, get) => ({
     KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
   },
   selectedBoardId: null,
+  setArrivalSelection: (toPinId: string) => {
+    const options = [
+      { choice: 'identity' as const, file: 0, rank: 0 },
+      { choice: 'rot180' as const, file: 0, rank: 0 },
+    ];
+    set({
+      interactionMode: 'selectArrival',
+      arrivalOptions: options,
+      selectedToPinId: toPinId,
+    });
+  },
+  clearArrivalSelection: () => {
+    set({
+      interactionMode: 'idle',
+      arrivalOptions: null,
+      selectedToPinId: null,
+    });
+  },
+
   moveHistory: [],
+  interactionMode: 'idle',
+  arrivalOptions: null,
+  selectedToPinId: null,
+
+
   
   selectSquare: (squareId: string) => {
     const state = get();
@@ -404,7 +435,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     return { allowed: result.isValid, reason: result.reason };
   },
 
-  moveAttackBoard: (boardId: string, toPinId: string, rotate = false) => {
+  moveAttackBoard: (boardId: string, toPinId: string, rotate = false, arrivalChoice?: 'identity' | 'rot180') => {
     const state = get();
     const fromPinId = state.attackBoardPositions[boardId];
     if (!fromPinId) return;
@@ -436,6 +467,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       pieces: state.pieces,
       world: state.world,
       attackBoardPositions: state.attackBoardPositions,
+      arrivalChoice,
     });
 
     const kingPieceBefore = state.pieces.find(p => p.type === 'king' && p.level === boardId);

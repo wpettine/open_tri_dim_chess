@@ -24,6 +24,7 @@ function SingleBoard({ board }: { board: BoardLayout }) {
   const highlightedSquareIds = useGameStore(state => state.highlightedSquareIds);
   const selectedBoardId = useGameStore(state => state.selectedBoardId);
   const canMoveBoard = useGameStore(state => state.canMoveBoard);
+  const setArrivalSelection = useGameStore(state => state.setArrivalSelection);
 
   const squares = Array.from(world.squares.values()).filter(
     (sq: WorldSquare) => sq.boardId === board.id
@@ -107,6 +108,7 @@ function SingleBoard({ board }: { board: BoardLayout }) {
           const pinY = rankToWorldY(corner.rank) + (corner.rank === minMainRank ? -halfSquare : halfSquare);
           
           let isEligible = false;
+          let matchingPinId: string | null = null;
           if (selectedBoardId) {
             for (const pinId of Object.keys(PIN_POSITIONS)) {
               const pin = PIN_POSITIONS[pinId];
@@ -135,6 +137,7 @@ function SingleBoard({ board }: { board: BoardLayout }) {
                   
                   if (pinMatchesCorner && rankMatchesCorner) {
                     isEligible = true;
+                    matchingPinId = pinId;
                     break;
                   }
                 }
@@ -148,6 +151,12 @@ function SingleBoard({ board }: { board: BoardLayout }) {
               position={[pinX, pinY, board.centerZ]}
               rotation={[Math.PI / 2, 0, 0]}
               userData={{ testId: 'pin-marker' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isEligible && selectedBoardId && matchingPinId) {
+                  setArrivalSelection?.(matchingPinId);
+                }
+              }}
             >
               <cylinderGeometry args={[THEME.pinLocationDisk.radius, THEME.pinLocationDisk.radius, THEME.pinLocationDisk.thickness, 32]} />
               <meshStandardMaterial 
