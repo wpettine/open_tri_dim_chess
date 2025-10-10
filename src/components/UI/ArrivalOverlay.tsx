@@ -17,6 +17,9 @@ export function ArrivalOverlay({
   onConfirm: (choice: ArrivalChoice) => void;
   onCancel: () => void;
 }) {
+  void options;
+  void onConfirm;
+  void onCancel;
   return null;
 }
 
