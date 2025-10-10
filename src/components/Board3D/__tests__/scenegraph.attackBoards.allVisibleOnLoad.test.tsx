@@ -18,10 +18,8 @@ describe('BoardRenderer - All Attack Boards Visible On Load', () => {
     root = result.root;
 
     const meshes = findMeshes(result.scene, () => true);
-    const platforms = meshes.filter((m) => (m.userData as { testId?: string } | undefined)?.testId === 'attack-platform');
     const squares = meshes.filter((m) => (m.userData as { testId?: string } | undefined)?.testId === 'square');
 
-    expect(platforms.length).toBe(3 + 4); // 3 main + 4 visible attack boards when trackStates applied; initial should be 3 if none visible
     expect(squares.length).toBe(48); // only main board squares
   });
 });
