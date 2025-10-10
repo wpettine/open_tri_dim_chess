@@ -186,6 +186,428 @@ reference_docs/                      # Documentation (CRITICAL READING)
 ├── DESIGN_DOC.md                    # Architecture decisions (deprecated)
 ├── IMPLEMENTATION_GUIDE.md          # Old phase guide (obsolete)
 └── CODE_ARCHITECTURE.md             # This file
+```
+
+---
+
+## Data Flow Architecture
+
+Understanding how data flows through the application is critical to working with the codebase effectively.
+
+### Application Initialization
+
+```
+main.tsx
+  ↓
+App.tsx (renders UI + Board3D)
+  ↓
+useGameStore (Zustand initialization)
+  ↓
+createChessWorld() ← THE CRITICAL FUNCTION
+  ↓
+Creates all 27 board instances + 100+ squares
+  ↓
+updateInstanceVisibility() - shows 4 initial instances
+  ↓
+createInitialPieces() - 32 pieces at starting positions
+  ↓
+Game ready for interaction
+```
+
+### Piece Movement Flow
+
+```
+User clicks square
+  ↓
+selectSquare(squareId)
+  ↓
+Find piece at square → getValidMovesForSquare()
+  ↓
+getLegalMovesAvoidingCheck(piece, world, pieces)
+  ↓
+For each potential move:
+  - getLegalMoves() → validates piece-specific rules
+  - simulateMove() → check if king safe
+  ↓
+Highlight valid moves
+  ↓
+User clicks destination
+  ↓
+movePiece(piece, toFile, toRank, toLevel)
+  ↓
+Update pieces array, check game state
+  ↓
+Switch turn, re-render
+```
+
+### Attack Board Activation Flow
+
+```
+User selects attack board → selectBoard(boardId)
+  ↓
+User clicks pin location → setArrivalSelection(toPinId)
+  ↓
+Calculate arrival options:
+  getArrivalOptions() → returns 2 choices (identity, rot180)
+  ↓
+Show ArrivalOverlay
+  ↓
+User selects choice → moveAttackBoard(boardId, toPinId, arrivalChoice)
+  ↓
+validateActivation() - check adjacency, occupancy, shadows
+  ↓
+executeActivation() - remap pieces, update positions
+  ↓
+Update trackStates with new pin/rotation
+  ↓
+updateInstanceVisibility() - hide old, show new instance
+  ↓
+Re-render scene
+```
+
+---
+
+## Core Systems Deep Dive
+
+### World Grid System Details
+
+**File: `src/engine/world/worldBuilder.ts`**
+
+The `createChessWorld()` function is the foundation. It creates 27 board instances:
+- 3 main boards (WL, NL, BL)
+- 24 attack board instances (QL1:0, QL1:180, ..., KL6:180)
+
+Each board has 4-16 squares, each with pre-computed `worldX`, `worldY`, `worldZ` coordinates.
+
+**Key insight:** This function is called ONCE. Coordinates never change after initialization.
+
+**File: `src/engine/world/coordinates.ts`**
+
+```typescript
+export function fileToWorldX(file: number): number {
+  return file * BOARD_SPACING; // BOARD_SPACING = 2.1
+}
+
+export function rankToWorldY(rank: number): number {
+  return rank * BOARD_SPACING;
+}
+```
+
+These functions convert game coordinates (file 0-5, rank 0-9) to Three.js world coordinates. They are ONLY called during world creation.
+
+**File: `src/engine/world/visibility.ts`**
+
+```typescript
+export function updateInstanceVisibility(world: ChessWorld, trackStates: TrackStates) {
+  // Hide all attack board instances
+  world.boards.forEach(b => {
+    if (b.type === 'attack') b.isVisible = false;
+  });
+  
+  // Show only 4 active instances based on trackStates
+  const whiteQLInstance = `QL${trackStates.QL.whiteBoardPin}:${trackStates.QL.whiteRotation}`;
+  world.boards.get(whiteQLInstance).isVisible = true;
+  // ... same for White KL, Black QL, Black KL
+}
+```
+
+This is called after every attack board activation to update which instances are visible.
+
+### State Management Details
+
+**File: `src/store/gameStore.ts`**
+
+The Zustand store contains:
+- `world: ChessWorld` - The pre-computed coordinate system
+- `pieces: Piece[]` - All pieces with file/rank/level coordinates
+- `trackStates` - Which pin each board occupies
+- `selectedSquareId`, `highlightedSquareIds` - UI state
+- Actions: `selectSquare()`, `movePiece()`, `moveAttackBoard()`, etc.
+
+**Critical function: `resolveBoardId()`** (in `src/utils/resolveBoardId.ts`)
+
+```typescript
+export function resolveBoardId(level: string, attackBoardStates?: AttackBoardStates): string {
+  if (level === 'W' || level === 'N' || level === 'B') return level;
+  
+  // For attack boards, look up active instance
+  const active = attackBoardStates?.[level]?.activeInstanceId;
+  return active ?? level; // e.g., 'QL1:0'
+}
+```
+
+This bridges piece storage (board IDs like 'WQL') with rendering (instance IDs like 'QL1:0').
+
+### Move Validation System Details
+
+**File: `src/engine/validation/moveValidator.ts`**
+
+```typescript
+export function getLegalMoves(piece: Piece, world: ChessWorld, allPieces: Piece[]): string[] {
+  const legalMoves: string[] = [];
+  
+  // Check EVERY square in the world
+  for (const [squareId, square] of world.squares) {
+    const context = { piece, fromSquare, toSquare: square, world, allPieces };
+    const result = validateMoveForPiece(context);
+    
+    if (result.valid) {
+      legalMoves.push(squareId);
+    }
+  }
+  
+  return legalMoves;
+}
+```
+
+Delegates to piece-specific validators in `pieceMovement.ts`.
+
+**File: `src/engine/validation/checkDetection.ts`**
+
+```typescript
+export function getLegalMovesAvoidingCheck(piece: Piece, world: ChessWorld, pieces: Piece[]): string[] {
+  const allMoves = getLegalMoves(piece, world, pieces);
+  
+  // Filter out moves that leave king in check
+  return allMoves.filter(toSquareId => {
+    const { newPieces } = simulateMove(pieces, piece, toSquareId, world);
+    return !isInCheck(piece.color, world, newPieces);
+  });
+}
+```
+
+This is what `getValidMovesForSquare()` calls in the store.
+
+### Rendering Pipeline Details
+
+**File: `src/components/Board3D/BoardRenderer.tsx`**
+
+```typescript
+export function BoardRenderer() {
+  const world = useGameStore(state => state.world);
+  
+  return (
+    <group>
+      {Array.from(world.boards.values()).map(board => (
+        board.type === 'main' || board.isVisible ? (
+          <SingleBoard key={board.id} board={board} />
+        ) : null
+      ))}
+    </group>
+  );
+}
+```
+
+**Key pattern:** Only render boards where `board.type === 'main'` OR `board.isVisible === true`.
+
+**File: `src/components/Board3D/Pieces3D.tsx`**
+
+```typescript
+export function Pieces3D() {
+  const pieces = useGameStore(state => state.pieces);
+  const world = useGameStore(state => state.world);
+  const attackBoardStates = useGameStore(state => state.attackBoardStates);
+  
+  return (
+    <group>
+      {pieces.map(piece => {
+        // Resolve board ID
+        const boardId = resolveBoardId(piece.level, attackBoardStates);
+        
+        // Build square ID
+        const squareId = `${fileToString(piece.file)}${piece.rank}${boardId}`;
+        
+        // Look up square
+        const square = world.squares.get(squareId);
+        
+        // Render at pre-computed position
+        return <SimplePiece position={[square.worldX, square.worldY, square.worldZ + 0.5]} />;
+      })}
+    </group>
+  );
+}
+```
+
+**Critical:** This is where `resolveBoardId()` is essential. Pieces store board IDs ('WQL'), but we need instance IDs ('QL1:0') to look up squares.
+
+---
+
+## Attack Board Movement System
+
+The attack board system is complex but follows a clear pattern.
+
+### Validation (worldMutation.ts)
+
+```typescript
+export function validateActivation(context: ActivationContext): BoardMoveValidation {
+  // 1. Rotation check - can only rotate with ≤1 piece
+  if (rotate && passengerCount > 1) return { isValid: false, reason: '...' };
+  
+  // 2. Adjacency check - destination must be adjacent
+  if (!adjacentPins.includes(toPinId)) return { isValid: false, reason: '...' };
+  
+  // 3. Direction check - can't move backward if occupied
+  const direction = classifyDirection(fromPinId, toPinId, controller);
+  if (direction === 'backward' && isOccupied) return { isValid: false, reason: '...' };
+  
+  // 4. Occupancy check - destination not occupied by other board
+  if (destinationOccupied) return { isValid: false, reason: '...' };
+  
+  // 5. Vertical shadow check - no blocking pieces
+  // ... checks each destination square for vertical shadows
+  
+  return { isValid: true };
+}
+```
+
+### Execution (worldMutation.ts)
+
+```typescript
+export function executeActivation(context: ActivationContext): ActivationResult {
+  const fromPin = PIN_POSITIONS[context.fromPinId];
+  const toPin = PIN_POSITIONS[context.toPinId];
+  
+  // Calculate offsets
+  const fileOffset = toPin.fileOffset - fromPin.fileOffset;
+  const rankOffset = (toPin.rankOffset - fromPin.rankOffset) / 2;
+  
+  // Remap passengers
+  const updatedPieces = context.pieces.map(piece => {
+    if (!isPassenger(piece)) return piece;
+    
+    let newFile = piece.file + fileOffset;
+    let newRank = piece.rank + rankOffset;
+    
+    // Apply rotation if chosen
+    if (context.arrivalChoice === 'rot180') {
+      // Invert relative position
+      const localFile = piece.file - fromPin.fileOffset;
+      const localRank = piece.rank - fromPin.rankOffset / 2;
+      newFile = toPin.fileOffset + (1 - localFile);
+      newRank = toPin.rankOffset / 2 + (1 - localRank);
+    }
+    
+    return { ...piece, file: newFile, rank: newRank, movedByAB: piece.type === 'pawn' };
+  });
+  
+  return {
+    updatedPieces,
+    updatedPositions: { ...positions, [boardId]: toPinId },
+    activeInstanceId: makeInstanceId(track, pinNum, rotation),
+  };
+}
+```
+
+---
+
+## Common Patterns
+
+### Pattern: Reading Square Coordinates
+
+**CORRECT:**
+```typescript
+const square = world.squares.get(squareId);
+const worldX = square.worldX;
+const worldY = square.worldY;
+const worldZ = square.worldZ;
+```
+
+**INCORRECT:**
+```typescript
+const worldX = fileToWorldX(file); // ❌ NEVER in components
+```
+
+### Pattern: Building Square IDs
+
+```typescript
+import { fileToString } from './coordinates';
+
+// Format: {file}{rank}{boardId}
+const squareId = `${fileToString(piece.file)}${piece.rank}${boardId}`;
+// Example: 'a2W', 'z1QL1:0', 'e9KL6:180'
+```
+
+### Pattern: Resolving Attack Board Instances
+
+```typescript
+const boardId = resolveBoardId(piece.level, attackBoardStates);
+// piece.level = 'WQL' → boardId = 'QL1:0' (or whatever pin White's QL board is at)
+// piece.level = 'W' → boardId = 'W' (main boards pass through unchanged)
+```
+
+---
+
+## Testing Strategy
+
+### Unit Tests
+
+Location: `src/engine/world/__tests__/`, `src/engine/validation/__tests__/`
+
+**Critical tests:**
+- `coordinateValidation.test.ts` - **MUST PASS** before proceeding
+- `worldBuilder.test.ts` - Tests world creation
+- `visibility.test.ts` - Tests visibility toggle
+- `activation.test.ts` - Tests attack board movement
+- `checkDetection.test.ts` - Tests check/checkmate/stalemate
+
+Run: `npm test`
+
+### Visual Validation
+
+Enable `WorldGridVisualizer` in `Board3D.tsx` to see:
+- All boards with labels
+- Coordinate values
+- Rank continuity verification
+
+This is a **Phase 3 requirement** - must be visually verified before game logic.
+
+---
+
+## Troubleshooting Guide
+
+### Issue: Piece Not Rendering
+
+**Cause:** Square not found in world.squares
+
+**Debug:**
+```typescript
+const boardId = resolveBoardId(piece.level, attackBoardStates);
+console.log('Board ID:', boardId);
+
+const squareId = `${fileToString(piece.file)}${piece.rank}${boardId}`;
+console.log('Square ID:', squareId);
+
+const square = world.squares.get(squareId);
+console.log('Square found:', !!square);
+```
+
+**Solution:** Ensure `attackBoardStates` has correct `activeInstanceId` for the board.
+
+### Issue: Attack Board Won't Move
+
+**Cause:** Validation failure
+
+**Debug:**
+```typescript
+const validation = validateActivation(context);
+console.log('Validation result:', validation);
+
+const adjacentPins = getAdjacentPins(fromPinId);
+console.log('Adjacent pins:', adjacentPins);
+console.log('Is destination adjacent?', adjacentPins.includes(toPinId));
+```
+
+**Common causes:**
+- Destination not adjacent
+- Moving backward while occupied  
+- Vertical shadow blocking
+- Destination occupied by another board
+
+### Issue: Coordinates Wrong
+
+**Cause:** Component calculating positions instead of reading from world
+
+**Solution:** Always read from `WorldSquare.worldX/Y/Z`. Never call `fileToWorldX()` or `rankToWorldY()` in components.
 
 ---
 
