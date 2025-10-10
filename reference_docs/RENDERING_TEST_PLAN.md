@@ -1,3 +1,76 @@
+# Rendering Test Plan — Updated Approach and Next Steps
+
+This section summarizes the approach implemented in this branch and provides an actionable checklist to complete the rollout.
+
+Adopted Approach
+- Upgrade stack to React 19 + @react-three/fiber v9 + @react-three/test-renderer v9; align @types/react and @types/react-dom to v19.
+- Keep three at ^0.169.x; keep @react-three/drei on 9.x (bump within 9.x only if peer warnings surface).
+- Test utilities operate on real Three.Object3D:
+  - renderR3F returns root.scene, with short polling for readiness; fallback to root if needed.
+  - findMeshes/findByUserData unwrap to Object3D via node.instance | _fiber.object | __fiber.stateNode, and traverse children arrays.
+- Stable selection by userData.testId:
+  - Squares: 'square'
+  - Pieces: 'piece'
+  - Selector disk (attack-only): 'selector-disk'
+  - Attack platform: 'attack-platform'
+  - Pin marker: 'pin-marker'
+- Conditional rendering rules:
+  - Squares render only for main boards or when a board isVisible.
+  - Selector disks render only for attack boards when visible.
+- Board ID resolution for pieces:
+  - resolveBoardId(level) uses attackBoardStates to map to active instance IDs for attack boards so piece square lookups match world.squares.
+- Test stabilization:
+  - Avoid overlapping act() by inserting a microtask delay after unmount before a subsequent render in rotation tests.
+
+Rationale
+- React 19 alignment is required for @react-three/fiber v9 peer deps.
+- Operating on real Object3Ds avoids fragile coupling to test-renderer wrappers.
+- userData.testId selectors are deterministic and resilient to geometry/material changes.
+
+Current Status
+- Targeted scenegraph tests pass after the above changes:
+  - scenegraph.boardSquares.test.tsx
+  - scenegraph.pieces.test.tsx
+  - scenegraph.visibility.test.tsx
+- Rotation test stability achieved with a brief await after unmount.
+
+Next Steps (Checklist)
+1) Dependency sanity
+   - If install conflicts occur: rm -rf node_modules package-lock.json && npm install
+   - Verify versions:
+     - npm ls @react-three/fiber @react-three/test-renderer @react-three/drei three react react-dom
+     - Expect fiber 9.x, test-renderer 9.x, drei 9.x, three 0.169.x, react/react-dom 19.x
+
+2) Testing loop
+   - Run targeted tests:
+     - npm test -- src/components/Board3D/__tests__/scenegraph.boardSquares.test.tsx
+     - npm test -- src/components/Board3D/__tests__/scenegraph.pieces.test.tsx
+     - npm test -- src/components/Board3D/__tests__/scenegraph.visibility.test.tsx
+   - Run full suite:
+     - npm test
+   - Lint:
+     - npm run lint
+   - Fix only issues introduced by the upgrade or directly related to these tests.
+
+3) Consolidations
+   - Centralize resolveBoardId(level) in a shared helper for tests and Pieces3D to remove duplication.
+   - Ensure all meshes depended on by tests have consistent userData.testId annotations.
+
+4) PR and CI
+   - Commit only relevant files (doc, test utils, minimal rendering tweaks).
+   - Push to devin/1760123945-r3f-test-stabilization (or existing feature branch).
+   - Open PR to main with summary:
+     - React 19 + R3F v9 + test-renderer v9 alignment
+     - Object3D traversal + userData.testId selectors
+     - Conditional rendering fixes (squares/selector-disk)
+     - Rotation test stabilization
+   - Wait for CI; address only related failures. If drei peer warnings emerge, bump within 9.x and rerun.
+
+5) Optional Tier-2 Pixel Tests (future)
+   - Add Playwright + pixelmatch snapshots for a small set of high-value scenes once Tier-1 coverage is stable.
+
+— End of Updated Approach —
+
 # Rendering Test Plan
 
 Audience

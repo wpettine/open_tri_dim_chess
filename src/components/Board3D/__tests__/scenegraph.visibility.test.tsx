@@ -205,6 +205,8 @@ describe('BoardRenderer - Visibility and Attack Board Controls', () => {
     );
 
     result1.root.unmount();
+    await new Promise((r) => setTimeout(r, 0));
+
 
     const worldWithRotation180 = buildWorldWithVisibleBoards(['QL1:180', 'KL1:180', 'QL6:180', 'KL6:180']);
     const storeStateRotation180 = buildStoreState({ world: worldWithRotation180 });

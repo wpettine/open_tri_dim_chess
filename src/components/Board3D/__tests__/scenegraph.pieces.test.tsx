@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+mport { describe, it, expect, afterEach } from 'vitest';
 import { renderR3F, findMeshes, closeTo, cleanup } from '../../../test/threeTestUtils';
 import { buildStoreState, buildPiecesMinimal, createTestPiece } from '../../../test/storeFixtures';
 import { Pieces3D } from '../Pieces3D';
@@ -34,16 +34,22 @@ describe('Pieces3D - Piece Mesh Positioning', () => {
       }
     );
 
+    const resolveBoardId = (level: string): string => {
+      if (level === 'W' || level === 'N' || level === 'B') return level;
+      return (storeState as any).attackBoardStates?.[level]?.activeInstanceId ?? level;
+    };
+
     expect(pieceMeshes.length).toBe(pieces.length);
 
     const world = storeState.world!;
 
     for (const piece of pieces) {
-      const squareId = `${['z', 'a', 'b', 'c', 'd', 'e'][piece.file]}${piece.rank}${piece.level}`;
+      const boardId = resolveBoardId(piece.level);
+      const squareId = `${['z', 'a', 'b', 'c', 'd', 'e'][piece.file]}${piece.rank}${boardId}`;
       const square = world.squares.get(squareId);
-      
+
       expect(square).toBeDefined();
-      
+
       if (square) {
         const pieceMesh = pieceMeshes.find((mesh) =>
           closeTo(mesh.position.x, square.worldX) &&
@@ -52,7 +58,7 @@ describe('Pieces3D - Piece Mesh Positioning', () => {
         );
 
         expect(pieceMesh).toBeDefined();
-        
+
         if (pieceMesh) {
           expect(closeTo(pieceMesh.position.x, square.worldX)).toBe(true);
           expect(closeTo(pieceMesh.position.y, square.worldY)).toBe(true);
@@ -71,7 +77,7 @@ describe('Pieces3D - Piece Mesh Positioning', () => {
       createTestPiece('queen', 'white', 2, 3, 'N'),
       createTestPiece('king', 'white', 4, 0, 'WKL'),
     ];
-    
+
     const storeState = buildStoreState({ pieces });
 
     const result = await renderR3F(<Pieces3D />, { storeState });
@@ -84,11 +90,11 @@ describe('Pieces3D - Piece Mesh Positioning', () => {
     const octahedronMeshes = findMeshes(scene, (mesh) => mesh.geometry?.type === 'OctahedronGeometry');
 
     expect(coneMeshes.length).toBe(2);
-    
+
     expect(boxMeshes.length).toBe(2);
-    
+
     expect(cylinderMeshes.length).toBe(1);
-    
+
     expect(octahedronMeshes.length).toBe(1);
   });
 
@@ -113,6 +119,11 @@ describe('Pieces3D - Piece Mesh Positioning', () => {
       }
     );
 
+    const resolveBoardId = (level: string): string => {
+      if (level === 'W' || level === 'N' || level === 'B') return level;
+      return (storeState as any).attackBoardStates?.[level]?.activeInstanceId ?? level;
+    };
+
     const world = storeState.world!;
 
     for (const mesh of pieceMeshes) {
@@ -131,7 +142,7 @@ describe('Pieces3D - Piece Mesh Positioning', () => {
       createTestPiece('king', 'white', 4, 0, 'WKL'),
       createTestPiece('pawn', 'white', 1, 1, 'WQL'),
     ];
-    
+
     const storeState = buildStoreState({ pieces });
 
     const result = await renderR3F(<Pieces3D />, { storeState });
@@ -151,16 +162,22 @@ describe('Pieces3D - Piece Mesh Positioning', () => {
       }
     );
 
+    const resolveBoardId = (level: string): string => {
+      if (level === 'W' || level === 'N' || level === 'B') return level;
+      return (storeState as any).attackBoardStates?.[level]?.activeInstanceId ?? level;
+    };
+
     expect(pieceMeshes.length).toBe(2);
 
     const world = storeState.world!;
 
     for (const piece of pieces) {
-      const squareId = `${['z', 'a', 'b', 'c', 'd', 'e'][piece.file]}${piece.rank}${piece.level}`;
+      const boardId = resolveBoardId(piece.level);
+      const squareId = `${['z', 'a', 'b', 'c', 'd', 'e'][piece.file]}${piece.rank}${boardId}`;
       const square = world.squares.get(squareId);
-      
+
       expect(square).toBeDefined();
-      
+
       if (square) {
         const pieceMesh = pieceMeshes.find((mesh) =>
           closeTo(mesh.position.x, square.worldX) &&

@@ -18,11 +18,11 @@
     "test:visual:update": "PLAYWRIGHT_UPDATE_SNAPSHOTS=1 playwright test"
   },
   "dependencies": {
-    "@react-three/drei": "^9.114.3",
-    "@react-three/fiber": "^8.17.10",
+    "@react-three/drei": "9.114.3",
+    "@react-three/fiber": "^9.1.0",
     "gsap": "^3.13.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "three": "^0.169.0",
     "zod": "^3.23.8",
     "zustand": "^5.0.0"
@@ -37,8 +37,8 @@
     "@types/node": "^24.6.0",
     "@types/pixelmatch": "^5.2.6",
     "@types/pngjs": "^6.0.5",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.1",
     "@types/three": "^0.169.0",
     "@vitejs/plugin-react": "^5.0.4",
     "@vitest/ui": "^2.1.4",

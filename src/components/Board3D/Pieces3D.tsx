@@ -5,11 +5,19 @@ import { THEME } from '../../config/theme';
 export function Pieces3D() {
   const pieces = useGameStore(state => state.pieces);
   const world = useGameStore(state => state.world);
+  const attackBoardStates = useGameStore(state => state.attackBoardStates);
+
+  const resolveBoardId = (level: string): string => {
+    if (level === 'W' || level === 'N' || level === 'B') return level;
+    const active = (attackBoardStates as any)?.[level]?.activeInstanceId;
+    return active ?? level;
+  };
 
   return (
     <group>
       {pieces.map((piece) => {
-        const squareId = `${['z', 'a', 'b', 'c', 'd', 'e'][piece.file]}${piece.rank}${piece.level}`;
+        const boardId = resolveBoardId(piece.level);
+        const squareId = `${['z', 'a', 'b', 'c', 'd', 'e'][piece.file]}${piece.rank}${boardId}`;
         const square = world.squares.get(squareId);
 
         if (!square) {
@@ -56,7 +64,7 @@ function SimplePiece({
   };
 
   return (
-    <mesh position={position}>
+    <mesh position={position} userData={{ testId: 'piece' }}>
       {getGeometry()}
       <meshStandardMaterial
         color={color}
