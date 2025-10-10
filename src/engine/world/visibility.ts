@@ -26,3 +26,11 @@ export function updateInstanceVisibility(world: ChessWorld, trackStates: TrackSt
     show(track, ts.blackBoardPin, ts.blackRotation);
   });
 }
+export function showAllAttackInstances(world: ChessWorld) {
+  world.boards.forEach((b) => {
+    if (b.type === 'attack' && b.id.includes(':')) {
+      b.isVisible = true;
+      b.isAccessible = true;
+    }
+  });
+}
