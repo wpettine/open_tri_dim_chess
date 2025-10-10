@@ -10,7 +10,7 @@ import { createSquareId } from '../engine/world/coordinates';
 import { getInitialPinPositions } from '../engine/world/pinPositions';
 import { PIN_POSITIONS } from '../engine/world/pinPositions';
 import { makeInstanceId, parseInstanceId } from '../engine/world/attackBoardAdjacency';
-
+import { updateInstanceVisibility } from '../engine/world/visibility';
 import { validateActivation, executeActivation } from '../engine/world/worldMutation';
 export interface GameSnapshot {
   pieces: Piece[];
@@ -457,6 +457,18 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
     __snapshots.push(takeSnapshot(state));
 
+    const parsed = parseInstanceId(result.activeInstanceId);
+    const nextTrackStates = { ...(state.trackStates ?? { QL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0 as 0|180, blackRotation: 0 as 0|180 }, KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0 as 0|180, blackRotation: 0 as 0|180 } }) };
+    if (parsed) {
+      const isWhite = boardId.startsWith('W');
+      const t = parsed.track as 'QL' | 'KL';
+      if (isWhite) {
+        nextTrackStates[t] = { ...nextTrackStates[t], whiteBoardPin: parsed.pin, whiteRotation: parsed.rotation as 0|180 };
+      } else {
+        nextTrackStates[t] = { ...nextTrackStates[t], blackBoardPin: parsed.pin, blackRotation: parsed.rotation as 0|180 };
+      }
+    }
+
     set({
       pieces: result.updatedPieces,
       attackBoardPositions: result.updatedPositions,
@@ -469,8 +481,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
           activeInstanceId: result.activeInstanceId,
         },
       },
+      trackStates: nextTrackStates,
     });
 
+    updateInstanceVisibility(state.world, nextTrackStates);
     get().updateGameState();
   },
 
@@ -499,17 +513,29 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
     if (angle === 0) {
       updateAttackBoardWorld(state.world, boardId, pinId, 0);
-      const prev = get().attackBoardStates?.[boardId]?.activeInstanceId;
       const track = boardId.endsWith('QL') ? 'QL' : 'KL';
       const pinNum = Number(pinId.slice(2));
       const newInstanceId = makeInstanceId(track as 'QL' | 'KL', pinNum, 0);
+
+      const nextTrackStates = { ...(state.trackStates ?? { QL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0 as 0|180, blackRotation: 0 as 0|180 }, KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0 as 0|180, blackRotation: 0 as 0|180 } }) };
+      const isWhite = boardId.startsWith('W');
+      const t = track as 'QL' | 'KL';
+      if (isWhite) {
+        nextTrackStates[t] = { ...nextTrackStates[t], whiteBoardPin: pinNum, whiteRotation: 0 };
+      } else {
+        nextTrackStates[t] = { ...nextTrackStates[t], blackBoardPin: pinNum, blackRotation: 0 };
+      }
+
       set({
         attackBoardStates: {
           ...(get().attackBoardStates ?? {}),
-          [boardId]: { activeInstanceId: prev ? newInstanceId : newInstanceId },
+          [boardId]: { activeInstanceId: newInstanceId },
         },
+        trackStates: nextTrackStates,
         moveHistory: state.moveHistory,
       });
+
+      updateInstanceVisibility(state.world, nextTrackStates);
       return;
     }
 
@@ -548,6 +574,18 @@ export const useGameStore = create<GameState>()((set, get) => ({
     const nextTurn = state.currentTurn === 'white' ? 'black' : 'white';
 
     __snapshots.push(takeSnapshot(state));
+    const parsed = parseInstanceId(result.activeInstanceId);
+    const nextTrackStates = { ...(state.trackStates ?? { QL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0 as 0|180, blackRotation: 0 as 0|180 }, KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0 as 0|180, blackRotation: 0 as 0|180 } }) };
+    if (parsed) {
+      const isWhite = boardId.startsWith('W');
+      const t = parsed.track as 'QL' | 'KL';
+      if (isWhite) {
+        nextTrackStates[t] = { ...nextTrackStates[t], whiteBoardPin: parsed.pin, whiteRotation: parsed.rotation as 0|180 };
+      } else {
+        nextTrackStates[t] = { ...nextTrackStates[t], blackBoardPin: parsed.pin, blackRotation: parsed.rotation as 0|180 };
+      }
+    }
+
     set({
       pieces: result.updatedPieces,
       attackBoardPositions: result.updatedPositions,
@@ -560,8 +598,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
           activeInstanceId: result.activeInstanceId,
         },
       },
+      trackStates: nextTrackStates,
     });
 
+    updateInstanceVisibility(state.world, nextTrackStates);
     get().updateGameState();
   },
   importGameFromJson: async (json: string) => {
