@@ -432,6 +432,521 @@ export function Pieces3D() {
 
 ---
 
+## File-by-File Reference
+
+This section provides a comprehensive reference for every important file in the codebase.
+
+### Engine Files
+
+#### `src/engine/world/types.ts`
+**Purpose:** Core TypeScript interfaces for the World Grid System  
+**Key Exports:**
+- `WorldSquare` - Represents a single square with game coordinates (file, rank, level) and 3D coordinates (worldX, worldY, worldZ)
+- `BoardLayout` - Represents a board with center position, size, rotation, and visibility flags
+- `ChessWorld` - The complete coordinate system (boards Map, squares Map, pins Map, adjacencyGraph)
+- `PinPosition` - Pin definition with fileOffset, rankOffset, zHeight, adjacentPins
+- `PinAdjacencyGraph` - Graph structure for pin neighbor relationships
+
+**Critical for:** Understanding the data structures that underpin the entire system
+
+#### `src/engine/world/worldBuilder.ts`
+**Purpose:** Creates the entire World Grid System at initialization  
+**Key Function:** `createChessWorld(): ChessWorld`  
+**What it does:**
+1. Creates 3 main boards (WL, NL, BL) with 48 total squares
+2. Creates 24 attack board instances (12 pins × 2 rotations per track × 2 tracks) with 96 total squares
+3. Returns complete ChessWorld with all coordinates pre-computed
+
+**Critical for:** Understanding how the coordinate system is built
+
+**Helper Functions:**
+- `createMainBoard()` - Creates one main board with squares
+- `createAttackBoardInstance()` - Creates one attack board instance at a specific pin/rotation
+
+#### `src/engine/world/coordinates.ts`
+**Purpose:** Coordinate transformation functions (INITIALIZATION ONLY)  
+**Key Exports:**
+- `fileToWorldX(file: number): number` - Converts file (0-5) to X coordinate
+- `rankToWorldY(rank: number): number` - Converts rank (0-9) to Y coordinate
+- `fileToString(file: number): string` - Converts file number to letter (z,a,b,c,d,e)
+- `stringToFile(fileStr: string): number` - Converts file letter to number
+- `createSquareId(file, rank, boardId): string` - Builds square ID like 'a2W'
+- `parseSquareId(squareId): { file, rank, boardId }` - Parses square ID
+
+**Critical Rule:** `fileToWorldX()` and `rankToWorldY()` are ONLY called during world creation, never in components
+
+#### `src/engine/world/coordinatesTransform.ts`
+**Purpose:** Arrival choice logic for attack board passengers  
+**Key Exports:**
+- `getArrivalOptions()` - Returns two arrival destinations (identity and rot180)
+- `calculateArrivalCoordinates()` - Calculates arrival coordinates for a choice
+- `translatePassenger()` - Simple translation (no rotation)
+- `rotatePassenger180()` - 180° rotation transformation
+
+**Used by:** Attack board activation flow when passenger needs to choose landing position
+
+#### `src/engine/world/pinPositions.ts`
+**Purpose:** Defines all 12 pin positions  
+**Key Exports:**
+- `PIN_POSITIONS` - Record of all 12 pin definitions
+- `Z_WHITE_MAIN`, `Z_NEUTRAL_MAIN`, `Z_BLACK_MAIN` - Z-height constants
+- `ATTACK_OFFSET` - How much attack boards float above main boards
+- `getInitialPinPositions()` - Returns starting positions { WQL: 'QL1', WKL: 'KL1', BQL: 'QL6', BKL: 'KL6' }
+
+**Critical for:** Understanding pin placement and initial setup
+
+#### `src/engine/world/attackBoardAdjacency.ts`
+**Purpose:** Pin neighbor graph and direction classification  
+**Key Exports:**
+- `ATTACK_BOARD_ADJACENCY` - Flat adjacency list (legacy)
+- `PIN_ADJACENCY` - Structured adjacency graph by track
+- `classifyDirection(fromPinId, toPinId, controller)` - Returns 'forward', 'backward', or 'side'
+- `getPinLevel(pinId)` - Returns pin level (1-6)
+- `makeInstanceId(track, pin, rotation)` - Builds instance ID like 'QL1:0'
+- `parseInstanceId(id)` - Parses instance ID to components
+
+**Used by:** Attack board validation to check adjacency and direction
+
+#### `src/engine/world/visibility.ts`
+**Purpose:** Manages which attack board instances are visible  
+**Key Exports:**
+- `updateInstanceVisibility(world, trackStates)` - Hides all instances, shows 4 active ones
+- `showAllAttackInstances(world)` - Shows all instances (debug mode)
+- `TrackStates` interface - Structure for tracking pin/rotation state
+
+**Called:** After every attack board activation to update visibility
+
+#### `src/engine/world/worldMutation.ts`
+**Purpose:** Attack board movement validation and execution  
+**Key Exports:**
+- `validateActivation(context): BoardMoveValidation` - Validates attack board move
+- `executeActivation(context): ActivationResult` - Executes move and remaps pieces
+- `validateBoardMove()` - Legacy function (wrapped by validateActivation)
+- `executeBoardMove()` - Legacy function (wrapped by executeActivation)
+
+**Validation checks:** rotation, adjacency, direction, occupancy, vertical shadow, king safety  
+**Execution:** Calculates offsets, remaps passengers, applies rotation, sets movedByAB flag
+
+#### `src/engine/world/ownership.ts`
+**Purpose:** Pin ownership and controller helper functions  
+**Key Exports:**
+- `getPinOwner(pinId, positions)` - Returns 'white', 'black', or null
+- `getBoardController(boardId)` - Returns board's inherent color
+- `getAdjacentPins(pinId)` - Returns array of adjacent pin IDs
+- `isAdjacent(pinA, pinB)` - Boolean adjacency check
+- `getVacantPins(fromPinId, positions)` - Returns unoccupied adjacent pins
+- `deriveInstanceIdForBoard()` - Builds instance ID from board/pin/rotation
+
+**Used by:** Attack board UI and validation
+
+#### `src/engine/validation/checkDetection.ts`
+**Purpose:** Check, checkmate, and stalemate detection  
+**Key Exports:**
+- `isInCheck(color, world, pieces): boolean` - Is this color in check?
+- `isCheckmate(color, world, pieces): boolean` - Is this color checkmated?
+- `isStalemate(color, world, pieces): boolean` - Is this color stalemated?
+- `getLegalMovesAvoidingCheck(piece, world, pieces): string[]` - Legal moves that don't expose king
+- `isSquareAttacked(square, byColor, world, pieces): boolean` - Can byColor attack this square?
+
+**Used by:** Game state updates and move validation
+
+#### `src/engine/validation/moveValidator.ts`
+**Purpose:** Main move validation entry point  
+**Key Exports:**
+- `getLegalMoves(piece, world, pieces): string[]` - All legal moves (ignoring check)
+- Internal: `validateMoveForPiece(context)` - Delegates to piece-specific validators
+
+**Flow:** Iterates all squares, calls piece-specific validator, returns legal square IDs
+
+#### `src/engine/validation/pieceMovement.ts`
+**Purpose:** Piece-specific movement rules  
+**Key Exports:**
+- `validatePawnMove(context): MoveResult`
+- `validateRookMove(context): MoveResult`
+- `validateKnightMove(context): MoveResult`
+- `validateBishopMove(context): MoveResult`
+- `validateQueenMove(context): MoveResult`
+- `validateKingMove(context): MoveResult`
+
+**Each returns:** `{ valid: boolean, reason?: string }`
+
+#### `src/engine/validation/pathValidation.ts`
+**Purpose:** Path blocking and vertical shadow validation  
+**Key Exports:**
+- Path blocking functions for sliding pieces
+- Vertical shadow rule enforcement
+- Knight exception handling
+
+#### `src/engine/initialSetup.ts`
+**Purpose:** Creates starting piece positions  
+**Key Export:** `createInitialPieces(): Piece[]`  
+**Returns:** Array of 32 pieces at starting positions
+
+### Store Files
+
+#### `src/store/gameStore.ts`
+**Purpose:** Main Zustand state store  
+**Size:** ~800 lines - the largest file in the codebase  
+**Key State:**
+- `world: ChessWorld` - The coordinate system
+- `pieces: Piece[]` - All pieces
+- `trackStates` - Which pin each board occupies
+- `currentTurn`, `isCheck`, `isCheckmate`, `isStalemate`, `gameOver`, `winner`
+- `selectedSquareId`, `highlightedSquareIds`, `selectedBoardId`
+- `moveHistory: Move[]`
+
+**Key Actions:**
+- `selectSquare(squareId)` - Select a square
+- `movePiece(piece, toFile, toRank, toLevel)` - Execute piece move
+- `selectBoard(boardId)` - Select attack board
+- `setArrivalSelection(toPinId)` - Calculate arrival options
+- `moveAttackBoard(boardId, toPinId, rotate, arrivalChoice)` - Execute activation
+- `getValidMovesForSquare(squareId)` - Get legal moves
+- `resetGame()`, `undoMove()`, `saveCurrentGame()`, `loadGameById()`
+
+**Critical for:** Understanding how state flows through the application
+
+#### `src/store/cameraStore.ts`
+**Purpose:** Camera view presets  
+**State:** `currentView: 'default' | 'top' | 'side' | 'front'`  
+**Action:** `setCameraView(view)`
+
+### Component Files
+
+#### `src/components/Board3D/Board3D.tsx`
+**Purpose:** Three.js canvas setup  
+**Renders:**
+- Canvas with camera and lighting
+- CameraController (GSAP animations)
+- BoardRenderer (all boards)
+- Pieces3D (all pieces)
+
+**Key:** Sets up the 3D environment
+
+#### `src/components/Board3D/BoardRenderer.tsx`
+**Purpose:** Renders all boards  
+**Key Logic:**
+- Iterates `world.boards.values()`
+- Renders if `board.type === 'main'` OR `board.isVisible`
+- Creates platform mesh, selector disk, pin markers, square meshes
+- Handles click events for square and board selection
+
+**Pattern:** Reads coordinates from `BoardLayout` and `WorldSquare`, never calculates
+
+#### `src/components/Board3D/Pieces3D.tsx`
+**Purpose:** Renders all pieces  
+**Key Logic:**
+1. Resolve `piece.level` to instance ID via `resolveBoardId()`
+2. Build square ID: `${fileToString(piece.file)}${piece.rank}${boardId}`
+3. Look up square in `world.squares`
+4. Render at `[square.worldX, square.worldY, square.worldZ + 0.5]`
+
+**Critical function:** `resolveBoardId()` - maps 'WQL' to 'QL1:0'
+
+#### `src/components/UI/` files
+- `GameStatus.tsx` - Turn, check, checkmate display
+- `MoveHistory.tsx` - Move list with notation
+- `CameraControls.tsx` - Camera preset buttons
+- `AttackBoardControls.tsx` - Attack board selection UI
+- `ArrivalOverlay.tsx` - Arrival choice selection modal
+- `SaveLoadManager.tsx` - Game save/load UI
+- `RailPins.tsx` - Pin visualization helpers
+
+#### `src/components/Debug/WorldGridVisualizer.tsx`
+**Purpose:** Visual coordinate validation tool  
+**Renders:** Wireframe boxes and labels for all squares  
+**Usage:** Enable in Board3D.tsx for Phase 3 validation
+
+### Utility Files
+
+#### `src/utils/resolveBoardId.ts`
+**Purpose:** Maps piece.level to active instance ID  
+**Key Function:** `resolveBoardId(level, attackBoardStates): string`  
+**Logic:**
+- If main board ('W', 'N', 'B'): return as-is
+- If attack board ('WQL', 'WKL', 'BQL', 'BKL'): look up active instance ID
+
+**Critical for:** Rendering pieces on attack boards
+
+#### `src/utils/debugLogger.ts`
+**Purpose:** Debug logging for coordinates  
+**Key Function:** `logWorldCoordinates(world)` - Outputs all board and square positions
+
+### Configuration Files
+
+#### `src/config/theme.ts`
+**Purpose:** Visual theme configuration  
+**Exports:** `THEME` object with:
+- `squares` - Colors, sizes, opacity
+- `platforms` - Board platform colors
+- `pieces` - Piece colors, material properties
+- `lighting` - Ambient and directional light settings
+- `camera` - Default position and FOV
+- `cameraPresets` - Named camera positions
+- `scene` - Background colors
+
+### Persistence Files
+
+#### `src/persistence/GamePersistence.ts`
+**Purpose:** Abstract persistence interface
+
+#### `src/persistence/localStoragePersistence.ts`
+**Purpose:** LocalStorage implementation  
+**Methods:** `saveGame()`, `loadGame()`, `deleteGame()`, `exportGame()`, `importGame()`
+
+#### `src/persistence/schema.ts`
+**Purpose:** Zod schemas for validation  
+**Exports:** `SCHEMA_VERSION`, game state schemas
+
+---
+
+## Key Functions Reference
+
+This section provides detailed reference for the most important functions.
+
+### World Creation Functions
+
+#### `createChessWorld(): ChessWorld`
+**File:** `src/engine/world/worldBuilder.ts`  
+**Called:** Once at initialization  
+**Returns:** Complete ChessWorld with 27 boards and 100+ squares  
+**Side effects:** None (pure function)  
+**Time complexity:** O(n) where n = number of squares (~150)
+
+**Implementation:**
+```typescript
+export function createChessWorld(): ChessWorld {
+  const boards = new Map<string, BoardLayout>();
+  const squares = new Map<string, WorldSquare>();
+  const pins = new Map(Object.entries(PIN_POSITIONS));
+  const adjacencyGraph = PIN_ADJACENCY;
+  
+  // Create 3 main boards
+  const mainWhite = createMainBoard('WL', 'W', [1,2,3,4], [1,2,3,4], Z_WHITE_MAIN);
+  const mainNeutral = createMainBoard('NL', 'N', [1,2,3,4], [3,4,5,6], Z_NEUTRAL_MAIN);
+  const mainBlack = createMainBoard('BL', 'B', [1,2,3,4], [5,6,7,8], Z_BLACK_MAIN);
+  
+  boards.set('WL', mainWhite.board);
+  boards.set('NL', mainNeutral.board);
+  boards.set('BL', mainBlack.board);
+  
+  mainWhite.squares.forEach(sq => squares.set(sq.id, sq));
+  mainNeutral.squares.forEach(sq => squares.set(sq.id, sq));
+  mainBlack.squares.forEach(sq => squares.set(sq.id, sq));
+  
+  // Create 24 attack board instances (2 tracks × 6 pins × 2 rotations)
+  for (const track of ['QL', 'KL']) {
+    for (let pin = 1; pin <= 6; pin++) {
+      for (const rotation of [0, 180]) {
+        const instance = createAttackBoardInstance(track, pin, rotation);
+        boards.set(instance.board.id, instance.board);
+        instance.squares.forEach(sq => squares.set(sq.id, sq));
+      }
+    }
+  }
+  
+  return { boards, squares, pins, adjacencyGraph };
+}
+```
+
+#### `fileToWorldX(file: number): number`
+**File:** `src/engine/world/coordinates.ts`  
+**Purpose:** Converts file (0-5) to Three.js X coordinate  
+**Called by:** `createChessWorld()` only  
+**Formula:** `file * BOARD_SPACING` where `BOARD_SPACING = 2.1`
+
+**Examples:**
+- file 0 (z) → 0.0
+- file 1 (a) → 2.1
+- file 2 (b) → 4.2
+- file 3 (c) → 6.3
+- file 4 (d) → 8.4
+- file 5 (e) → 10.5
+
+#### `rankToWorldY(rank: number): number`
+**File:** `src/engine/world/coordinates.ts`  
+**Purpose:** Converts rank (0-9) to Three.js Y coordinate  
+**Called by:** `createChessWorld()` only  
+**Formula:** `rank * BOARD_SPACING`
+
+**Examples:**
+- rank 0 → 0.0
+- rank 1 → 2.1
+- rank 9 → 18.9
+
+### Visibility Management Functions
+
+#### `updateInstanceVisibility(world: ChessWorld, trackStates: TrackStates): void`
+**File:** `src/engine/world/visibility.ts`  
+**Purpose:** Updates which attack board instances are visible  
+**Called:** After every attack board activation  
+**Side effects:** Mutates `board.isVisible` and `board.isAccessible` flags  
+**Time complexity:** O(n) where n = number of boards (27)
+
+**Algorithm:**
+1. Hide all attack board instances
+2. Show White QL instance based on `trackStates.QL.whiteBoardPin` and `trackStates.QL.whiteRotation`
+3. Show White KL instance
+4. Show Black QL instance
+5. Show Black KL instance
+
+### Attack Board Functions
+
+#### `validateActivation(context: ActivationContext): BoardMoveValidation`
+**File:** `src/engine/world/worldMutation.ts`  
+**Purpose:** Validates attack board activation  
+**Returns:** `{ isValid: boolean, reason?: string }`  
+**Time complexity:** O(p) where p = number of pieces
+
+**Validation checks (in order):**
+1. **Rotation check** - Can only rotate with ≤1 piece
+2. **Adjacency check** - Destination must be adjacent to source
+3. **Direction check** - Can't move backward if occupied (forward = increasing pin for White, decreasing for Black)
+4. **Occupancy check** - Destination not occupied by another board
+5. **Vertical shadow check** - No pieces blocking at same file/rank
+6. **King safety check** - Move doesn't expose king (TODO)
+
+#### `executeActivation(context: ActivationContext): ActivationResult`
+**File:** `src/engine/world/worldMutation.ts`  
+**Purpose:** Executes attack board activation and remaps pieces  
+**Returns:** `{ updatedPieces, updatedPositions, activeInstanceId }`  
+**Time complexity:** O(p) where p = number of pieces
+
+**Algorithm:**
+1. Calculate file and rank offsets based on pin positions
+2. Identify passenger pieces
+3. Remap each passenger:
+   - If identity mapping: add offsets
+   - If rot180 mapping: invert relative position then add offsets
+4. Set `movedByAB = true` for pawn passengers
+5. Update board position record
+6. Calculate new activeInstanceId
+
+#### `getArrivalOptions(...): Array<{ choice, file, rank }>`
+**File:** `src/engine/world/coordinatesTransform.ts`  
+**Purpose:** Calculates two arrival options for passenger  
+**Returns:** Array with 2 elements (identity and rot180 mappings)  
+**Parameters:**
+- `track: 'QL' | 'KL'`
+- `fromPin: number`
+- `toPin: number`
+- `fromRotation: 0 | 180`
+- `toRotation: 0 | 180`
+- `localFile: number` (0 or 1, relative to attack board)
+- `localRank: number` (0 or 1)
+
+### Move Validation Functions
+
+#### `getLegalMoves(piece: Piece, world: ChessWorld, pieces: Piece[]): string[]`
+**File:** `src/engine/validation/moveValidator.ts`  
+**Purpose:** Returns all legal moves for a piece (ignoring check)  
+**Returns:** Array of square IDs  
+**Time complexity:** O(s × v) where s = squares, v = validation complexity
+
+**Algorithm:**
+1. Get piece's current square
+2. Iterate all squares in world
+3. For each square, call `validateMoveForPiece()`
+4. If valid, add square ID to results
+5. Return results
+
+#### `getLegalMovesAvoidingCheck(piece: Piece, world: ChessWorld, pieces: Piece[]): string[]`
+**File:** `src/engine/validation/checkDetection.ts`  
+**Purpose:** Returns legal moves that don't leave king in check  
+**Returns:** Array of square IDs  
+**Time complexity:** O(s × v × c) where c = check detection complexity
+
+**Algorithm:**
+1. Get all legal moves (ignoring check)
+2. For each move:
+   - Simulate the move
+   - Check if player's king is in check
+   - If not in check, include in results
+3. Return results
+
+#### `isInCheck(color: 'white'|'black', world: ChessWorld, pieces: Piece[]): boolean`
+**File:** `src/engine/validation/checkDetection.ts`  
+**Purpose:** Determines if a color is in check  
+**Time complexity:** O(p × s) where p = opponent pieces, s = squares
+
+**Algorithm:**
+1. Find king of specified color
+2. Get king's square
+3. For each opponent piece:
+   - Get legal moves for that piece
+   - If king's square is in legal moves, return true
+4. Return false
+
+### Rendering Functions
+
+#### `resolveBoardId(level: string, attackBoardStates?: AttackBoardStates): string`
+**File:** `src/utils/resolveBoardId.ts`  
+**Purpose:** Maps piece.level to active instance ID  
+**Returns:** Board ID or instance ID  
+**Critical for:** Rendering pieces on attack boards
+
+**Logic:**
+- If level is 'W', 'N', or 'B': return unchanged (main board)
+- If level is 'WQL', 'WKL', 'BQL', or 'BKL': look up active instance ID from attackBoardStates
+- Return instance ID like 'QL1:0'
+
+**Example:**
+```typescript
+// Piece on White's attack board (Queen's Line)
+piece.level = 'WQL';
+attackBoardStates.WQL.activeInstanceId = 'QL3:180';
+resolveBoardId('WQL', attackBoardStates); // Returns 'QL3:180'
+
+// Piece on main board
+piece.level = 'W';
+resolveBoardId('W', attackBoardStates); // Returns 'W'
+```
+
+### State Management Functions
+
+#### `selectSquare(squareId: string): void`
+**File:** `src/store/gameStore.ts`  
+**Purpose:** Handles square selection (piece or destination)  
+**Side effects:** Updates store state
+
+**Logic:**
+1. If nothing selected:
+   - Find piece at square
+   - If piece belongs to current player, select it and highlight valid moves
+2. If square already selected:
+   - If clicked square is a valid move destination, execute move
+   - If clicked square has current player's piece, select that piece instead
+   - Otherwise, deselect
+
+#### `movePiece(piece: Piece, toFile: number, toRank: number, toLevel: string): void`
+**File:** `src/store/gameStore.ts`  
+**Purpose:** Executes a piece move  
+**Side effects:** Updates pieces, captures, checks game state, switches turn
+
+**Logic:**
+1. Find and remove captured piece (if any)
+2. Update moving piece's position and set `hasMoved = true`
+3. Add move to history
+4. Switch turn
+5. Check for check, checkmate, stalemate
+6. Update game state
+
+#### `moveAttackBoard(boardId: string, toPinId: string, rotate?: boolean, arrivalChoice?: ArrivalChoice): void`
+**File:** `src/store/gameStore.ts`  
+**Purpose:** Executes attack board activation  
+**Side effects:** Updates pieces, board positions, track states, visibility
+
+**Logic:**
+1. Get current position from `attackBoardPositions`
+2. Validate activation
+3. Execute activation (remap pieces)
+4. Update `attackBoardPositions` and `attackBoardStates`
+5. Update `trackStates` with new pin and rotation
+6. Call `updateInstanceVisibility()`
+7. Clear selection
+
+---
+
 ## Attack Board Movement System
 
 The attack board system is complex but follows a clear pattern.
