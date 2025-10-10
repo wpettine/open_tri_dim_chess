@@ -129,6 +129,10 @@ export interface GameState {
   };
   interactionMode?: 'idle' | 'selectPin' | 'selectArrival';
   arrivalOptions?: Array<{ choice: 'identity' | 'rot180'; file: number; rank: number }> | null;
+  selectedToPinId?: string | null;
+  setArrivalSelection?: (toPinId: string) => void;
+  clearArrivalSelection?: () => void;
+
 
   selectSquare: (squareId: string) => void;
   movePiece: (piece: Piece, toFile: number, toRank: number, toLevel: string) => void;
@@ -186,6 +190,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
   moveHistory: [],
   interactionMode: 'idle',
   arrivalOptions: null,
+  selectedToPinId: null,
+
 
   
   selectSquare: (squareId: string) => {
@@ -306,6 +312,25 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
   selectBoard: (boardId: string | null) => {
     if (boardId === null) {
+  setArrivalSelection: (toPinId: string) => {
+    const options = [
+      { choice: 'identity' as const, file: 0, rank: 0 },
+      { choice: 'rot180' as const, file: 0, rank: 0 },
+    ];
+    set({
+      interactionMode: 'selectArrival',
+      arrivalOptions: options,
+      selectedToPinId: toPinId,
+    });
+  },
+  clearArrivalSelection: () => {
+    set({
+      interactionMode: 'idle',
+      arrivalOptions: null,
+      selectedToPinId: null,
+    });
+  },
+
       set({ selectedBoardId: null });
     } else {
       set({ 
