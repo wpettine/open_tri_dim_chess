@@ -43,26 +43,26 @@ describe('Coordinate Validation', () => {
   });
 
   it('should align attack board coordinates with rank system', () => {
-    const rank0WQL = world.squares.get('z0WQL');
-    const rank1WQL = world.squares.get('z1WQL');
+    const rank0QL1 = world.squares.get('z0QL1:0');
+    const rank1QL1 = world.squares.get('z1QL1:0');
     
-    expect(rank0WQL).toBeDefined();
-    expect(rank1WQL).toBeDefined();
+    expect(rank0QL1).toBeDefined();
+    expect(rank1QL1).toBeDefined();
     
-    if (rank0WQL && rank1WQL) {
-      expect(rank1WQL.worldY).toBeGreaterThan(rank0WQL.worldY);
-      expect(rank1WQL.worldY - rank0WQL.worldY).toBeCloseTo(2.1, 1);
+    if (rank0QL1 && rank1QL1) {
+      expect(rank1QL1.worldY).toBeGreaterThan(rank0QL1.worldY);
+      expect(rank1QL1.worldY - rank0QL1.worldY).toBeCloseTo(2.1, 1);
     }
 
-    const rank8BQL = world.squares.get('z8BQL');
-    const rank9BQL = world.squares.get('z9BQL');
+    const rank8QL6 = world.squares.get('z8QL6:0');
+    const rank9QL6 = world.squares.get('z9QL6:0');
     
-    expect(rank8BQL).toBeDefined();
-    expect(rank9BQL).toBeDefined();
+    expect(rank8QL6).toBeDefined();
+    expect(rank9QL6).toBeDefined();
     
-    if (rank8BQL && rank9BQL) {
-      expect(rank9BQL.worldY).toBeGreaterThan(rank8BQL.worldY);
-      expect(rank9BQL.worldY - rank8BQL.worldY).toBeCloseTo(2.1, 1);
+    if (rank8QL6 && rank9QL6) {
+      expect(rank9QL6.worldY).toBeGreaterThan(rank8QL6.worldY);
+      expect(rank9QL6.worldY - rank8QL6.worldY).toBeCloseTo(2.1, 1);
     }
   });
 

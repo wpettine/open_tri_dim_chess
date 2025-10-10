@@ -5,15 +5,22 @@ import type { WorldSquare } from '../types';
 describe('World Builder', () => {
   const world = createChessWorld();
 
-  it('should create 7 boards', () => {
-    expect(world.boards.size).toBe(7);
+  it('should create 27 boards (3 main + 24 attack instances)', () => {
+    expect(world.boards.size).toBe(27);
     expect(world.boards.has('WL')).toBe(true);
     expect(world.boards.has('NL')).toBe(true);
     expect(world.boards.has('BL')).toBe(true);
-    expect(world.boards.has('WQL')).toBe(true);
-    expect(world.boards.has('WKL')).toBe(true);
-    expect(world.boards.has('BQL')).toBe(true);
-    expect(world.boards.has('BKL')).toBe(true);
+    
+    const tracks = ['QL', 'KL'];
+    const rotations = [0, 180];
+    for (const track of tracks) {
+      for (let pin = 1; pin <= 6; pin++) {
+        for (const rotation of rotations) {
+          const instanceId = `${track}${pin}:${rotation}`;
+          expect(world.boards.has(instanceId)).toBe(true);
+        }
+      }
+    }
   });
 
   it('should create correct number of squares for main boards', () => {
@@ -26,16 +33,21 @@ describe('World Builder', () => {
     expect(blSquares.length).toBe(16);
   });
 
-  it('should create correct number of squares for attack boards', () => {
-    const wqlSquares = Array.from(world.squares.values()).filter((sq: WorldSquare) => sq.boardId === 'WQL');
-    const wklSquares = Array.from(world.squares.values()).filter((sq: WorldSquare) => sq.boardId === 'WKL');
-    const bqlSquares = Array.from(world.squares.values()).filter((sq: WorldSquare) => sq.boardId === 'BQL');
-    const bklSquares = Array.from(world.squares.values()).filter((sq: WorldSquare) => sq.boardId === 'BKL');
+  it('should create correct number of squares for attack board instances', () => {
+    const tracks = ['QL', 'KL'];
+    const rotations = [0, 180];
     
-    expect(wqlSquares.length).toBe(4);
-    expect(wklSquares.length).toBe(4);
-    expect(bqlSquares.length).toBe(4);
-    expect(bklSquares.length).toBe(4);
+    for (const track of tracks) {
+      for (let pin = 1; pin <= 6; pin++) {
+        for (const rotation of rotations) {
+          const instanceId = `${track}${pin}:${rotation}`;
+          const instanceSquares = Array.from(world.squares.values()).filter(
+            (sq: WorldSquare) => sq.boardId === instanceId
+          );
+          expect(instanceSquares.length).toBe(4);
+        }
+      }
+    }
   });
 
   it('should have unique square IDs', () => {
@@ -70,5 +82,29 @@ describe('World Builder', () => {
     expect(world.pins.size).toBe(12);
     expect(world.pins.has('QL1')).toBe(true);
     expect(world.pins.has('KL6')).toBe(true);
+  });
+
+  it('should initialize all attack board instances as invisible', () => {
+    const attackBoards = Array.from(world.boards.values()).filter((board) => board.type === 'attack');
+    expect(attackBoards.length).toBe(24);
+    
+    attackBoards.forEach((board) => {
+      expect(board.isVisible).toBe(false);
+      expect(board.isAccessible).toBe(false);
+    });
+  });
+
+  it('should set track and pin properties on attack board instances', () => {
+    const ql1_0 = world.boards.get('QL1:0');
+    expect(ql1_0).toBeDefined();
+    expect(ql1_0?.track).toBe('QL');
+    expect(ql1_0?.pin).toBe(1);
+    expect(ql1_0?.rotation).toBe(0);
+
+    const kl6_180 = world.boards.get('KL6:180');
+    expect(kl6_180).toBeDefined();
+    expect(kl6_180?.track).toBe('KL');
+    expect(kl6_180?.pin).toBe(6);
+    expect(kl6_180?.rotation).toBe(180);
   });
 });
