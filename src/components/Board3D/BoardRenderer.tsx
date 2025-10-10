@@ -187,3 +187,4 @@ function SingleBoard({ board }: { board: BoardLayout }) {
     </group>
   );
 }
+export default BoardRenderer;
