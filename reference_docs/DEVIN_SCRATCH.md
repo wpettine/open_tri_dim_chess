@@ -128,6 +128,29 @@ How to proceed (for next session)
 - Add tests in Step 7 incrementally; run focused suites during dev
 - Then expand validateActivation (Step 4), add passenger tracking refinements (Step 5)
 - Push commits to branch devin/1760055586-phase-3-activation-migration and update PR #37
+# Phase 7 UI Plan Summary
+
+What’s accomplished (PR #37)
+- Activation API wrappers: validateActivation/executeActivation; store calls migrated; activeInstanceId tracked.
+- Adjacency typing fixes; CI green.
+
+Next steps to implement
+- Engine/helpers:
+  - calculateArrivalCoordinates, getArrivalOptions, validateArrivalSquares.
+  - executeActivation(arrivalChoice) and movedByAB updates.
+- Store:
+  - After executeActivation, set trackStates and call updateInstanceVisibility(world, trackStates).
+  - Add UI state: selectedAttackBoard, eligiblePins, arrivalOptions, interactionMode.
+  - Actions: computeEligiblePins, selectPin, finalizeActivation, clearSelection.
+- UI:
+  - Use existing center disks for selection.
+  - Pin markers with eligibility reasons.
+  - ArrivalOverlay for identity/rot180 choice.
+
+Verification
+- Add unit tests for eligiblePins and arrivalOptions helpers.
+- Extend boardMovement tests to assert attackBoardStates.activeInstanceId and visibility toggling via updateInstanceVisibility.
+
 
 # Devin Scratchpad – Phase I Execution Notes
 

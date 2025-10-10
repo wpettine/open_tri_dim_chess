@@ -3225,3 +3225,105 @@ Key success factors:
 **Document Version:** 1.0  
 **Status:** Ready for Review  
 **Last Updated:** October 9, 2025
+## Phase 7: UI for Attack Boards (Selection, Docking, Arrival)
+
+Scope
+- Implement a two-step interaction flow for attack board usage with instance-based activation and visibility toggling.
+- Prereqs: Phases 1–4 completed (track state, adjacency/ownership, activation validation/execution, arrival mapping helpers).
+
+Prerequisites
+- Phase 1–2
+  - TrackStates present; updateInstanceVisibility(world, trackStates) toggles exactly four visible/accessible instances.
+  - Pin adjacency graph and helpers (getAdjacentPins, isAdjacent, getPinOwner/getBoardController).
+- Phase 3
+  - validateActivation(ctx) enforces adjacency, occupancy (one board per pin), direction rules for occupied boards, vertical-shadow checks, king-safety scaffold.
+  - executeActivation(ctx, arrivalChoice) returns updatedPieces/positions and activeInstanceId; movedByAB set for transported pawns.
+- Phase 4
+  - calculateArrivalCoordinates(fromPin, toPin, localFile, localRank, choice) for identity vs 180 rotation.
+  - getArrivalOptions(boardId, fromPinId, toPinId, pieces) + validateArrivalSquares options.
+
+Interaction Flow (maps to 4 steps)
+1) Select an eligible attack board
+- Eligibility: board is controllable by current player and has ≤ 1 passenger; if occupied, passenger color must match current player.
+- UX: center disk of each visible instance highlights like a selected square; click sets selection.
+- Store state set:
+  - selectedAttackBoard: { boardId, track, pin, instanceId }
+  - interactionMode: 'selectPin'
+
+2) Highlight eligible docking pins (corner disks on main boards)
+- Compute candidates via adjacency graph for the selected pin, filtered by:
+  - Pin not occupied by the other board on same track.
+  - Direction rules for occupied boards (no backward; sideways cannot increase distance from away side).
+  - Vertical shadow legality at destination instance.
+  - Arrival-feasible: if occupied, at least one legal arrival option exists.
+- UX: eligible disks use destination square color; ineligible show tooltip reason.
+
+3a) Empty board → choose pin, toggle visibility
+- On pin click:
+  - validateActivation with empty passenger path.
+  - executeActivation with arrivalChoice='identity'.
+  - Update trackStates and call updateInstanceVisibility(world, trackStates).
+  - End turn; clear selection.
+
+3b/4) Occupied board → choose pin, then choose arrival square
+- On pin click:
+  - Build arrivalOptions via getArrivalOptions and validateArrivalSquares.
+  - If none valid, show reason and remain in pin selection.
+  - Else render two overlays (identity/rot180) on destination instance.
+- On arrival choice click:
+  - executeActivation with selected arrivalChoice.
+  - Apply capture if needed, set movedByAB for pawns.
+  - Update trackStates, call updateInstanceVisibility, end turn, clear selection.
+
+Store State and Actions
+- UI state additions:
+  - selectedAttackBoard: { boardId, track, pin, instanceId } | null
+  - eligiblePins: string[]
+  - arrivalOptions: Array<{ choice: 'identity' | 'rot180'; file: number; rank: number; squareId: string }>
+  - interactionMode: 'idle' | 'selectPin' | 'selectArrival'
+- Actions:
+  - selectBoard(boardId|null)
+  - computeEligiblePins(boardId): string[]
+  - selectPin(pinId): sets interactionMode and, if occupied, computes arrivalOptions
+  - clearSelection()
+  - finalizeActivation({ boardId, fromPinId, toPinId, arrivalChoice }): applies executeActivation, updates trackStates, calls updateInstanceVisibility, flips turn
+
+Engine/API Contracts
+- Queries:
+  - getBoardController(boardId, fromPinId, pieces)
+  - validateActivation(ctx) for candidate pins
+  - getArrivalOptions + validateArrivalSquares for occupied case
+- Mutations:
+  - executeActivation(ctx, arrivalChoice) → { updatedPieces, updatedPositions, activeInstanceId }
+  - updateInstanceVisibility(world, trackStates) after trackStates set
+
+Components
+- Board3D/BoardRenderer.tsx:
+  - Center disk per visible attack instance; click to select board.
+  - Pin markers on main board corners; eligibility color via canMoveBoard/validateActivation; tooltips with reasons.
+- New ArrivalOverlay:
+  - Renders two highlighted squares (identity/rot180) on destination instance with labels/icons; click to confirm; ESC/cancel to return.
+
+Visual/UX
+- Colors: reuse THEME.squares.selectedColor, availableMoveColor.
+- Pointers/tooltips: pointer on eligible; not-allowed + brief reason on ineligible.
+- Cancel: clicking background or ESC clears selection.
+
+Edge Cases
+- No eligible pins: show inline message; remain selected until cancel.
+- Single arrival option: either auto-select or require confirmation (configurable).
+- Forced promotions surface promotion UI before ending turn (Phase 6).
+- King safety: validation gates pins/arrival options that would leave king in check once implemented.
+
+Testing
+- Unit:
+  - eligiblePins computation with adjacency + direction + shadow + arrival-feasible filters.
+  - calculateArrivalCoordinates, getArrivalOptions, validateArrivalSquares.
+- Integration:
+  - Empty and occupied flows, visibility changes, activeInstanceId updates, movedByAB set.
+- Visual:
+  - Story/demo states: idle, board-selected, pins-highlighted, arrival-choice.
+
+Implementation Notes
+- Maintain attackBoardPositions for backward compatibility while relying on attackBoardStates.activeInstanceId and visibility.
+- Arrival mapping and validation live in engine/world helpers; UI only orchestrates.
