@@ -456,7 +456,6 @@ export const useGameStore = create<GameState>()((set, get) => ({
     });
 
     __snapshots.push(takeSnapshot(state));
-    const targetPinForInstance = toPinId;
 
     set({
       pieces: result.updatedPieces,
@@ -537,7 +536,6 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
     updateAttackBoardWorld(state.world, boardId, pinId, 180);
 
-    const targetPinForInstance = pinId;
     const move: Move = {
 
       type: 'board-move',
