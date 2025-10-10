@@ -9,7 +9,7 @@ import { getLegalMovesAvoidingCheck, isInCheck, isCheckmate, isStalemate } from 
 import { createSquareId } from '../engine/world/coordinates';
 import { getInitialPinPositions } from '../engine/world/pinPositions';
 import { makeInstanceId, parseInstanceId } from '../engine/world/attackBoardAdjacency';
-import { updateInstanceVisibility, showAllAttackInstances } from '../engine/world/visibility';
+import { updateInstanceVisibility } from '../engine/world/visibility';
 import { validateActivation, executeActivation } from '../engine/world/worldMutation';
 export interface GameSnapshot {
   pieces: Piece[];
@@ -75,7 +75,6 @@ function restoreSnapshot(
   
   set({ trackStates: derivedTrackStates });
   updateInstanceVisibility(state.world, derivedTrackStates);
-  showAllAttackInstances(state.world);
 
   state.updateGameState();
 }
@@ -164,8 +163,16 @@ function boardIdToLevel(boardId: string): string {
   return boardId;
 }
 
+const initialWorld = createChessWorld();
+const initialTrackStates = {
+  QL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 } as const,
+  KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 } as const,
+};
+
+updateInstanceVisibility(initialWorld, initialTrackStates);
+
 export const useGameStore = create<GameState>()((set, get) => ({
-  world: createChessWorld(),
+  world: initialWorld,
   pieces: createInitialPieces(),
   currentTurn: 'white',
   selectedSquareId: null,
@@ -182,10 +189,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     BQL: { activeInstanceId: 'QL6:0' },
     BKL: { activeInstanceId: 'KL6:0' },
   },
-  trackStates: {
-    QL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
-    KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
-  },
+  trackStates: initialTrackStates,
   selectedBoardId: null,
   setArrivalSelection: (toPinId: string) => {
     const options = [
@@ -665,9 +669,6 @@ export const useGameStore = create<GameState>()((set, get) => ({
     }));
   },
 }));
-const __state = useGameStore.getState();
-updateInstanceVisibility(__state.world, __state.trackStates!);
-showAllAttackInstances(__state.world);
 
 export function buildPersistablePayload(state: GameState) {
   const boardRotations: Record<string, number> = {};
@@ -743,7 +744,6 @@ export function hydrateFromPersisted(
 
   set({ trackStates: derivedTrackStates });
   updateInstanceVisibility(state.world, derivedTrackStates);
-  showAllAttackInstances(state.world);
 
   state.updateGameState();
 }
