@@ -273,3 +273,96 @@ return { root, scene: actualScene };  // Return Three.js scene, not wrapper
 - PR #47: "Add rendering test infrastructure (Tier 1 & 2)" - introduced the tests
 - Test renderer docs: `node_modules/@react-three/test-renderer/README.md`
 - R3F fiber structure: Objects have `.__r3f` property with fiber data
+---
+## Restructured Rendering Test Plan (Architectural Fit)
+
+Goal
+- Make Tier 1 scene-graph tests stable, deterministic, and aligned with the app’s architecture by asserting on real Three.js Object3D and driving state via store fixtures.
+
+Principles
+- Assert on real Three objects, not wrapper nodes.
+- Use deterministic store fixtures for state; avoid imperative updates in tests.
+- Discover scene nodes via stable identifiers (userData.testId) over geometry heuristics.
+- Keep tests colocated with components and focused on scenegraph assertions.
+
+Contracts
+
+1) renderR3F(ui, { storeState? }) → { root, scene }
+- Mounts the component tree and returns:
+  - root: the @react-three/test-renderer root
+  - scene: the actual Three.Scene from the renderer store, not a wrapper
+- Implementation pattern:
+  - If storeState is provided, shallow-merge into useGameStore before create(ui)
+  - const root = await create(ui)
+  - const scene = root.getInstance?.()?.getState?.()?.scene || root.scene
+  - return { root, scene }
+
+2) findMeshes(node, predicate) → Mesh[]
+- Traverses actual Object3D.children only.
+- Never reads wrapper getters like node.type or node.children.
+- If given a wrapper, unwrap via node.instance or node._fiber?.object, else assume node is Object3D.
+
+3) findByUserData(node, key, value?) → Object3D[]
+- Traverse Object3D.children; collect objects where obj.userData[key] exists and optionally equals value.
+
+4) Component instrumentation (low-risk enhancement)
+- Attach userData.testId to key meshes for stable selection:
+  - Squares: userData.testId = "square"
+  - Pieces: userData.testId = "piece"
+  - Selector disks: userData.testId = "selector-disk"
+  - Pin markers: userData.testId = "pin-marker"
+- Prefer testId discovery over geometry heuristics when available.
+
+5) Store fixtures
+- Use src/test/storeFixtures.ts to produce deterministic world/pieces/trackStates:
+  - buildWorldWithDefaults()
+  - buildPiecesMinimal()
+  - buildWorldWithVisibleBoards(attackIds: string[])
+  - buildStoreState({ world?, pieces?, selectedBoardId?, highlightedSquareIds?, trackStates? })
+
+Test Structure
+
+- Location: src/components/Board3D/__tests__/
+  - scenegraph.boardSquares.test.ts
+    - Render <BoardRenderer /> with world fixture
+    - Find square meshes via userData.testId === "square" (fallback: BoxGeometry heuristics)
+    - Assert positions equal square.worldX/Y/Z
+  - scenegraph.pieces.test.ts
+    - Render <Pieces3D />
+    - Find piece meshes via userData.testId === "piece" (fallback: geometry types)
+    - Assert positions map to world square with Z + 0.5 offset
+  - scenegraph.visibility.test.ts
+    - Render <BoardRenderer /> with trackStates/world visibility fixture
+    - Assert counts/visibility of selector disks and board squares via userData.testId
+    - If needed, assert platform meshes via userData or geometry
+
+Validation Loop
+
+- Tight loop: run only one failing test at a time while iterating on utilities.
+- Verify:
+  - renderR3F returns a real Three.Scene (scene.isObject3D === true, scene.type === "Scene")
+  - findMeshes discovers meshes when starting from scene
+  - findByUserData returns expected counts when components set userData.testId
+- When ready, run all scenegraph tests and confirm prior failures are resolved.
+
+Version Matrix Requirements
+
+- react, react-dom: ^19
+- @react-three/fiber: ^9
+- @react-three/drei: ^10 (peers fiber 9)
+- @react-three/test-renderer: ^9.1
+- Do not use --legacy-peer-deps; align versions explicitly.
+
+Rationale
+
+- Using the real Three.Scene bypasses wrapper getter pitfalls and incomplete root fiber.
+- userData-based discovery is resilient to geometry changes and refactors.
+- Deterministic store fixtures ensure stable, CI-friendly tests.
+
+Handoff Checklist
+
+- renderR3F returns actual Three.Scene via store access.
+- findMeshes/findByUserData traverse Object3D.children only.
+- Components expose userData.testId for targets used in tests.
+- Store fixtures provide deterministic worlds, pieces, and trackStates.
+- Scenegraph tests assert on Object3D.position/visible and pass locally with aligned versions.
