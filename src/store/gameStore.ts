@@ -11,7 +11,7 @@ import { getInitialPinPositions } from '../engine/world/pinPositions';
 import { PIN_POSITIONS } from '../engine/world/pinPositions';
 import { makeInstanceId, parseInstanceId } from '../engine/world/attackBoardAdjacency';
 
-import { validateBoardMove, executeBoardMove } from '../engine/world/worldMutation';
+import { validateActivation, executeActivation } from '../engine/world/worldMutation';
 export interface GameSnapshot {
   pieces: Piece[];
   currentTurn: 'white' | 'black';
@@ -385,7 +385,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     const fromPinId = state.attackBoardPositions[boardId];
     if (!fromPinId) return { allowed: false, reason: 'Unknown board' };
     if (fromPinId === toPinId) return { allowed: false, reason: 'Board is already at this position' };
-    const result = validateBoardMove({
+    const result = validateActivation({
       boardId,
       fromPinId,
       toPinId,
@@ -410,7 +410,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       currentTurn: state.currentTurn,
     });
 
-    const validation = validateBoardMove({
+    const validation = validateActivation({
       boardId,
       fromPinId,
       toPinId,
@@ -421,7 +421,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     });
     if (!validation.isValid) return;
 
-    const result = executeBoardMove({
+    const result = executeActivation({
       boardId,
       fromPinId,
       toPinId,
@@ -467,11 +467,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       attackBoardStates: {
         ...(state.attackBoardStates ?? {}),
         [boardId]: {
-          activeInstanceId: makeInstanceId(
-            (boardId.endsWith('QL') ? 'QL' : 'KL') as 'QL' | 'KL',
-            Number(targetPinForInstance.slice(2)),
-            (state.world.boards.get(boardId)?.rotation === 180 ? 180 : 0) as 0 | 180
-          ),
+          activeInstanceId: result.activeInstanceId,
         },
       },
     });
@@ -485,7 +481,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     if (!fromPinId) return { allowed: false, reason: 'Unknown board' };
     if (angle === 0) return { allowed: true };
 
-    const result = validateBoardMove({
+    const result = validateActivation({
       boardId,
       fromPinId,
       toPinId: fromPinId,
@@ -518,7 +514,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       return;
     }
 
-    const validation = validateBoardMove({
+    const validation = validateActivation({
       boardId,
       fromPinId: pinId,
       toPinId: pinId,
@@ -529,7 +525,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     });
     if (!validation.isValid) return;
 
-    const result = executeBoardMove({
+    const result = executeActivation({
       boardId,
       fromPinId: pinId,
       toPinId: pinId,
@@ -563,11 +559,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       attackBoardStates: {
         ...(state.attackBoardStates ?? {}),
         [boardId]: {
-          activeInstanceId: makeInstanceId(
-            (boardId.endsWith('QL') ? 'QL' : 'KL') as 'QL' | 'KL',
-            Number(targetPinForInstance.slice(2)),
-            (state.world.boards.get(boardId)?.rotation === 180 ? 180 : 0) as 0 | 180
-          ),
+          activeInstanceId: result.activeInstanceId,
         },
       },
     });

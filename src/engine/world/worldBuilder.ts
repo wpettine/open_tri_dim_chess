@@ -1,4 +1,4 @@
-import type { ChessWorld, BoardLayout, WorldSquare } from './types';
+import type { ChessWorld, BoardLayout, WorldSquare, PinAdjacencyGraph } from './types';
 import { PIN_POSITIONS, getInitialPinPositions, Z_WHITE_MAIN, Z_NEUTRAL_MAIN, Z_BLACK_MAIN } from './pinPositions';
 import { fileToWorldX, rankToWorldY, createSquareId } from './coordinates';
 import { PIN_ADJACENCY } from './attackBoardAdjacency';
@@ -7,7 +7,7 @@ export function createChessWorld(): ChessWorld {
   const boards = new Map<string, BoardLayout>();
   const squares = new Map<string, WorldSquare>();
   const pins = new Map(Object.entries(PIN_POSITIONS));
-  const adjacencyGraph = PIN_ADJACENCY;
+  const adjacencyGraph = PIN_ADJACENCY as unknown as PinAdjacencyGraph;
 
   const mainWhite = createMainBoard('WL', 'W', [1, 2, 3, 4], [1, 2, 3, 4], Z_WHITE_MAIN);
   const mainNeutral = createMainBoard('NL', 'N', [1, 2, 3, 4], [3, 4, 5, 6], Z_NEUTRAL_MAIN);
