@@ -63,7 +63,7 @@ export function validatePawnMove(context: MoveValidationContext): MoveResult {
     return { valid: true };
   }
 
-  if (fileChange === 0 && rankChange === 2 * direction && !piece.hasMoved && !destinationBlocked) {
+  if (fileChange === 0 && rankChange === 2 * direction && !piece.hasMoved && !piece.movedByAB && !destinationBlocked) {
     const intermediateRank = fromSquare.rank + direction;
     
     const intermediateBlocked = isCoordinateBlockedByAnyLevel(

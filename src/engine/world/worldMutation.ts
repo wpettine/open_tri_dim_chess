@@ -328,12 +328,18 @@ export function executeBoardMove(context: BoardMoveContext): BoardMoveResult {
       to: `${newFile},${newRank},${piece.level}`,
     });
 
-    return {
+    const updatedPiece = {
       ...piece,
       file: newFile,
       rank: newRank,
       hasMoved: true,
     };
+
+    if (piece.type === 'pawn') {
+      updatedPiece.movedByAB = true;
+    }
+
+    return updatedPiece;
   });
 
   return {
