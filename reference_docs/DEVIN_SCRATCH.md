@@ -1,3 +1,89 @@
+## Implementation checklist and comprehensive unit test plan
+
+Implementation checklist (files/modules to create or modify)
+- Activation API
+  - Create: src/engine/world/worldMutation.ts
+    - validateActivation(input): { isValid: boolean; reason?: string; arrival: 'identity' | 'rot180' | null }
+      - Checks: adjacency; occupancy (vacant/occupied); direction (occupied: no backward; unoccupied: fwd/back/side); controller (board controller equals current turn); within-track constraints; king-safety scaffold.
+      - Determines arrival mapping choice (if 2-square move).
+    - executeActivation(input): { nextTrackStates, passengerUpdates, movedByABUpdates, historyEntry }
+      - Updates TrackState; remaps passenger pieces to arrival-mapped instanceId; sets movedByAB when transported; toggles visibility via updateInstanceVisibility; flips turn; appends move history entry type 'board-move'.
+  - Touch: src/store/gameStore.ts
+    - canMoveBoard uses validateActivation.
+    - moveAttackBoard uses executeActivation to update: trackStates, pieces array (levels & movedByAB), attackBoardStates.activeInstanceId, visibility, moveHistory, currentTurn.
+    - Keep attackBoardPositions for back-compat while primary logic uses trackStates + instanceIds.
+- Track state and visibility
+  - Touch: src/engine/world/visibility.ts
+    - Ensure updateInstanceVisibility(world, trackStates) shows exactly four active instances (two per track).
+    - Expose deriveTrackStatesFromPositions(positions) for hydration/back-compat.
+  - Touch: src/engine/world/ownership.ts
+    - Add getController(boardId, piecesAtInstances) where controller = passenger color if occupied else inherent board color.
+- Coordinate mapping helpers
+  - Create: src/engine/world/coordinatesTransform.ts
+    - mapSquareToArrival(square, fromInstanceId, toInstanceId, arrival: 'identity' | 'rot180')
+    - mapPieceSetForActivation(pieces, mappingPlan)
+- Special rules
+  - Create: src/engine/world/castling.ts
+    - Kingside swap within a single attack board; queenside bridge across QL↔KL at back rank per color; validate standard conditions plus transport/visibility constraints.
+  - Create: src/engine/world/promotion.ts
+    - Compute promotion targets from trackStates and overhang; handle missing-plane prevention and deferred/forced promotion.
+- Piece semantics
+  - Touch: src/engine/validation/pieceMovement.ts
+    - Respect movedByAB for pawns: disable two-step and en passant eligibility after transport.
+- State persistence/hydration
+  - Touch: src/store/gameStore.ts
+    - Include trackStates, activeInstanceId per board, and movedByAB in persistence; on hydrate call updateInstanceVisibility.
+- UI contract
+  - Touch: src/components/UI/AttackBoardControls.tsx
+    - Use canMoveBoard/moveAttackBoard; expose rotate option (identity vs 180 arrival).
+  - Ensure Board3D renders only world.boards where isVisible.
+
+Comprehensive unit test plan (Vitest)
+- Test helpers
+  - tests/helpers/world.ts
+    - buildWorldWithPieces(customTrackStates?, pieces?)
+    - setTrackStates(world, trackStates)
+    - makePiece(id, type, color, file, rank, level, extras?)
+  - tests/helpers/assert.ts
+    - expectPiecesAt(levelGrid); expectVisibility(trackStates)
+  - tests/helpers/activation.ts
+    - activate(boardId, fromPinId, toPinId, rotate?, pieces, world, trackStates)
+- Activation validation
+  - src/engine/world/__tests__/activation.validation.test.ts
+    - Adjacency; occupancy rules (vacant vs occupied); direction; controller equals current turn including occupied controller=passenger; arrival mapping choice on two-square; king-safety scaffold flag respected.
+- Activation execution
+  - src/engine/world/__tests__/activation.execute.test.ts
+    - TrackState updates; visibility toggling to four active instances; passenger remap by arrival mapping; movedByAB flags set; move history recorded; turn flips; back-compat with attackBoardPositions.
+- Adjacency/ownership invariants
+  - src/engine/world/__tests__/adjacencyAndOwnership.test.ts
+    - Adjacency graph completeness; forward/side classification; instanceId helpers round-trip.
+- Coordinate transformation
+  - src/engine/world/__tests__/coordinatesTransform.test.ts
+    - Identity mapping; rot180 mapping over 2x2 boards; batch mapping preserves captures and avoids conflicts.
+- Pawn semantics with movedByAB
+  - src/engine/validation/__tests__/pawnTransportSemantics.test.ts
+    - After transport, pawn two-step and en passant disabled; one-step/captures valid.
+- Castling
+  - src/engine/world/__tests__/castling.test.ts
+    - Kingside within-board; queenside QL↔KL back-rank; negative cases for moved pieces, blocked path, check on path, wrong controller, wrong rotation/visibility.
+- Promotion
+  - src/engine/world/__tests__/promotion.test.ts
+    - Dynamic furthest ranks; missing-plane deferral; deferred promotions trigger after subsequent activation that reveals plane; main-board promotion unchanged.
+- Visibility contract and rendering data model
+  - src/engine/world/__tests__/visibilityContract.test.ts
+    - updateInstanceVisibility marks only four instances visible; hidden instances not accessible to move generation when consumer respects isAccessible.
+- Hydration/persistence
+  - src/store/__tests__/persistenceHydration.test.ts
+    - Persist/restore trackStates, activeInstanceId, movedByAB; post-hydrate visibility correct; pieces and turn intact.
+
+Rendering tests overview (for reference)
+- Tier 1: @react-three/test-renderer scene-graph tests for mesh positions and visibility.
+- Tier 2: Playwright + pixelmatch pixel-level regression for initial scene, visibility toggles, arrival mapping.
+
+Determinism and CI
+- Prefer fast, deterministic Tier 1 tests broadly; limit Tier 2 to high-value visuals.
+- Fix viewport and deviceScaleFactor for pixel tests; disable/zero-duration animations; wait for settle before snapshots.
+
 Phase III Progress and Handoff Notes (Devin)
 Updated: 2025-10-10
 
