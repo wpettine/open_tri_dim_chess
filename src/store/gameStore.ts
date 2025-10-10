@@ -140,7 +140,7 @@ export interface GameState {
   importGameFromJson: (json: string) => Promise<void>;
   selectBoard: (boardId: string | null) => void;
   canMoveBoard: (boardId: string, toPinId: string) => { allowed: boolean; reason?: string };
-  moveAttackBoard: (boardId: string, toPinId: string, rotate?: boolean) => void;
+  moveAttackBoard: (boardId: string, toPinId: string, rotate?: boolean, arrivalChoice?: 'identity' | 'rot180') => void;
   canRotate: (boardId: string, angle: 0 | 180) => { allowed: boolean; reason?: string };
   rotateAttackBoard: (boardId: string, angle: 0 | 180) => void;
   undoMove: () => void;
