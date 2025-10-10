@@ -1,3 +1,5 @@
+import { makeInstanceId } from './attackBoardAdjacency';
+
 import type { ChessWorld } from './types';
 import type { Piece } from '../../store/gameStore';
 import { PIN_POSITIONS } from './pinPositions';
@@ -18,6 +20,59 @@ export interface BoardMoveValidation {
   isValid: boolean;
   reason?: string;
 }
+export interface ActivationContext {
+  boardId: string;
+  fromPinId: string;
+  toPinId: string;
+  rotate: boolean;
+  pieces: Piece[];
+  world: ChessWorld;
+  attackBoardPositions: Record<string, string>;
+}
+
+export interface ActivationResult {
+  updatedPieces: Piece[];
+  updatedPositions: Record<string, string>;
+  activeInstanceId: string;
+}
+
+export function validateActivation(context: ActivationContext): BoardMoveValidation {
+  return validateBoardMove({
+    boardId: context.boardId,
+    fromPinId: context.fromPinId,
+    toPinId: context.toPinId,
+    rotate: context.rotate,
+    pieces: context.pieces,
+    world: context.world,
+    attackBoardPositions: context.attackBoardPositions,
+  });
+}
+
+export function executeActivation(context: ActivationContext): ActivationResult {
+  const base = executeBoardMove({
+    boardId: context.boardId,
+    fromPinId: context.fromPinId,
+    toPinId: context.toPinId,
+    rotate: context.rotate,
+    pieces: context.pieces,
+    world: context.world,
+    attackBoardPositions: context.attackBoardPositions,
+  });
+
+  const rotation: 0 | 180 = (context.rotate || (context.world.boards.get(context.boardId)?.rotation === 180))
+    ? 180
+    : 0;
+  const track = context.boardId.endsWith('QL') ? 'QL' : 'KL';
+  const pinNum = Number(context.toPinId.slice(2));
+  const activeInstanceId = makeInstanceId(track as 'QL' | 'KL', pinNum, rotation);
+
+  return {
+    updatedPieces: base.updatedPieces,
+    updatedPositions: base.updatedPositions,
+    activeInstanceId,
+  };
+}
+
 
 export function validateBoardMove(context: BoardMoveContext): BoardMoveValidation {
   const rotationCheck = validateRotation(context);

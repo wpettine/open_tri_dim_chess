@@ -3,8 +3,8 @@ import type { PinNeighbor } from './types';
 
 export function getAdjacentPins(pinId: string): string[] {
   const col = getPinColumn(pinId) as 'QL' | 'KL';
-  const pin = Number(pinId.slice(2));
-  const neighbors = (PIN_ADJACENCY[col]?.[pin] as PinNeighbor[]) ?? [];
+  const pin = Number(pinId.slice(2)) as 1 | 2 | 3 | 4 | 5 | 6;
+  const neighbors = (PIN_ADJACENCY[col]?.[pin] ?? []) as PinNeighbor[];
   return neighbors.map((n: PinNeighbor) => `${n.track}${n.pin}`);
 }
 

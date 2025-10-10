@@ -1,3 +1,157 @@
+Phase III Progress and Handoff Notes (Devin)
+Updated: 2025-10-10
+
+Summary of work completed in PR #37
+- Implemented initial Phase III scaffolding:
+  - Added instance-based activation API in src/engine/world/worldMutation.ts:
+    - validateActivation(ctx) wraps existing validateBoardMove
+    - executeActivation(ctx) wraps executeBoardMove and computes activeInstanceId via makeInstanceId
+  - Migrated gameStore calls to use activation API:
+    - moveAttackBoard, canMoveBoard, canRotate, rotateAttackBoard call validateActivation/executeActivation
+    - attackBoardStates[boardId].activeInstanceId updated from executeActivation result
+  - Fixed type issues for adjacency:
+    - ownership.getAdjacentPins uses precise 1..6 numeric keys
+    - worldBuilder casts PIN_ADJACENCY to PinAdjacencyGraph
+- Lint/tests:
+  - All tests pass locally; lint has two unrelated warnings
+  - CI: GitGuardian passed
+
+References
+- PR: https://github.com/wpettine/open_tri_dim_chess/pull/37
+- Devin run: https://app.devin.ai/sessions/1b9a26e0c8364847b377cc8fd5eb3a9c
+- Changed files:
+  - src/engine/world/worldMutation.ts
+  - src/store/gameStore.ts
+  - src/engine/world/ownership.ts
+  - src/engine/world/worldBuilder.ts
+
+Next Implementation Steps (Phase III per NEW_WORLD_STRUCTURE.md)
+1) Instance visibility toggling
+- Goal: toggle prebuilt board instances visible/invisible instead of physically translating boards.
+- Where:
+  - src/engine/world/visibility.ts: Use/update updateInstanceVisibility(world, trackStates)
+  - src/store/gameStore.ts:
+    - After executeActivation in moveAttackBoard and rotateAttackBoard:
+      - Update trackStates per boardId owner and toPin/rotation
+      - Call updateInstanceVisibility(state.world, state.trackStates)
+- Notes:
+  - Maintain backward compatibility: keep attackBoardPositions updated for persistence
+  - Do not modify world.square IDs; only toggle isVisible and use activeInstanceId
+
+2) TrackState updates
+- Goal: keep authoritative pin/rotation per color and track.
+- Where:
+  - src/store/gameStore.ts: compute next trackStates values based on boardId and toPinId/rotate
+    - White QL/KL vs Black QL/KL update appropriate entries
+  - Ensure hydrateFromPersisted wires visibility from persisted trackStates if present later
+- Output:
+  - state.trackStates updated consistently whenever attack board moves/rotates
+
+3) Coordinate transformation helpers
+- Goal: centralize passenger remapping logic for identity vs 180° rotations.
+- Add new module:
+  - src/engine/world/coordinatesTransform.ts (or extend existing coordinates.ts if present)
+  - Functions:
+    - translatePassenger(file, rank, fromPin, toPin) -> {file, rank}
+    - rotatePassenger180(file, rank, fromPin, toPin, isQueenLine) -> {file, rank}
+- Refactor:
+  - src/engine/world/worldMutation.ts: executeBoardMove passenger remap to use the above helpers
+  - Keep mapping identical to current behavior validated by tests
+
+4) Expanded activation validation details
+- Goal: implement full Phase III validation semantics (controller/direction nuances, king safety scaffolding).
+- Where:
+  - src/engine/world/worldMutation.ts: validateActivation
+- Implement:
+  - Direction restrictions when passengers present:
+    - No “backward” movement for occupied passenger sets
+    - Side moves allowed only if not increasing distance from away-level
+  - Controller selection:
+    - Occupied: passenger color controls
+    - Unoccupied: inherent track controller (from docs)
+  - Keep king safety as current stub unless tests exist; add TODO
+
+5) Passenger helpers and movedByAB semantics
+- Goal: consistent passenger selection and tracking updates.
+- Where:
+  - Consider new helpers in worldMutation.ts or a new passenger.ts:
+    - getPassengerPieces(boardId, fromPinId, pieces) [reuse existing if present]
+    - updatePassengerTracking(piece): set hasMoved, movedByAB for pawns on activation
+- Ensure:
+  - executeActivation updates movedByAB for pawns
+  - No changes to non-passenger pieces
+
+6) Instance-based accessibility
+- Goal: movement generation respects instance accessibility (Phase III migration).
+- Where:
+  - src/store/gameStore.ts:
+    - getActiveInstance(boardId) already present; ensure consumers use it
+    - getValidMovesForSquare (if exists): ensure it respects only accessible instances
+- Notes:
+  - If accessibility scaffolding exists in visibility.ts, wire it similarly to isVisible
+
+7) Tests to add/update
+- New tests:
+  - src/engine/world/__tests__/activationValidation.test.ts
+    - adjacency, occupancy, direction with passenger, controller selection, king safety placeholder
+  - src/engine/world/__tests__/activationExecution.test.ts
+    - TrackState changes, visibility toggling via updateInstanceVisibility, activeInstanceId correctness, movedByAB
+  - src/engine/world/__tests__/coordinateHelpers.test.ts
+    - translatePassenger and rotatePassenger180 for both tracks
+- Update existing tests minimally:
+  - src/engine/world/__tests__/boardMovement.test.ts
+    - After move/rotate, assert attackBoardStates[boardId].activeInstanceId set correctly
+  - Keep current boardMovement semantics passing (backward compatibility)
+
+8) Wiring order and careful integration
+- Sequence for moveAttackBoard:
+  1. validateActivation
+  2. executeActivation -> updatedPieces, updatedPositions, activeInstanceId
+  3. Update state: pieces, attackBoardPositions, attackBoardStates[boardId].activeInstanceId
+  4. Update trackStates
+  5. Call updateInstanceVisibility(world, trackStates)
+- Sequence for rotateAttackBoard:
+  - Same, with fromPin == toPin and rotate=true
+
+9) Manual smoke test (optional)
+- npm run dev
+- Move/rotate attack boards using UI controls
+- Verify only four instances are visible per trackStates, and passenger remaps still match tests
+
+Open Questions / Assumptions
+- King safety is currently a placeholder in validation; implement deeper once core activation passes tests
+- Accessibility model beyond visibility not yet enforced in move generation; acceptable for initial Phase III
+- attackBoardPositions retained for persistence compatibility
+
+How to proceed (for next session)
+- Implement Steps 1–3 first (visibility, TrackStates, helpers), ensure compile/tests pass
+- Add tests in Step 7 incrementally; run focused suites during dev
+- Then expand validateActivation (Step 4), add passenger tracking refinements (Step 5)
+- Push commits to branch devin/1760055586-phase-3-activation-migration and update PR #37
+# Phase 7 UI Plan Summary
+
+What’s accomplished (PR #37)
+- Activation API wrappers: validateActivation/executeActivation; store calls migrated; activeInstanceId tracked.
+- Adjacency typing fixes; CI green.
+
+Next steps to implement
+- Engine/helpers:
+  - calculateArrivalCoordinates, getArrivalOptions, validateArrivalSquares.
+  - executeActivation(arrivalChoice) and movedByAB updates.
+- Store:
+  - After executeActivation, set trackStates and call updateInstanceVisibility(world, trackStates).
+  - Add UI state: selectedAttackBoard, eligiblePins, arrivalOptions, interactionMode.
+  - Actions: computeEligiblePins, selectPin, finalizeActivation, clearSelection.
+- UI:
+  - Use existing center disks for selection.
+  - Pin markers with eligibility reasons.
+  - ArrivalOverlay for identity/rot180 choice.
+
+Verification
+- Add unit tests for eligiblePins and arrivalOptions helpers.
+- Extend boardMovement tests to assert attackBoardStates.activeInstanceId and visibility toggling via updateInstanceVisibility.
+
+
 # Devin Scratchpad – Phase I Execution Notes
 
 Scope: Implement Phase I from NEW_WORLD_STRUCTURE.md (data structures + world instances + visibility), keep notes actionable for me.
