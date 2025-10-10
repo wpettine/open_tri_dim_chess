@@ -1,4 +1,5 @@
 import { makeInstanceId } from './attackBoardAdjacency';
+import { translatePassenger, rotatePassenger180 } from './coordinatesTransform';
 
 import type { ChessWorld } from './types';
 import type { Piece } from '../../store/gameStore';
@@ -310,9 +311,15 @@ export function executeBoardMove(context: BoardMoveContext): BoardMoveResult {
     if (context.rotate) {
       const relativeFile = piece.file - fromPin.fileOffset;
       const relativeRankCells = piece.rank - (fromPin.rankOffset / 2);
-      
-      newFile = toPin.fileOffset + (1 - relativeFile);
-      newRank = (toPin.rankOffset / 2) + (1 - relativeRankCells);
+
+      const rotated = rotatePassenger180(relativeFile, relativeRankCells);
+      const arrival = translatePassenger(
+        toPin.fileOffset + rotated.newRelativeFile,
+        (toPin.rankOffset / 2) + rotated.newRelativeRank
+      );
+
+      newFile = arrival.file;
+      newRank = arrival.rank;
     }
 
     console.log('[executeBoardMove] Remapping passenger:', {
