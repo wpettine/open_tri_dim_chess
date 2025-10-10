@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { executeActivation } from '../worldMutation';
-import { createChessWorld } from '../../worldBuilder';
+import { createChessWorld } from '../worldBuilder';
 import type { Piece } from '../../../store/gameStore';
 
 describe('executeActivation arrivalChoice', () => {
