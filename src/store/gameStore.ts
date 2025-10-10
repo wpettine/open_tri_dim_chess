@@ -404,7 +404,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     return { allowed: result.isValid, reason: result.reason };
   },
 
-  moveAttackBoard: (boardId: string, toPinId: string, rotate = false) => {
+  moveAttackBoard: (boardId: string, toPinId: string, rotate = false, arrivalChoice?: 'identity' | 'rot180') => {
     const state = get();
     const fromPinId = state.attackBoardPositions[boardId];
     if (!fromPinId) return;
@@ -436,6 +436,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       pieces: state.pieces,
       world: state.world,
       attackBoardPositions: state.attackBoardPositions,
+      arrivalChoice,
     });
 
     const kingPieceBefore = state.pieces.find(p => p.type === 'king' && p.level === boardId);
