@@ -187,6 +187,25 @@ export const useGameStore = create<GameState>()((set, get) => ({
     KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
   },
   selectedBoardId: null,
+  setArrivalSelection: (toPinId: string) => {
+    const options = [
+      { choice: 'identity' as const, file: 0, rank: 0 },
+      { choice: 'rot180' as const, file: 0, rank: 0 },
+    ];
+    set({
+      interactionMode: 'selectArrival',
+      arrivalOptions: options,
+      selectedToPinId: toPinId,
+    });
+  },
+  clearArrivalSelection: () => {
+    set({
+      interactionMode: 'idle',
+      arrivalOptions: null,
+      selectedToPinId: null,
+    });
+  },
+
   moveHistory: [],
   interactionMode: 'idle',
   arrivalOptions: null,
@@ -312,25 +331,6 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
   selectBoard: (boardId: string | null) => {
     if (boardId === null) {
-  setArrivalSelection: (toPinId: string) => {
-    const options = [
-      { choice: 'identity' as const, file: 0, rank: 0 },
-      { choice: 'rot180' as const, file: 0, rank: 0 },
-    ];
-    set({
-      interactionMode: 'selectArrival',
-      arrivalOptions: options,
-      selectedToPinId: toPinId,
-    });
-  },
-  clearArrivalSelection: () => {
-    set({
-      interactionMode: 'idle',
-      arrivalOptions: null,
-      selectedToPinId: null,
-    });
-  },
-
       set({ selectedBoardId: null });
     } else {
       set({ 
