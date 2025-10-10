@@ -24,7 +24,7 @@ export function MoveHistory() {
   };
 
   return (
-    <div className="move-history-panel">
+    <div className="move-history-panel" data-mh-len={moveHistory.length}>
       <div className="game-controls">
         <button onClick={handleNewGame} className="game-button new">
           New Game
