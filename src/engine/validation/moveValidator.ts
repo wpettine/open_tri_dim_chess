@@ -1,4 +1,4 @@
-import { Piece } from '../../store/gameStore';
+import { Piece, AttackBoardStates } from '../../store/gameStore';
 import { ChessWorld } from '../world/types';
 import { createSquareId } from '../world/coordinates';
 import { MoveValidationContext, MoveResult } from './types';
@@ -10,11 +10,13 @@ import {
   validateQueenMove,
   validateKingMove,
 } from './pieceMovement';
+import { resolveBoardId } from '../../utils/resolveBoardId';
 
 export function getLegalMoves(
   piece: Piece,
   world: ChessWorld,
-  allPieces: Piece[]
+  allPieces: Piece[],
+  attackBoardStates?: AttackBoardStates
 ): string[] {
   const legalMoves: string[] = [];
 
@@ -34,7 +36,7 @@ export function getLegalMoves(
       allPieces,
     };
 
-    const result = validateMoveForPiece(context);
+    const result = validateMoveForPiece(context, attackBoardStates);
     if (result.valid) {
       legalMoves.push(squareId);
     }
@@ -48,7 +50,10 @@ function parseLevelFromSquareId(squareId: string): string {
   return match ? match[1] : '';
 }
 
-function validateMoveForPiece(context: MoveValidationContext): MoveResult {
+function validateMoveForPiece(
+  context: MoveValidationContext,
+  attackBoardStates?: AttackBoardStates
+): MoveResult {
   const { piece, fromSquare, toSquare, allPieces } = context;
 
   if (fromSquare.id === toSquare.id) {
@@ -56,12 +61,14 @@ function validateMoveForPiece(context: MoveValidationContext): MoveResult {
   }
 
   const toLevel = parseLevelFromSquareId(toSquare.id);
-  const targetOccupant = allPieces.find(
-    (p) =>
+  const targetOccupant = allPieces.find((p) => {
+    const resolvedPieceLevel = resolveBoardId(p.level, attackBoardStates);
+    return (
       p.file === toSquare.file &&
       p.rank === toSquare.rank &&
-      p.level === toLevel
-  );
+      resolvedPieceLevel === toLevel
+    );
+  });
 
   if (targetOccupant && targetOccupant.color === piece.color) {
     return { valid: false, reason: 'occupied by own piece' };

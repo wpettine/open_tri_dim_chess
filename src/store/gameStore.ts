@@ -371,10 +371,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
     };
     
     const nextTurn = state.currentTurn === 'white' ? 'black' : 'white';
-    
-    const checkStatus = isInCheck(nextTurn, state.world, updatedPieces);
-    const checkmateStatus = isCheckmate(nextTurn, state.world, updatedPieces);
-    const stalemateStatus = isStalemate(nextTurn, state.world, updatedPieces);
+
+    const checkStatus = isInCheck(nextTurn, state.world, updatedPieces, state.attackBoardStates);
+    const checkmateStatus = isCheckmate(nextTurn, state.world, updatedPieces, state.attackBoardStates);
+    const stalemateStatus = isStalemate(nextTurn, state.world, updatedPieces, state.attackBoardStates);
     
     __snapshots.push(takeSnapshot(state));
     set({
@@ -414,8 +414,16 @@ export const useGameStore = create<GameState>()((set, get) => ({
   },
   
   resetGame: () => {
+    const newWorld = createChessWorld();
+    const newTrackStates = {
+      QL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 } as const,
+      KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 } as const,
+    };
+
+    updateInstanceVisibility(newWorld, newTrackStates);
+
     set({
-      world: createChessWorld(),
+      world: newWorld,
       pieces: createInitialPieces(),
       currentTurn: 'white',
       selectedSquareId: null,
@@ -426,6 +434,13 @@ export const useGameStore = create<GameState>()((set, get) => ({
       winner: null,
       gameOver: false,
       attackBoardPositions: getInitialPinPositions(),
+      attackBoardStates: {
+        WQL: { activeInstanceId: 'QL1:0' },
+        WKL: { activeInstanceId: 'KL1:0' },
+        BQL: { activeInstanceId: 'QL6:0' },
+        BKL: { activeInstanceId: 'KL6:0' },
+      },
+      trackStates: newTrackStates,
       selectedBoardId: null,
       moveHistory: [],
     });
@@ -443,16 +458,16 @@ export const useGameStore = create<GameState>()((set, get) => ({
       return [];
     }
 
-    return getLegalMovesAvoidingCheck(piece, state.world, state.pieces);
+    return getLegalMovesAvoidingCheck(piece, state.world, state.pieces, state.attackBoardStates);
   },
 
   updateGameState: () => {
     const state = get();
     const currentPlayer = state.currentTurn;
 
-    const checkStatus = isInCheck(currentPlayer, state.world, state.pieces);
-    const checkmateStatus = isCheckmate(currentPlayer, state.world, state.pieces);
-    const stalemateStatus = isStalemate(currentPlayer, state.world, state.pieces);
+    const checkStatus = isInCheck(currentPlayer, state.world, state.pieces, state.attackBoardStates);
+    const checkmateStatus = isCheckmate(currentPlayer, state.world, state.pieces, state.attackBoardStates);
+    const stalemateStatus = isStalemate(currentPlayer, state.world, state.pieces, state.attackBoardStates);
 
     set({
       isCheck: checkStatus,

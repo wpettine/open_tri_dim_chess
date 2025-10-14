@@ -1,4 +1,4 @@
-import { Piece } from '../../store/gameStore';
+import { Piece, AttackBoardStates } from '../../store/gameStore';
 import { ChessWorld, WorldSquare } from '../world/types';
 import { createSquareId } from '../world/coordinates';
 import { getLegalMoves } from './moveValidator';
@@ -7,12 +7,13 @@ export function isSquareAttacked(
   square: WorldSquare,
   byColor: 'white' | 'black',
   world: ChessWorld,
-  pieces: Piece[]
+  pieces: Piece[],
+  attackBoardStates?: AttackBoardStates
 ): boolean {
   const attackingPieces = pieces.filter((p) => p.color === byColor);
 
   for (const piece of attackingPieces) {
-    const legalMoves = getLegalMoves(piece, world, pieces);
+    const legalMoves = getLegalMoves(piece, world, pieces, attackBoardStates);
     if (legalMoves.includes(square.id)) {
       return true;
     }
@@ -24,10 +25,11 @@ export function isSquareAttacked(
 export function isInCheck(
   color: 'white' | 'black',
   world: ChessWorld,
-  pieces: Piece[]
+  pieces: Piece[],
+  attackBoardStates?: AttackBoardStates
 ): boolean {
   const king = pieces.find((p) => p.type === 'king' && p.color === color);
-  
+
   if (!king) {
     return false;
   }
@@ -40,21 +42,22 @@ export function isInCheck(
   }
 
   const opponentColor = color === 'white' ? 'black' : 'white';
-  return isSquareAttacked(kingSquare, opponentColor, world, pieces);
+  return isSquareAttacked(kingSquare, opponentColor, world, pieces, attackBoardStates);
 }
 
 export function getLegalMovesAvoidingCheck(
   piece: Piece,
   world: ChessWorld,
-  pieces: Piece[]
+  pieces: Piece[],
+  attackBoardStates?: AttackBoardStates
 ): string[] {
-  const allMoves = getLegalMoves(piece, world, pieces);
+  const allMoves = getLegalMoves(piece, world, pieces, attackBoardStates);
   const safeMoves: string[] = [];
 
   for (const toSquareId of allMoves) {
     const { newPieces } = simulateMove(pieces, piece, toSquareId, world);
 
-    if (!isInCheck(piece.color, world, newPieces)) {
+    if (!isInCheck(piece.color, world, newPieces, attackBoardStates)) {
       safeMoves.push(toSquareId);
     }
   }
@@ -105,16 +108,17 @@ function simulateMove(
 export function isCheckmate(
   color: 'white' | 'black',
   world: ChessWorld,
-  pieces: Piece[]
+  pieces: Piece[],
+  attackBoardStates?: AttackBoardStates
 ): boolean {
-  if (!isInCheck(color, world, pieces)) {
+  if (!isInCheck(color, world, pieces, attackBoardStates)) {
     return false;
   }
 
   const playerPieces = pieces.filter((p) => p.color === color);
-  
+
   for (const piece of playerPieces) {
-    const safeMoves = getLegalMovesAvoidingCheck(piece, world, pieces);
+    const safeMoves = getLegalMovesAvoidingCheck(piece, world, pieces, attackBoardStates);
     if (safeMoves.length > 0) {
       return false;
     }
@@ -126,16 +130,17 @@ export function isCheckmate(
 export function isStalemate(
   color: 'white' | 'black',
   world: ChessWorld,
-  pieces: Piece[]
+  pieces: Piece[],
+  attackBoardStates?: AttackBoardStates
 ): boolean {
-  if (isInCheck(color, world, pieces)) {
+  if (isInCheck(color, world, pieces, attackBoardStates)) {
     return false;
   }
 
   const playerPieces = pieces.filter((p) => p.color === color);
-  
+
   for (const piece of playerPieces) {
-    const safeMoves = getLegalMovesAvoidingCheck(piece, world, pieces);
+    const safeMoves = getLegalMovesAvoidingCheck(piece, world, pieces, attackBoardStates);
     if (safeMoves.length > 0) {
       return false;
     }
