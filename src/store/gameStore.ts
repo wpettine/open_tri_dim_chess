@@ -12,6 +12,7 @@ import { makeInstanceId, parseInstanceId } from '../engine/world/attackBoardAdja
 import { updateInstanceVisibility } from '../engine/world/visibility';
 import { validateActivation, executeActivation } from '../engine/world/worldMutation';
 import { getArrivalOptions } from '../engine/world/coordinatesTransform';
+import { resolveBoardId } from '../utils/resolveBoardId';
 export interface GameSnapshot {
   pieces: Piece[];
   currentTurn: 'white' | 'black';
@@ -287,20 +288,21 @@ export const useGameStore = create<GameState>()((set, get) => ({
   
   selectSquare: (squareId: string) => {
     const state = get();
-    
+
     if (state.gameOver) {
       return;
     }
-    
+
     if (!state.selectedSquareId) {
       const piece = state.pieces.find((p) => {
-        const pieceSquareId = createSquareId(p.file, p.rank, p.level);
+        const resolvedLevel = resolveBoardId(p.level, state.attackBoardStates);
+        const pieceSquareId = createSquareId(p.file, p.rank, resolvedLevel);
         return pieceSquareId === squareId;
       });
-      
+
       if (piece && piece.color === state.currentTurn) {
         const validMoves = get().getValidMovesForSquare(squareId);
-        set({ 
+        set({
           selectedSquareId: squareId,
           highlightedSquareIds: validMoves,
           selectedBoardId: null,
@@ -309,10 +311,11 @@ export const useGameStore = create<GameState>()((set, get) => ({
     } else {
       if (state.highlightedSquareIds.includes(squareId)) {
         const selectedPiece = state.pieces.find((p) => {
-          const pieceSquareId = createSquareId(p.file, p.rank, p.level);
+          const resolvedLevel = resolveBoardId(p.level, state.attackBoardStates);
+          const pieceSquareId = createSquareId(p.file, p.rank, resolvedLevel);
           return pieceSquareId === state.selectedSquareId;
         });
-        
+
         if (selectedPiece) {
           const targetSquare = Array.from(state.world.squares.values()).find(
             (sq) => sq.id === squareId
@@ -323,13 +326,14 @@ export const useGameStore = create<GameState>()((set, get) => ({
         }
       } else {
         const piece = state.pieces.find((p) => {
-          const pieceSquareId = createSquareId(p.file, p.rank, p.level);
+          const resolvedLevel = resolveBoardId(p.level, state.attackBoardStates);
+          const pieceSquareId = createSquareId(p.file, p.rank, resolvedLevel);
           return pieceSquareId === squareId;
         });
-        
+
         if (piece && piece.color === state.currentTurn) {
           const validMoves = get().getValidMovesForSquare(squareId);
-          set({ 
+          set({
             selectedSquareId: squareId,
             highlightedSquareIds: validMoves,
             selectedBoardId: null,
@@ -448,9 +452,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
   getValidMovesForSquare: (squareId: string) => {
     const state = get();
-    
+
     const piece = state.pieces.find((p) => {
-      const pieceSquareId = createSquareId(p.file, p.rank, p.level);
+      const resolvedLevel = resolveBoardId(p.level, state.attackBoardStates);
+      const pieceSquareId = createSquareId(p.file, p.rank, resolvedLevel);
       return pieceSquareId === squareId;
     });
 

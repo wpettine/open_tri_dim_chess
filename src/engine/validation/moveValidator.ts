@@ -20,7 +20,8 @@ export function getLegalMoves(
 ): string[] {
   const legalMoves: string[] = [];
 
-  const fromSquareId = createSquareId(piece.file, piece.rank, piece.level);
+  const resolvedLevel = resolveBoardId(piece.level, attackBoardStates);
+  const fromSquareId = createSquareId(piece.file, piece.rank, resolvedLevel);
   const fromSquare = world.squares.get(fromSquareId);
 
   if (!fromSquare) {

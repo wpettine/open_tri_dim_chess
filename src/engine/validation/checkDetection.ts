@@ -2,6 +2,7 @@ import { Piece, AttackBoardStates } from '../../store/gameStore';
 import { ChessWorld, WorldSquare } from '../world/types';
 import { createSquareId } from '../world/coordinates';
 import { getLegalMoves } from './moveValidator';
+import { resolveBoardId } from '../../utils/resolveBoardId';
 
 export function isSquareAttacked(
   square: WorldSquare,
@@ -34,7 +35,8 @@ export function isInCheck(
     return false;
   }
 
-  const kingSquareId = createSquareId(king.file, king.rank, king.level);
+  const resolvedLevel = resolveBoardId(king.level, attackBoardStates);
+  const kingSquareId = createSquareId(king.file, king.rank, resolvedLevel);
   const kingSquare = world.squares.get(kingSquareId);
 
   if (!kingSquare) {
