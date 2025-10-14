@@ -1,9 +1,10 @@
 import type { PinPosition } from './types';
+import { THEME } from '../../config/theme';
 
 export const Z_WHITE_MAIN = 0;
-export const Z_NEUTRAL_MAIN = 5;
-export const Z_BLACK_MAIN = 10;
-export const ATTACK_OFFSET = 2.5;
+export const Z_NEUTRAL_MAIN = THEME.boardSpacing.mainBoardInterval;
+export const Z_BLACK_MAIN = THEME.boardSpacing.mainBoardInterval * 2;
+export const ATTACK_OFFSET = THEME.boardSpacing.attackBoardOffset;
 
 export const PIN_POSITIONS: Record<string, PinPosition> = {
   QL1: {

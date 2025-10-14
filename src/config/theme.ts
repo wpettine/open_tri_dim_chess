@@ -7,6 +7,10 @@ export const THEME = {
     selectedColor: '#ffff00',
     availableMoveColor: '#00ff00',
   },
+  boardSpacing: {
+    mainBoardInterval: 8,      // Distance between main boards (was 5)
+    attackBoardOffset: 4.0,    // Height of attack boards above main boards (was 2.5)
+  },
   platforms: {
     whiteMain: '#C0C0C0',
     neutralMain: '#C0C0C0',
@@ -26,6 +30,11 @@ export const THEME = {
     thickness: 0.06,
   },
   pieces: {
+    modelSet: 'basic',
+    modelFormat: 'gltf',
+    scale: 0.04,
+    rotation: [Math.PI / 2, 0, 0] as [number, number, number],
+    zOffset: 0.1,
     white: '#f5f5f5',
     black: '#2c2c2c',
     metalness: 0.3,

@@ -1,3 +1,4 @@
+import { useGLTF } from '@react-three/drei';
 import { useGameStore } from '../../store/gameStore';
 import type { Piece } from '../../store/gameStore';
 import { THEME } from '../../config/theme';
@@ -21,10 +22,10 @@ export function Pieces3D() {
         }
 
         return (
-          <SimplePiece
+          <Model3DPiece
             key={piece.id}
             piece={piece}
-            position={[square.worldX, square.worldY, square.worldZ + 0.5]}
+            position={[square.worldX, square.worldY, square.worldZ + THEME.pieces.zOffset]}
           />
         );
       })}
@@ -32,7 +33,7 @@ export function Pieces3D() {
   );
 }
 
-function SimplePiece({
+function Model3DPiece({
   piece,
   position,
 }: {
@@ -40,32 +41,38 @@ function SimplePiece({
   position: [number, number, number];
 }) {
   const color = piece.color === 'white' ? THEME.pieces.white : THEME.pieces.black;
-  
-  const getGeometry = () => {
-    switch (piece.type) {
-      case 'pawn':
-        return <coneGeometry args={[0.3, 0.8, 16]} />;
-      case 'rook':
-        return <boxGeometry args={[0.5, 0.5, 0.8]} />;
-      case 'knight':
-        return <boxGeometry args={[0.4, 0.6, 0.8]} />;
-      case 'bishop':
-        return <coneGeometry args={[0.35, 1.0, 16]} />;
-      case 'queen':
-        return <octahedronGeometry args={[0.4]} />;
-      case 'king':
-        return <cylinderGeometry args={[0.35, 0.35, 1.0, 16]} />;
+  const modelPath = `/models/chess/${THEME.pieces.modelSet}/${piece.type}.${THEME.pieces.modelFormat}`;
+
+  const { scene } = useGLTF(modelPath);
+
+  // Clone the scene to allow multiple instances
+  const clonedScene = scene.clone();
+
+  // Apply color to all meshes in the model
+  clonedScene.traverse((child: any) => {
+    if (child.isMesh) {
+      child.material = child.material.clone();
+      child.material.color.set(color);
+      child.material.metalness = THEME.pieces.metalness;
+      child.material.roughness = THEME.pieces.roughness;
     }
-  };
+  });
 
   return (
-    <mesh position={position} userData={{ testId: 'piece' }}>
-      {getGeometry()}
-      <meshStandardMaterial
-        color={color}
-        metalness={THEME.pieces.metalness}
-        roughness={THEME.pieces.roughness}
-      />
-    </mesh>
+    <primitive
+      object={clonedScene}
+      position={position}
+      rotation={THEME.pieces.rotation}
+      scale={THEME.pieces.scale}
+      userData={{ testId: 'piece' }}
+    />
   );
 }
+
+// Preload all models
+const modelSet = THEME.pieces.modelSet;
+const modelFormat = THEME.pieces.modelFormat;
+const pieceTypes = ['pawn', 'rook', 'knight', 'bishop', 'queen', 'king'];
+pieceTypes.forEach(type => {
+  useGLTF.preload(`/models/chess/${modelSet}/${type}.${modelFormat}`);
+});
