@@ -112,39 +112,57 @@ function SingleBoard({ board }: { board: BoardLayout }) {
         return corners.map(corner => {
           const pinX = fileToWorldX(corner.file) + (corner.file === minMainFile ? -halfSquare : halfSquare);
           const pinY = rankToWorldY(corner.rank) + (corner.rank === minMainRank ? -halfSquare : halfSquare);
-          
+
           let isEligible = false;
           let matchingPinId: string | null = null;
+          let closestDistance = Infinity;
+
           if (selectedBoardId) {
             for (const pinId of Object.keys(PIN_POSITIONS)) {
               const pin = PIN_POSITIONS[pinId];
-              
+
+              // Determine which main board this pin belongs to based on its actual zHeight
+              const ATTACK_OFFSET = 4;
               let pinMainBoardZ: number;
-              if (pin.level <= 1) {
+              if (pin.zHeight <= Z_WHITE_MAIN + ATTACK_OFFSET + 2) {
                 pinMainBoardZ = Z_WHITE_MAIN;
-              } else if (pin.level === 2) {
+              } else if (pin.zHeight <= Z_NEUTRAL_MAIN + ATTACK_OFFSET + 2) {
                 pinMainBoardZ = Z_NEUTRAL_MAIN;
               } else {
                 pinMainBoardZ = Z_BLACK_MAIN;
               }
-              
+
               if (pinMainBoardZ === board.centerZ) {
+                // Check if this pin's rank range actually overlaps with this board's rank range
+                const pinMinRank = pin.rankOffset;
+                const pinMaxRank = pin.rankOffset + 1; // Attack boards are 2x2, so +1 for the max rank
+                const ranksOverlap = !(pinMaxRank < minMainRank || pinMinRank > maxMainRank);
+
+                if (!ranksOverlap) continue;
+
                 const result = canMoveBoard(selectedBoardId, pinId);
                 if (result.allowed) {
-                  const pinMatchesCorner = 
+                  const pinMatchesCorner =
                     (pin.fileOffset === 0 && corner.file === minMainFile) ||
                     (pin.fileOffset === 4 && corner.file === maxMainFile);
-                  
+
                   const attackBoardMidRank = pin.rankOffset + 0.5;
                   const midMainRank = (minMainRank + maxMainRank) / 2;
                   const rankMatchesCorner =
                     (attackBoardMidRank < midMainRank && corner.rank === minMainRank) ||
                     (attackBoardMidRank >= midMainRank && corner.rank === maxMainRank);
-                  
+
                   if (pinMatchesCorner && rankMatchesCorner) {
-                    isEligible = true;
-                    matchingPinId = pinId;
-                    break;
+                    // Calculate distance from pin's center to the corner
+                    const pinCenterRank = pin.rankOffset + 0.5;
+                    const distance = Math.abs(pinCenterRank - corner.rank);
+
+                    // Use the closest pin to this corner
+                    if (distance < closestDistance) {
+                      closestDistance = distance;
+                      isEligible = true;
+                      matchingPinId = pinId;
+                    }
                   }
                 }
               }

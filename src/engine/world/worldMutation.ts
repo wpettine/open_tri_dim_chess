@@ -170,13 +170,57 @@ function validateAdjacency(context: BoardMoveContext): BoardMoveValidation {
     return { isValid: false, reason: 'Invalid source pin' };
   }
 
-  if (!adjacencyList.includes(context.toPinId)) {
+  const isExplicitlyAdjacent = adjacencyList.includes(context.toPinId);
+
+  // Check if this is a valid "forward to next main board level" move
+  const fromPin = PIN_POSITIONS[context.fromPinId];
+  const toPin = PIN_POSITIONS[context.toPinId];
+  const controller = getBoardController(context.boardId, context.fromPinId, context.pieces);
+
+  let isForwardToNextLevel = false;
+  if (!isExplicitlyAdjacent && fromPin && toPin) {
+    // Same track (QL→QL or KL→KL)
+    const sameTrack = context.fromPinId.startsWith('QL') === context.toPinId.startsWith('QL');
+
+    if (sameTrack) {
+      // Check if moving to next main board level
+      const fromZ = fromPin.zHeight;
+      const toZ = toPin.zHeight;
+      const direction = classifyDirection(context.fromPinId, context.toPinId, controller);
+
+      // Must be forward and to a different main board level
+      if (direction === 'forward' && fromZ !== toZ) {
+        // Check that we're moving to an adjacent main board level (not skipping)
+        const zLevels = [0, 8, 16]; // White, Neutral, Black
+        const fromZIndex = zLevels.indexOf(fromZ - 4); // Subtract ATTACK_OFFSET
+        const toZIndex = zLevels.indexOf(toZ - 4);
+
+        if (fromZIndex !== -1 && toZIndex !== -1) {
+          const levelDiff = controller === 'white'
+            ? toZIndex - fromZIndex  // White moves up in Z
+            : fromZIndex - toZIndex; // Black moves down in Z
+
+          if (levelDiff === 1) {
+            // Check rank proximity: pin centers must be within 4 ranks
+            const fromCenterRank = fromPin.rankOffset + 0.5;
+            const toCenterRank = toPin.rankOffset + 0.5;
+            const rankDistance = Math.abs(toCenterRank - fromCenterRank);
+
+            if (rankDistance <= 4) {
+              isForwardToNextLevel = true;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (!isExplicitlyAdjacent && !isForwardToNextLevel) {
     return { isValid: false, reason: 'Destination pin is not adjacent' };
   }
 
-  const controller = getBoardController(context.boardId, context.fromPinId, context.pieces);
   const direction = classifyDirection(context.fromPinId, context.toPinId, controller);
-  
+
   const passengerPieces = getPassengerPieces(context.boardId, context.fromPinId, context.pieces);
   const isOccupied = passengerPieces.length > 0;
 
