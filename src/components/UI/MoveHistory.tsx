@@ -4,7 +4,7 @@ import SaveLoadManager from './SaveLoadManager';
 import './MoveHistory.css';
 
 export function MoveHistory() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [managerOpen, setManagerOpen] = useState(false);
   const [managerMode, setManagerMode] = useState<'save' | 'load'>('save');
   const moveHistory = useGameStore(state => state.moveHistory);

@@ -120,6 +120,23 @@ Detailed documentation is available in the `reference_docs/` directory:
 - `IMPLIMENTATION_GUIDE.md` - Step-by-step implementation guide
 - `DEVIN_SCRATCH.md` - Development notes and gotchas
 
+### Camera Tuning Overlay
+
+A small overlay is available to capture the current camera `position`, OrbitControls `target`, and camera `up` vector for fine-tuning view presets.
+
+- Toggle overlay: press `Ctrl+Alt+C` (or click the overlay × button)
+- Copy values: use the Copy buttons next to position/target/up
+- Default visibility:
+  - In development: enabled by default
+  - In production: disabled by default; to enable by default set `THEME.debug.cameraOverlayDefault = true` in `src/config/theme.ts`
+
+Workflow to tune a view (e.g., `side`):
+1. Open the app, ensure the overlay is visible (`Ctrl+Alt+C` if hidden).
+2. Pan/zoom/rotate to the desired framing.
+3. Click Copy for `position`, `target`, and `up`.
+4. Paste the arrays into `src/config/theme.ts` under `THEME.cameraPresets.side` for `position`, `target`, and `up`.
+5. Reload and verify the preset.
+
 ## Contributing
 
 1. Create a feature branch: `git checkout -b feature/your-feature`

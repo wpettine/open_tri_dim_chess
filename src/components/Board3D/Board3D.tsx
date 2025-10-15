@@ -1,11 +1,25 @@
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { THEME } from '../../config/theme';
 import { useCameraStore } from '../../store/cameraStore';
+import { useCameraDebugStore } from '../../store/cameraDebugStore';
 import { BoardRenderer } from './BoardRenderer';
 import { Pieces3D } from './Pieces3D';
+
+function CameraDebugUpdater({ controlsRef }: { controlsRef: React.MutableRefObject<any> }) {
+  const { camera } = useThree();
+  const updateDebug = useCameraDebugStore(state => state.update);
+
+  useFrame(() => {
+    if (controlsRef.current?.target) {
+      updateDebug(camera.position, controlsRef.current.target, camera.up);
+    }
+  });
+
+  return null;
+}
 
 function CameraController() {
   const currentView = useCameraStore(state => state.currentView);
@@ -41,15 +55,18 @@ function CameraController() {
   }, [currentView, camera, preset]);
 
   return (
-    <OrbitControls
-      ref={controlsRef}
-      target={THEME.camera.lookAt}
-      minDistance={5}
-      maxDistance={50}
-      enablePan={true}
-      enableRotate={true}
-      enableZoom={true}
-    />
+    <>
+      <OrbitControls
+        ref={controlsRef}
+        target={THEME.camera.lookAt}
+        minDistance={5}
+        maxDistance={50}
+        enablePan={true}
+        enableRotate={true}
+        enableZoom={true}
+      />
+      <CameraDebugUpdater controlsRef={controlsRef} />
+    </>
   );
 }
 

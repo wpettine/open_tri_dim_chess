@@ -64,18 +64,18 @@ export const THEME = {
       up: [0, 1, 0] as [number, number, number],
     },
     top: {
-      position: [5, 10, 25] as [number, number, number],
-      target: [5, 10, 6] as [number, number, number],
+      position: [4.79, 9.94, 42.88] as [number, number, number],
+      target: [5.23, 14.09, 6.1] as [number, number, number],
       up: [0, 1, 0] as [number, number, number],
     },
     side: {
-      position: [-10, 0, 3] as [number, number, number],
-      target: [5, 10, 6] as [number, number, number],
+      position: [-23.59, 4.93, 30.89] as [number, number, number],
+      target: [7.79, 11.91, 11.63] as [number, number, number],
       up: [0, 0, 1] as [number, number, number],
     },
     front: {
-      position: [5, -10, 10] as [number, number, number],
-      target: [5, 10, 6] as [number, number, number],
+      position: [5.41, -25.72, 21.48] as [number, number, number],
+      target: [5.37, 12.54, 10.78] as [number, number, number],
       up: [0, 1, 0] as [number, number, number],
     },
   },
@@ -85,5 +85,8 @@ export const THEME = {
   },
   typography: {
     fontFamily: 'Microgramma, sans-serif',
+  },
+  debug: {
+    cameraOverlayDefault: false,
   },
 };
