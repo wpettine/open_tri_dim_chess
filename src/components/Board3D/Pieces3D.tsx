@@ -9,6 +9,9 @@ export function Pieces3D() {
   const world = useGameStore(state => state.world);
   const attackBoardStates = useGameStore(state => state.attackBoardStates);
 
+  console.log('[Pieces3D] Rendering', pieces.length, 'pieces');
+  console.log('[Pieces3D] attackBoardStates:', attackBoardStates);
+
   return (
     <group>
       {pieces.map((piece) => {
@@ -17,9 +20,24 @@ export function Pieces3D() {
         const square = world.squares.get(squareId);
 
         if (!square) {
-          console.error(`Square not found: ${squareId}`);
+          console.error('[Pieces3D] Square not found for piece:', {
+            piece: { type: piece.type, color: piece.color, level: piece.level, file: piece.file, rank: piece.rank },
+            resolvedBoardId: boardId,
+            squareId,
+            availableSquaresWithSameFileRank: Array.from(world.squares.keys())
+              .filter(id => id.startsWith(`${['z','a','b','c','d','e'][piece.file]}${piece.rank}`)),
+          });
           return null;
         }
+
+        console.log('[Pieces3D] Rendering piece:', {
+          type: piece.type,
+          color: piece.color,
+          level: piece.level,
+          resolvedBoardId: boardId,
+          squareId,
+          position: [square.worldX, square.worldY, square.worldZ + THEME.pieces.zOffset],
+        });
 
         return (
           <Model3DPiece

@@ -9,7 +9,7 @@ import { getLegalMovesAvoidingCheck, isInCheck, isCheckmate, isStalemate } from 
 import { createSquareId } from '../engine/world/coordinates';
 import { getInitialPinPositions } from '../engine/world/pinPositions';
 import { makeInstanceId, parseInstanceId } from '../engine/world/attackBoardAdjacency';
-import { updateInstanceVisibility } from '../engine/world/visibility';
+import { updateInstanceVisibility, setVisibleInstances } from '../engine/world/visibility';
 import { validateActivation, executeActivation } from '../engine/world/worldMutation';
 import { getArrivalOptions } from '../engine/world/coordinatesTransform';
 import { resolveBoardId } from '../utils/resolveBoardId';
@@ -52,7 +52,39 @@ function restoreSnapshot(
   get: () => GameState,
   snap: GameSnapshot
 ) {
+  const pinNum = (id: string | undefined) => Number((id ?? '').slice(2)) || 1;
+  const rot = (boardId: string) => ((snap.boardRotations[boardId] ?? 0) === 180 ? 180 : 0) as 0 | 180;
+  const derivedTrackStates = {
+    QL: { whiteBoardPin: pinNum(snap.attackBoardPositions['WQL']), blackBoardPin: pinNum(snap.attackBoardPositions['BQL']), whiteRotation: rot('WQL'), blackRotation: rot('BQL') },
+    KL: { whiteBoardPin: pinNum(snap.attackBoardPositions['WKL']), blackBoardPin: pinNum(snap.attackBoardPositions['BKL']), whiteRotation: rot('WKL'), blackRotation: rot('BKL') },
+  };
+
+  // Derive attackBoardStates from positions and rotations
+  const derivedAttackBoardStates: Record<string, { activeInstanceId: string }> = {};
+  for (const [boardId, pinId] of Object.entries(snap.attackBoardPositions)) {
+    // Use pin's track for cross-track moves (e.g., WQL at KL2 should be KL2:0)
+    const track = pinId.startsWith('QL') ? 'QL' : 'KL';
+    const pin = pinNum(pinId);
+    const rotation = rot(boardId);
+    derivedAttackBoardStates[boardId] = {
+      activeInstanceId: makeInstanceId(track as 'QL' | 'KL', pin, rotation),
+    };
+  }
+
+  const state = get();
+
+  // Use setVisibleInstances with the derived attackBoardStates
+  const instancesToShow = [
+    derivedAttackBoardStates.WQL?.activeInstanceId,
+    derivedAttackBoardStates.WKL?.activeInstanceId,
+    derivedAttackBoardStates.BQL?.activeInstanceId,
+    derivedAttackBoardStates.BKL?.activeInstanceId,
+  ].filter(Boolean) as string[];
+
+  setVisibleInstances(state.world, instancesToShow);
+
   set({
+    world: { ...state.world },  // Create new reference for Zustand
     pieces: snap.pieces,
     currentTurn: snap.currentTurn,
     isCheck: snap.isCheck,
@@ -61,22 +93,13 @@ function restoreSnapshot(
     winner: snap.winner,
     gameOver: snap.gameOver,
     attackBoardPositions: snap.attackBoardPositions,
+    attackBoardStates: derivedAttackBoardStates,  // Restore attackBoardStates
     moveHistory: snap.moveHistory,
+    trackStates: derivedTrackStates,
     selectedSquareId: null,
     highlightedSquareIds: [],
     selectedBoardId: null,
   });
-  const state = get();
-  
-  const pinNum = (id: string | undefined) => Number((id ?? '').slice(2)) || 1;
-  const rot = (boardId: string) => ((snap.boardRotations[boardId] ?? 0) === 180 ? 180 : 0) as 0 | 180;
-  const derivedTrackStates = {
-    QL: { whiteBoardPin: pinNum(snap.attackBoardPositions['WQL']), blackBoardPin: pinNum(snap.attackBoardPositions['BQL']), whiteRotation: rot('WQL'), blackRotation: rot('BQL') },
-    KL: { whiteBoardPin: pinNum(snap.attackBoardPositions['WKL']), blackBoardPin: pinNum(snap.attackBoardPositions['BKL']), whiteRotation: rot('WKL'), blackRotation: rot('BKL') },
-  };
-  
-  set({ trackStates: derivedTrackStates });
-  updateInstanceVisibility(state.world, derivedTrackStates);
 
   state.updateGameState();
 }
@@ -163,6 +186,33 @@ function boardIdToLevel(boardId: string): string {
   if (boardId === 'NL') return 'N';
   if (boardId === 'BL') return 'B';
   return boardId;
+}
+
+function instanceIdToBoardId(instanceId: string, attackBoardStates?: Record<string, { activeInstanceId: string }>): string | null {
+  console.log('[instanceIdToBoardId] Converting:', { instanceId, attackBoardStates });
+
+  // Check if this is a main board
+  if (instanceId === 'WL' || instanceId === 'NL' || instanceId === 'BL' || instanceId === 'W' || instanceId === 'N' || instanceId === 'B') {
+    console.log('[instanceIdToBoardId] Is main board, returning:', instanceId);
+    return instanceId;
+  }
+
+  if (!attackBoardStates) {
+    console.log('[instanceIdToBoardId] No attackBoardStates provided, returning null');
+    return null;
+  }
+
+  // Find which board ID has this active instance
+  for (const [boardId, state] of Object.entries(attackBoardStates)) {
+    console.log('[instanceIdToBoardId] Checking:', { boardId, activeInstanceId: state.activeInstanceId, matches: state.activeInstanceId === instanceId });
+    if (state.activeInstanceId === instanceId) {
+      console.log('[instanceIdToBoardId] Found match! Returning:', boardId);
+      return boardId;
+    }
+  }
+
+  console.log('[instanceIdToBoardId] No match found, returning null');
+  return null;
 }
 
 const initialWorld = createChessWorld();
@@ -406,11 +456,17 @@ export const useGameStore = create<GameState>()((set, get) => ({
   },
 
   selectBoard: (boardId: string | null) => {
+    console.log('[selectBoard] Called with:', boardId);
     if (boardId === null) {
       set({ selectedBoardId: null });
     } else {
-      set({ 
-        selectedBoardId: boardId,
+      const state = get();
+      console.log('[selectBoard] Current attackBoardStates:', state.attackBoardStates);
+      // Convert instance ID to board ID if necessary
+      const actualBoardId = instanceIdToBoardId(boardId, state.attackBoardStates) || boardId;
+      console.log('[selectBoard] Setting selectedBoardId to:', actualBoardId);
+      set({
+        selectedBoardId: actualBoardId,
         selectedSquareId: null,
         highlightedSquareIds: []
       });
@@ -532,12 +588,31 @@ export const useGameStore = create<GameState>()((set, get) => ({
     const fromPinId = state.attackBoardPositions[boardId];
     if (!fromPinId) return;
 
-    console.log('[moveAttackBoard] BEFORE:', {
-      boardId,
-      fromPinId,
-      toPinId,
-      rotate,
+    console.log('[moveAttackBoard] START', {
+      boardId,           // e.g., 'WQL'
+      fromPinId,         // e.g., 'QL1'
+      toPinId,           // e.g., 'QL2'
+      rotate,            // false
+      arrivalChoice,     // 'identity' or 'rot180'
       currentTurn: state.currentTurn,
+    });
+
+    // Log passengers BEFORE
+    const passengers = state.pieces.filter(p => p.level === boardId);
+    console.log('[moveAttackBoard] Passengers BEFORE:', passengers.map(p => ({
+      type: p.type,
+      color: p.color,
+      level: p.level,
+      file: p.file,
+      rank: p.rank,
+      squareId: `${['z','a','b','c','d','e'][p.file]}${p.rank}${p.level}`,
+    })));
+
+    // Log current state BEFORE
+    console.log('[moveAttackBoard] State BEFORE:', {
+      attackBoardPositions: state.attackBoardPositions,
+      attackBoardStates: state.attackBoardStates,
+      trackStates: state.trackStates,
     });
 
     const validation = validateActivation({
@@ -549,6 +624,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       world: state.world,
       attackBoardPositions: state.attackBoardPositions,
     });
+    console.log('[moveAttackBoard] Validation:', validation);
     if (!validation.isValid) return;
 
     const result = executeActivation({
@@ -562,12 +638,22 @@ export const useGameStore = create<GameState>()((set, get) => ({
       arrivalChoice,
     });
 
-    const kingPieceBefore = state.pieces.find(p => p.type === 'king' && p.level === boardId);
-    const kingPieceAfter = result.updatedPieces.find(p => p.type === 'king' && p.level === boardId);
-    console.log('[moveAttackBoard] King before/after:', {
-      before: kingPieceBefore ? { file: kingPieceBefore.file, rank: kingPieceBefore.rank, level: kingPieceBefore.level } : 'not found',
-      after: kingPieceAfter ? { file: kingPieceAfter.file, rank: kingPieceAfter.rank, level: kingPieceAfter.level } : 'not found',
+    console.log('[moveAttackBoard] Execution result:', {
+      activeInstanceId: result.activeInstanceId,
+      updatedPositions: result.updatedPositions,
+      updatedPiecesCount: result.updatedPieces.length,
     });
+
+    // Log passengers AFTER execution
+    const updatedPassengers = result.updatedPieces.filter(p => p.level === boardId);
+    console.log('[moveAttackBoard] Passengers AFTER execution:', updatedPassengers.map(p => ({
+      type: p.type,
+      color: p.color,
+      level: p.level,
+      file: p.file,
+      rank: p.rank,
+      squareId: `${['z','a','b','c','d','e'][p.file]}${p.rank}${p.level}`,
+    })));
 
     const move: Move = {
       type: 'board-move',
@@ -579,14 +665,34 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
     const nextTurn = state.currentTurn === 'white' ? 'black' : 'white';
 
-    console.log('[moveAttackBoard] AFTER:', {
-      nextTurn,
-      moveHistoryLength: state.moveHistory.length + 1,
-    });
-
     __snapshots.push(takeSnapshot(state));
 
+    // Build new attackBoardStates
+    const newAttackBoardStates = {
+      ...(state.attackBoardStates ?? {}),
+      [boardId]: {
+        activeInstanceId: result.activeInstanceId,
+      },
+    };
+    console.log('[moveAttackBoard] attackBoardStates update:', {
+      before: state.attackBoardStates,
+      after: newAttackBoardStates,
+    });
+
+    // Derive the 4 instance IDs to show from attackBoardStates
+    const instancesToShow = [
+      newAttackBoardStates.WQL?.activeInstanceId,
+      newAttackBoardStates.WKL?.activeInstanceId,
+      newAttackBoardStates.BQL?.activeInstanceId,
+      newAttackBoardStates.BKL?.activeInstanceId,
+    ].filter(Boolean) as string[];
+
+    console.log('[moveAttackBoard] Calling setVisibleInstances BEFORE set()...', instancesToShow);
+    setVisibleInstances(state.world, instancesToShow);
+
+    // Calculate trackStates for backwards compatibility (not used for visibility anymore)
     const parsed = parseInstanceId(result.activeInstanceId);
+    console.log('[moveAttackBoard] Parsed activeInstanceId:', parsed);
     const nextTrackStates = { ...(state.trackStates ?? { QL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0 as 0|180, blackRotation: 0 as 0|180 }, KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0 as 0|180, blackRotation: 0 as 0|180 } }) };
     if (parsed) {
       const isWhite = boardId.startsWith('W');
@@ -598,23 +704,29 @@ export const useGameStore = create<GameState>()((set, get) => ({
       }
     }
 
+    console.log('[moveAttackBoard] Calling set() with:', {
+      piecesCount: result.updatedPieces.length,
+      attackBoardPositions: result.updatedPositions,
+      attackBoardStates: newAttackBoardStates,
+      trackStates: nextTrackStates,
+      nextTurn,
+    });
+
     set({
+      world: { ...state.world },  // Create new reference so Zustand detects the change
       pieces: result.updatedPieces,
       attackBoardPositions: result.updatedPositions,
       moveHistory: [...state.moveHistory, move],
       selectedBoardId: boardId,
       currentTurn: nextTurn,
-      attackBoardStates: {
-        ...(state.attackBoardStates ?? {}),
-        [boardId]: {
-          activeInstanceId: result.activeInstanceId,
-        },
-      },
+      attackBoardStates: newAttackBoardStates,
       trackStates: nextTrackStates,
     });
 
-    updateInstanceVisibility(state.world, nextTrackStates);
+    console.log('[moveAttackBoard] Calling updateGameState...');
     get().updateGameState();
+
+    console.log('[moveAttackBoard] END');
   },
 
   canRotate: (boardId: string, angle: 0 | 180) => {
@@ -654,7 +766,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
         nextTrackStates[t] = { ...nextTrackStates[t], blackBoardPin: pinNum, blackRotation: 0 };
       }
 
+      updateInstanceVisibility(state.world, nextTrackStates);
+
       set({
+        world: { ...state.world },  // Create new reference so Zustand detects the change
         attackBoardStates: {
           ...(get().attackBoardStates ?? {}),
           [boardId]: { activeInstanceId: newInstanceId },
@@ -662,8 +777,6 @@ export const useGameStore = create<GameState>()((set, get) => ({
         trackStates: nextTrackStates,
         moveHistory: state.moveHistory,
       });
-
-      updateInstanceVisibility(state.world, nextTrackStates);
       return;
     }
 
@@ -712,7 +825,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
       }
     }
 
+    updateInstanceVisibility(state.world, nextTrackStates);
+
     set({
+      world: { ...state.world },  // Create new reference so Zustand detects the change
       pieces: result.updatedPieces,
       attackBoardPositions: result.updatedPositions,
       moveHistory: [...state.moveHistory, move],
@@ -727,7 +843,6 @@ export const useGameStore = create<GameState>()((set, get) => ({
       trackStates: nextTrackStates,
     });
 
-    updateInstanceVisibility(state.world, nextTrackStates);
     get().updateGameState();
   },
   importGameFromJson: async (json: string) => {

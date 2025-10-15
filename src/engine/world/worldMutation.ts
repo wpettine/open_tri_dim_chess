@@ -52,6 +52,14 @@ export function validateActivation(context: ActivationContext): BoardMoveValidat
 }
 
 export function executeActivation(context: ActivationContext): ActivationResult {
+  console.log('[executeActivation] START', {
+    boardId: context.boardId,
+    fromPinId: context.fromPinId,
+    toPinId: context.toPinId,
+    rotate: context.rotate,
+    arrivalChoice: context.arrivalChoice,
+  });
+
   const base = executeBoardMove({
     boardId: context.boardId,
     fromPinId: context.fromPinId,
@@ -63,12 +71,37 @@ export function executeActivation(context: ActivationContext): ActivationResult 
     arrivalChoice: context.arrivalChoice,
   });
 
+  console.log('[executeActivation] executeBoardMove returned:', {
+    updatedPiecesCount: base.updatedPieces.length,
+    updatedPositions: base.updatedPositions,
+  });
+
+  // Log each remapped piece
+  const passengers = base.updatedPieces.filter(p => p.level === context.boardId);
+  console.log('[executeActivation] Remapped passengers:', passengers.map(p => ({
+    type: p.type,
+    color: p.color,
+    level: p.level,
+    file: p.file,
+    rank: p.rank,
+    squareId: `${['z','a','b','c','d','e'][p.file]}${p.rank}${p.level}`,
+  })));
+
   const rotation: 0 | 180 = (context.rotate || (context.world.boards.get(context.boardId)?.rotation === 180))
     ? 180
     : 0;
-  const track = context.boardId.endsWith('QL') ? 'QL' : 'KL';
+  // Use destination pin's track for cross-track moves
+  const track = context.toPinId.startsWith('QL') ? 'QL' : 'KL';
   const pinNum = Number(context.toPinId.slice(2));
   const activeInstanceId = makeInstanceId(track as 'QL' | 'KL', pinNum, rotation);
+
+  console.log('[executeActivation] Computed activeInstanceId:', {
+    track,
+    pinNum,
+    rotation,
+    activeInstanceId,
+  });
+  console.log('[executeActivation] END');
 
   return {
     updatedPieces: base.updatedPieces,
@@ -132,7 +165,7 @@ function getBoardController(
 
 function validateAdjacency(context: BoardMoveContext): BoardMoveValidation {
   const adjacencyList = ATTACK_BOARD_ADJACENCY[context.fromPinId];
-  
+
   if (!adjacencyList) {
     return { isValid: false, reason: 'Invalid source pin' };
   }
@@ -265,8 +298,8 @@ function getBoardSquaresForBoardAtPin(
 
   const isQueenLine = pinId.startsWith('QL');
   const baseFile = isQueenLine ? 0 : 4;
-  const baseRank = pin.rankOffset / 2;
-  
+  const baseRank = pin.rankOffset;
+
   return [
     { file: baseFile, rank: baseRank },
     { file: baseFile + 1, rank: baseRank },
@@ -297,9 +330,9 @@ export function executeBoardMove(context: BoardMoveContext): BoardMoveResult {
 
   const fromPin = PIN_POSITIONS[context.fromPinId];
   const toPin = PIN_POSITIONS[context.toPinId];
-  
+
   const fileOffsetCells = toPin.fileOffset - fromPin.fileOffset;
-  const rankOffsetCells = (toPin.rankOffset - fromPin.rankOffset) / 2;
+  const rankOffsetCells = toPin.rankOffset - fromPin.rankOffset;
 
   const updatedPieces = context.pieces.map(piece => {
     const isPassenger = passengerPieces.includes(piece);
@@ -314,12 +347,12 @@ export function executeBoardMove(context: BoardMoveContext): BoardMoveResult {
     const applyArrivalRotation = context.rotate || context.arrivalChoice === 'rot180';
     if (applyArrivalRotation) {
       const relativeFile = piece.file - fromPin.fileOffset;
-      const relativeRankCells = piece.rank - (fromPin.rankOffset / 2);
+      const relativeRankCells = piece.rank - fromPin.rankOffset;
 
       const rotated = rotatePassenger180(relativeFile, relativeRankCells);
       const arrival = translatePassenger(
         toPin.fileOffset + rotated.newRelativeFile,
-        (toPin.rankOffset / 2) + rotated.newRelativeRank
+        toPin.rankOffset + rotated.newRelativeRank
       );
 
       newFile = arrival.file;
