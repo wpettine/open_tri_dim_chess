@@ -2,7 +2,6 @@ import { Board3D } from './components/Board3D/Board3D';
 import { CameraControls } from './components/UI/CameraControls';
 import { MoveHistory } from './components/UI/MoveHistory';
 import GameStatus from './components/UI/GameStatus';
-import { AttackBoardControls } from './components/UI/AttackBoardControls';
 import { useGameStore } from './store/gameStore';
 import { logWorldCoordinates } from './utils/debugLogger';
 import { useEffect } from 'react';
@@ -27,7 +26,6 @@ function App() {
       <CameraControls />
       <MoveHistory />
       <GameStatus />
-      <AttackBoardControls />
       {interactionMode === 'selectArrival' && selectedBoardId && selectedToPinId && (
         <ArrivalOverlay
           options={arrivalOptions}
