@@ -1,7 +1,7 @@
 import { useGameStore } from '../../store/gameStore';
 import type { BoardLayout, WorldSquare } from '../../engine/world/types';
 import { THEME } from '../../config/theme';
-import { PIN_POSITIONS } from '../../engine/world/pinPositions';
+import { PIN_POSITIONS, Z_WHITE_MAIN, Z_NEUTRAL_MAIN, Z_BLACK_MAIN } from '../../engine/world/pinPositions';
 import { fileToWorldX, rankToWorldY } from '../../engine/world/coordinates';
 
 export function BoardRenderer() {
@@ -23,6 +23,7 @@ function SingleBoard({ board }: { board: BoardLayout }) {
   const selectedSquareId = useGameStore(state => state.selectedSquareId);
   const highlightedSquareIds = useGameStore(state => state.highlightedSquareIds);
   const selectedBoardId = useGameStore(state => state.selectedBoardId);
+  const attackBoardStates = useGameStore(state => state.attackBoardStates);
   const canMoveBoard = useGameStore(state => state.canMoveBoard);
   const setArrivalSelection = useGameStore(state => state.setArrivalSelection);
 
@@ -67,22 +68,29 @@ function SingleBoard({ board }: { board: BoardLayout }) {
             />
           </mesh>
 
-          {board.type === 'attack' && board.isVisible && (
-            <mesh
-              position={[0, 0, 0]}
-              rotation={[Math.PI / 2, 0, 0]}
-              userData={{ testId: 'selector-disk' }}
-              onClick={(e) => {
-                e.stopPropagation();
-                selectBoard(board.id);
-              }}
-            >
-              <cylinderGeometry args={[THEME.attackBoardSelector.radius, THEME.attackBoardSelector.radius, THEME.attackBoardSelector.thickness, 32]} />
-              <meshStandardMaterial 
-                color={selectedBoardId === board.id ? THEME.squares.selectedColor : THEME.attackBoardSelector.color}
-              />
-            </mesh>
-          )}
+          {board.type === 'attack' && board.isVisible && (() => {
+            // Check if this board's instance matches the selected board's active instance
+            const activeInstanceId = selectedBoardId ? attackBoardStates?.[selectedBoardId]?.activeInstanceId : null;
+            const isSelected = selectedBoardId && activeInstanceId === board.id;
+
+            return (
+              <mesh
+                key={`disk-${board.id}-${isSelected ? 'selected' : 'unselected'}`}
+                position={[0, 0, 0]}
+                rotation={[Math.PI / 2, 0, 0]}
+                userData={{ testId: 'selector-disk' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  selectBoard(board.id);
+                }}
+              >
+                <cylinderGeometry args={[THEME.attackBoardSelector.radius, THEME.attackBoardSelector.radius, THEME.attackBoardSelector.thickness, 32]} />
+                <meshStandardMaterial
+                  color={isSelected ? THEME.squares.selectedColor : THEME.attackBoardSelector.color}
+                />
+              </mesh>
+            );
+          })()}
         </group>
       )}
 
@@ -100,11 +108,7 @@ function SingleBoard({ board }: { board: BoardLayout }) {
         ];
         
         const halfSquare = THEME.squares.size / 2;
-        
-        const Z_WHITE_MAIN = 0;
-        const Z_NEUTRAL_MAIN = 5;
-        const Z_BLACK_MAIN = 10;
-        
+
         return corners.map(corner => {
           const pinX = fileToWorldX(corner.file) + (corner.file === minMainFile ? -halfSquare : halfSquare);
           const pinY = rankToWorldY(corner.rank) + (corner.rank === minMainRank ? -halfSquare : halfSquare);
