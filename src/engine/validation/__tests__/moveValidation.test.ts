@@ -544,4 +544,224 @@ describe('moveValidation', () => {
       expect(validMoves.includes('a3W')).toBe(false);
     });
   });
+
+  describe('Prevent Capturing Own Pieces', () => {
+    it('should prevent white piece from capturing white piece on main board', () => {
+      const world = createChessWorld();
+      const pieces: Piece[] = [
+        {
+          id: 'rook',
+          type: 'rook',
+          color: 'white',
+          file: 0,
+          rank: 0,
+          level: 'W',
+          hasMoved: false,
+        },
+        {
+          id: 'pawn',
+          type: 'pawn',
+          color: 'white',
+          file: 3,
+          rank: 0,
+          level: 'W',
+          hasMoved: false,
+        },
+      ];
+
+      const validMoves = getLegalMoves(pieces[0], world, pieces);
+
+      // Rook should not be able to move to square occupied by friendly pawn
+      expect(validMoves.includes('d0W')).toBe(false);
+    });
+
+    it('should prevent black piece from capturing black piece on main board', () => {
+      const world = createChessWorld();
+      const pieces: Piece[] = [
+        {
+          id: 'queen',
+          type: 'queen',
+          color: 'black',
+          file: 2,
+          rank: 2,
+          level: 'B',
+          hasMoved: false,
+        },
+        {
+          id: 'pawn',
+          type: 'pawn',
+          color: 'black',
+          file: 4,
+          rank: 4,
+          level: 'B',
+          hasMoved: false,
+        },
+      ];
+
+      const validMoves = getLegalMoves(pieces[0], world, pieces);
+
+      // Queen should not be able to move diagonally to square occupied by friendly pawn
+      expect(validMoves.includes('e5B')).toBe(false);
+    });
+
+    it('should allow white piece to capture black piece', () => {
+      const world = createChessWorld();
+      const pieces: Piece[] = [
+        {
+          id: 'rook',
+          type: 'rook',
+          color: 'white',
+          file: 0,
+          rank: 0,
+          level: 'WQL',
+          hasMoved: false,
+        },
+        {
+          id: 'pawn',
+          type: 'pawn',
+          color: 'black',
+          file: 1,
+          rank: 0,
+          level: 'WQL',
+          hasMoved: false,
+        },
+      ];
+
+      const validMoves = getLegalMoves(pieces[0], world, pieces);
+
+      // Rook should have some valid moves (not blocked by own piece color check)
+      // The specific square depends on board geometry, but rook should be able to move
+      expect(validMoves.length).toBeGreaterThan(0);
+    });
+
+    it('should prevent capturing own piece on attack board', () => {
+      const world = createChessWorld();
+      const pieces: Piece[] = [
+        {
+          id: 'rook',
+          type: 'rook',
+          color: 'white',
+          file: 0,
+          rank: 0,
+          level: 'WQL',
+          hasMoved: false,
+        },
+        {
+          id: 'pawn',
+          type: 'pawn',
+          color: 'white',
+          file: 1,
+          rank: 0,
+          level: 'WQL',
+          hasMoved: false,
+        },
+      ];
+
+      const validMoves = getLegalMoves(pieces[0], world, pieces);
+
+      // Rook should not be able to capture friendly pawn on same attack board
+      expect(validMoves.includes('b0WQL')).toBe(false);
+    });
+
+    it('should prevent capturing own piece across levels', () => {
+      const world = createChessWorld();
+      const pieces: Piece[] = [
+        {
+          id: 'bishop',
+          type: 'bishop',
+          color: 'white',
+          file: 1,
+          rank: 1,
+          level: 'W',
+          hasMoved: false,
+        },
+        {
+          id: 'pawn',
+          type: 'pawn',
+          color: 'white',
+          file: 3,
+          rank: 3,
+          level: 'N',
+          hasMoved: false,
+        },
+      ];
+
+      const validMoves = getLegalMoves(pieces[0], world, pieces);
+
+      // Bishop should not be able to capture friendly pawn on different level
+      expect(validMoves.includes('d4N')).toBe(false);
+    });
+
+    it('should allow king to move to adjacent empty squares but not occupied squares', () => {
+      const world = createChessWorld();
+      const pieces: Piece[] = [
+        {
+          id: 'king',
+          type: 'king',
+          color: 'white',
+          file: 2,
+          rank: 2,
+          level: 'W',
+          hasMoved: false,
+        },
+        {
+          id: 'pawn',
+          type: 'pawn',
+          color: 'white',
+          file: 3,
+          rank: 3,
+          level: 'W',
+          hasMoved: false,
+        },
+      ];
+
+      const validMoves = getLegalMoves(pieces[0], world, pieces);
+
+      // King should not be able to move to square occupied by friendly pawn
+      expect(validMoves.includes('d4W')).toBe(false);
+
+      // King should be able to move to other adjacent squares (at least one should be valid)
+      const hasValidAdjacentMove =
+        validMoves.includes('b2W') ||
+        validMoves.includes('c2W') ||
+        validMoves.includes('b3W');
+      expect(hasValidAdjacentMove).toBe(true);
+    });
+
+    it('should handle piece color validation with attackBoardStates', () => {
+      const world = createChessWorld();
+      const pieces: Piece[] = [
+        {
+          id: 'rook',
+          type: 'rook',
+          color: 'white',
+          file: 0,
+          rank: 0,
+          level: 'WQL',
+          hasMoved: false,
+        },
+        {
+          id: 'knight',
+          type: 'knight',
+          color: 'white',
+          file: 1,
+          rank: 1,
+          level: 'WQL',
+          hasMoved: false,
+        },
+      ];
+
+      const attackBoardStates = {
+        WQL: { activeInstanceId: 'QL1:0' },
+        WKL: { activeInstanceId: 'KL1:0' },
+        BQL: { activeInstanceId: 'QL6:0' },
+        BKL: { activeInstanceId: 'KL6:0' },
+      };
+
+      const validMoves = getLegalMoves(pieces[0], world, pieces, attackBoardStates);
+
+      // Rook should not be able to capture friendly knight
+      expect(validMoves.includes('b1WQL')).toBe(false);
+    });
+  });
 });

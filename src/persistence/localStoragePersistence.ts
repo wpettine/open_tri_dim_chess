@@ -181,6 +181,338 @@ export class LocalStoragePersistence implements GamePersistence {
       }
     }
 
+    const hasKingsAndQueens = index.some((e) => e.name === 'Kings and Queens');
+    if (!hasKingsAndQueens) {
+      const kingsAndQueensPieces = [
+        {
+          id: 'white-king-0',
+          type: 'king',
+          color: 'white',
+          file: 4,
+          rank: 0,
+          level: 'WKL',
+          hasMoved: false,
+        },
+        {
+          id: 'white-queen-0',
+          type: 'queen',
+          color: 'white',
+          file: 1,
+          rank: 0,
+          level: 'WQL',
+          hasMoved: false,
+        },
+        {
+          id: 'black-king-0',
+          type: 'king',
+          color: 'black',
+          file: 4,
+          rank: 9,
+          level: 'BKL',
+          hasMoved: false,
+        },
+        {
+          id: 'black-queen-0',
+          type: 'queen',
+          color: 'black',
+          file: 1,
+          rank: 9,
+          level: 'BQL',
+          hasMoved: false,
+        },
+      ];
+      const now = nowIso();
+      const id = generateId();
+      const doc: PersistedGameState = {
+        version: SCHEMA_VERSION,
+        createdAt: now,
+        updatedAt: now,
+        id,
+        name: 'Kings and Queens',
+        payload: {
+          pieces: kingsAndQueensPieces,
+          currentTurn: 'white',
+          isCheck: false,
+          isCheckmate: false,
+          isStalemate: false,
+          winner: null,
+          gameOver: false,
+          attackBoardPositions: {
+            WQL: 'QL1',
+            WKL: 'KL1',
+            BQL: 'QL6',
+            BKL: 'KL6',
+          },
+          attackBoardStates: {
+            WQL: { activeInstanceId: 'QL1:0' },
+            WKL: { activeInstanceId: 'KL1:0' },
+            BQL: { activeInstanceId: 'QL6:0' },
+            BKL: { activeInstanceId: 'KL6:0' },
+          },
+          trackStates: {
+            QL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
+            KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
+          },
+          moveHistory: [],
+        },
+        integrity: { schemaVersion: SCHEMA_VERSION },
+        meta: { source: 'local' },
+      } as PersistedGameState;
+      const parsed = PersistedGameStateSchema.safeParse(doc);
+      if (parsed.success) {
+        localStorage.setItem(SAVE_KEY(id), JSON.stringify(doc));
+        upsertIndex({ id, name: doc.name, updatedAt: doc.updatedAt, source: 'local' });
+        index.push({ id, name: doc.name, updatedAt: doc.updatedAt, source: 'local' });
+      }
+    }
+
+    const hasKingsPawnsRooks = index.some((e) => e.name === 'Kings, pawns and rooks');
+    if (!hasKingsPawnsRooks) {
+      const kingsPawnsRooksPieces = [
+        {
+          id: 'white-king-0',
+          type: 'king',
+          color: 'white',
+          file: 4,
+          rank: 0,
+          level: 'WKL',
+          hasMoved: false,
+        },
+        {
+          id: 'white-rook-0',
+          type: 'rook',
+          color: 'white',
+          file: 0,
+          rank: 0,
+          level: 'WQL',
+          hasMoved: false,
+        },
+        {
+          id: 'white-rook-1',
+          type: 'rook',
+          color: 'white',
+          file: 5,
+          rank: 0,
+          level: 'WKL',
+          hasMoved: false,
+        },
+        {
+          id: 'white-pawn-0',
+          type: 'pawn',
+          color: 'white',
+          file: 0,
+          rank: 1,
+          level: 'WQL',
+          hasMoved: false,
+        },
+        {
+          id: 'white-pawn-1',
+          type: 'pawn',
+          color: 'white',
+          file: 1,
+          rank: 1,
+          level: 'WQL',
+          hasMoved: false,
+        },
+        {
+          id: 'white-pawn-2',
+          type: 'pawn',
+          color: 'white',
+          file: 4,
+          rank: 1,
+          level: 'WKL',
+          hasMoved: false,
+        },
+        {
+          id: 'white-pawn-3',
+          type: 'pawn',
+          color: 'white',
+          file: 5,
+          rank: 1,
+          level: 'WKL',
+          hasMoved: false,
+        },
+        {
+          id: 'white-pawn-4',
+          type: 'pawn',
+          color: 'white',
+          file: 1,
+          rank: 2,
+          level: 'W',
+          hasMoved: false,
+        },
+        {
+          id: 'white-pawn-5',
+          type: 'pawn',
+          color: 'white',
+          file: 2,
+          rank: 2,
+          level: 'W',
+          hasMoved: false,
+        },
+        {
+          id: 'white-pawn-6',
+          type: 'pawn',
+          color: 'white',
+          file: 3,
+          rank: 2,
+          level: 'W',
+          hasMoved: false,
+        },
+        {
+          id: 'white-pawn-7',
+          type: 'pawn',
+          color: 'white',
+          file: 4,
+          rank: 2,
+          level: 'W',
+          hasMoved: false,
+        },
+        {
+          id: 'black-king-0',
+          type: 'king',
+          color: 'black',
+          file: 4,
+          rank: 9,
+          level: 'BKL',
+          hasMoved: false,
+        },
+        {
+          id: 'black-rook-0',
+          type: 'rook',
+          color: 'black',
+          file: 0,
+          rank: 9,
+          level: 'BQL',
+          hasMoved: false,
+        },
+        {
+          id: 'black-rook-1',
+          type: 'rook',
+          color: 'black',
+          file: 5,
+          rank: 9,
+          level: 'BKL',
+          hasMoved: false,
+        },
+        {
+          id: 'black-pawn-0',
+          type: 'pawn',
+          color: 'black',
+          file: 0,
+          rank: 8,
+          level: 'BQL',
+          hasMoved: false,
+        },
+        {
+          id: 'black-pawn-1',
+          type: 'pawn',
+          color: 'black',
+          file: 1,
+          rank: 8,
+          level: 'BQL',
+          hasMoved: false,
+        },
+        {
+          id: 'black-pawn-2',
+          type: 'pawn',
+          color: 'black',
+          file: 4,
+          rank: 8,
+          level: 'BKL',
+          hasMoved: false,
+        },
+        {
+          id: 'black-pawn-3',
+          type: 'pawn',
+          color: 'black',
+          file: 5,
+          rank: 8,
+          level: 'BKL',
+          hasMoved: false,
+        },
+        {
+          id: 'black-pawn-4',
+          type: 'pawn',
+          color: 'black',
+          file: 1,
+          rank: 7,
+          level: 'B',
+          hasMoved: false,
+        },
+        {
+          id: 'black-pawn-5',
+          type: 'pawn',
+          color: 'black',
+          file: 2,
+          rank: 7,
+          level: 'B',
+          hasMoved: false,
+        },
+        {
+          id: 'black-pawn-6',
+          type: 'pawn',
+          color: 'black',
+          file: 3,
+          rank: 7,
+          level: 'B',
+          hasMoved: false,
+        },
+        {
+          id: 'black-pawn-7',
+          type: 'pawn',
+          color: 'black',
+          file: 4,
+          rank: 7,
+          level: 'B',
+          hasMoved: false,
+        },
+      ];
+      const now = nowIso();
+      const id = generateId();
+      const doc: PersistedGameState = {
+        version: SCHEMA_VERSION,
+        createdAt: now,
+        updatedAt: now,
+        id,
+        name: 'Kings, pawns and rooks',
+        payload: {
+          pieces: kingsPawnsRooksPieces,
+          currentTurn: 'white',
+          isCheck: false,
+          isCheckmate: false,
+          isStalemate: false,
+          winner: null,
+          gameOver: false,
+          attackBoardPositions: {
+            WQL: 'QL1',
+            WKL: 'KL1',
+            BQL: 'QL6',
+            BKL: 'KL6',
+          },
+          attackBoardStates: {
+            WQL: { activeInstanceId: 'QL1:0' },
+            WKL: { activeInstanceId: 'KL1:0' },
+            BQL: { activeInstanceId: 'QL6:0' },
+            BKL: { activeInstanceId: 'KL6:0' },
+          },
+          trackStates: {
+            QL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
+            KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
+          },
+          moveHistory: [],
+        },
+        integrity: { schemaVersion: SCHEMA_VERSION },
+        meta: { source: 'local' },
+      } as PersistedGameState;
+      const parsed = PersistedGameStateSchema.safeParse(doc);
+      if (parsed.success) {
+        localStorage.setItem(SAVE_KEY(id), JSON.stringify(doc));
+        upsertIndex({ id, name: doc.name, updatedAt: doc.updatedAt, source: 'local' });
+        index.push({ id, name: doc.name, updatedAt: doc.updatedAt, source: 'local' });
+      }
+    }
+
     return index;
   }
 
