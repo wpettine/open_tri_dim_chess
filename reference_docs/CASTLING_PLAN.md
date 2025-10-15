@@ -3,7 +3,7 @@
 **Author:** Claude AI
 **Date:** 2025-10-15
 **Purpose:** Comprehensive implementation plan for attack-board castling in Meder-style Tri-Dimensional Chess
-**Status:** Planning Phase
+**Status:** Phase I, II & III Complete ✅ (UI Integration Pending)
 
 ---
 
@@ -674,81 +674,89 @@ When castle executes:
 
 ## Implementation Phases
 
-### Phase 1: Core Validation (2-3 hours)
+### Phase 1: Core Validation (2-3 hours) ✅ COMPLETED
 
-**Files to Create:**
-- `src/engine/validation/castleValidator.ts`
+**Files Created:**
+- `src/engine/validation/castleValidator.ts` ✅
 
-**Tasks:**
-1. Create `CastleRequest`, `CastleValidation`, `CastleContext` interfaces
-2. Implement `validateCastle()` main function
-3. Implement `validateKingsideCastle()`
-4. Implement `validateQueensideCastle()`
-5. Implement `getCastlingOptions()` helper
-
-**Acceptance Criteria:**
-- All validation functions written
-- No TypeScript errors
-- Functions return correct CastleValidation objects
-
-### Phase 2: Unit Tests (2 hours)
-
-**Files to Create:**
-- `src/engine/validation/__tests__/castleValidator.test.ts`
-
-**Test Cases:**
-1. **Kingside QL - White - Valid**
-   - King at d0QL1, Rook at e0QL1, neither moved
-   - Expected: valid
-
-2. **Kingside QL - White - King Moved**
-   - King has hasMoved=true
-   - Expected: invalid, reason: "King has already moved"
-
-3. **Kingside KL - Black - Valid**
-   - King at e9KL6, Rook at d9KL6, neither moved
-   - Expected: valid
-
-4. **Kingside KL - Black - King in Check**
-   - King under attack
-   - Expected: invalid, reason: "Cannot castle while in check"
-
-5. **Queenside - White - Valid**
-   - King at d0KL1, Rook at a0QL1, neither moved, both boards controlled
-   - Expected: valid
-
-6. **Queenside - White - Wrong Pin**
-   - QL board at pin 2 instead of 1
-   - Expected: invalid, reason: "Bridge boards not at starting positions"
-
-7. **Queenside - Black - Path Attacked**
-   - Destination square attacked
-   - Expected: invalid, reason: "King destination square is attacked"
-
-8. **After Attack Board Activation**
-   - Player activated attack board this turn
-   - Expected: invalid, reason: "Cannot castle after attack board activation"
+**Tasks Completed:**
+1. ✅ Created `CastleRequest`, `CastleValidation`, `CastleContext` interfaces
+2. ✅ Implemented `validateCastle()` main function
+3. ✅ Implemented `validateKingsideCastle()`
+4. ✅ Implemented `validateQueensideCastle()`
+5. ✅ Implemented `getCastlingOptions()` helper
 
 **Acceptance Criteria:**
-- All test cases pass
-- Edge cases covered
+- ✅ All validation functions written
+- ✅ No TypeScript errors
+- ✅ Functions return correct CastleValidation objects
 
-### Phase 3: Store Integration (1 hour)
+**Implementation Details:**
+- Validates all 3 castle types: `kingside-ql`, `kingside-kl`, `queenside`
+- Enforces all legality requirements: unmoved pieces, correct pins, board control, check status
+- Returns detailed metadata including piece positions and involved boards
+- Properly handles attack board instance IDs with rotation states
 
-**Files to Modify:**
-- `src/store/gameStore.ts`
+### Phase 2: Unit Tests (2 hours) ✅ COMPLETED
 
-**Tasks:**
-1. Add `attackBoardActivatedThisTurn: boolean` to state (if not exists)
-2. Add `executeCastle(castleType)` action
-3. Extend `Move` interface to include castle fields
-4. Update `resetGame()` to reset castle-related state
+**Files Created:**
+- `src/engine/validation/__tests__/castleValidator.test.ts` ✅
+
+**Test Results: 16/16 Tests Passing ✅**
+
+**Test Coverage:**
+1. ✅ **Kingside QL - White - Valid** - King and rook swap on QL1:0
+2. ✅ **Kingside QL - White - King Moved** - Rejects when king has moved
+3. ✅ **Kingside QL - White - Rook Moved** - Rejects when rook has moved
+4. ✅ **Kingside QL - White - King in Check** - Rejects when king is in check
+5. ✅ **Kingside QL - White - Destination Attacked** - Rejects when destination is attacked
+6. ✅ **Kingside QL - White - Wrong Pin** - Rejects when board not at starting pin
+7. ✅ **Kingside KL - Black - Valid** - King and rook swap on KL6:0
+8. ✅ **Kingside KL - Black - King in Check** - Rejects when king is in check
+9. ✅ **Queenside - White - Valid** - King/rook swap between KL1 and QL1
+10. ✅ **Queenside - White - Same Board** - Rejects when both pieces on same board
+11. ✅ **Queenside - White - Wrong Pin** - Rejects when boards not at starting positions
+12. ✅ **Queenside - White - Path Attacked** - Rejects when destination is attacked
+13. ✅ **After Attack Board Activation** - Rejects castling after board activation
+14. ✅ **getCastlingOptions - Wrong Turn** - Returns empty array
+15. ✅ **getCastlingOptions - Board Activated** - Returns empty array
+16. ✅ **getCastlingOptions - Multiple Available** - Returns all valid options
 
 **Acceptance Criteria:**
-- `executeCastle()` correctly updates pieces
-- Move history captures castle moves
-- Turn switches after castle
-- Check/checkmate detection works after castle
+- ✅ All test cases pass
+- ✅ Edge cases covered
+- ✅ Validation rules properly enforced
+
+**Key Corrections Made:**
+- Fixed file/rank mappings for attack boards (QL: files 0-1, KL: files 4-5)
+- Corrected Black's back rank to 9 (not 8) for pin 6
+- Ensured proper instance ID format with rotation states
+
+### Phase 3: Store Integration (1 hour) ✅ COMPLETED
+
+**Files Modified:**
+- `src/store/gameStore.ts` ✅
+
+**Tasks Completed:**
+1. ✅ Added `attackBoardActivatedThisTurn: boolean` to state
+2. ✅ Added `executeCastle(castleType)` action
+3. ✅ Extended `Move` interface to include castle fields
+4. ✅ Updated `resetGame()` to reset castle-related state
+
+**Acceptance Criteria:**
+- ✅ `executeCastle()` correctly updates pieces
+- ✅ Move history captures castle moves
+- ✅ Turn switches after castle
+- ✅ Check/checkmate detection works after castle
+
+**Implementation Details:**
+- Extended `Move` union type with new `castle` variant including all position details
+- Added `attackBoardActivatedThisTurn` state that resets on turn change
+- Set flag when attack boards are activated or rotated
+- `executeCastle()` validates castle, swaps king/rook positions, updates hasMoved flags
+- Integration with existing check/checkmate detection system
+- Proper undo support via snapshot system
+- Castle moves recorded in move history with full position information
 
 ### Phase 4: UI Components (2 hours)
 

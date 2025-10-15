@@ -13,6 +13,7 @@ import { updateInstanceVisibility, setVisibleInstances } from '../engine/world/v
 import { validateActivation, executeActivation } from '../engine/world/worldMutation';
 import { getArrivalOptions } from '../engine/world/coordinatesTransform';
 import { resolveBoardId } from '../utils/resolveBoardId';
+import { validateCastle, type CastleType } from '../engine/validation/castleValidator';
 export interface GameSnapshot {
   pieces: Piece[];
   currentTurn: 'white' | 'black';
@@ -24,6 +25,7 @@ export interface GameSnapshot {
   attackBoardPositions: Record<string, string>;
   moveHistory: Move[];
   boardRotations: Record<string, number>;
+  attackBoardActivatedThisTurn: boolean;
 }
 
 const __snapshots: GameSnapshot[] = [];
@@ -44,6 +46,7 @@ function takeSnapshot(state: GameState): GameSnapshot {
     attackBoardPositions: { ...state.attackBoardPositions },
     moveHistory: state.moveHistory.slice(),
     boardRotations,
+    attackBoardActivatedThisTurn: state.attackBoardActivatedThisTurn,
   };
 }
 
@@ -99,6 +102,7 @@ function restoreSnapshot(
     selectedSquareId: null,
     highlightedSquareIds: [],
     selectedBoardId: null,
+    attackBoardActivatedThisTurn: snap.attackBoardActivatedThisTurn,
   });
 
   state.updateGameState();
@@ -130,6 +134,15 @@ export type Move =
       to: string;
       boardId: string;
       rotation?: number;
+    }
+  | {
+      type: 'castle';
+      castleType: 'kingside-ql' | 'kingside-kl' | 'queenside';
+      color: 'white' | 'black';
+      kingFrom: string;
+      kingTo: string;
+      rookFrom: string;
+      rookTo: string;
     };
 
 export interface GameState {
@@ -154,6 +167,7 @@ export interface GameState {
   interactionMode?: 'idle' | 'selectPin' | 'selectArrival';
   arrivalOptions?: Array<{ choice: 'identity' | 'rot180'; file: number; rank: number }> | null;
   selectedToPinId?: string | null;
+  attackBoardActivatedThisTurn: boolean;
   setArrivalSelection?: (toPinId: string) => void;
   clearArrivalSelection?: () => void;
 
@@ -177,6 +191,7 @@ export interface GameState {
   undoMove: () => void;
   getActiveInstance: (boardId: string) => string;
   setActiveInstance: (boardId: string, instanceId: string) => void;
+  executeCastle: (castleType: 'kingside-ql' | 'kingside-kl' | 'queenside') => void;
 }
 const __persistence = new LocalStoragePersistence();
 
@@ -243,6 +258,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
   },
   trackStates: initialTrackStates,
   selectedBoardId: null,
+  attackBoardActivatedThisTurn: false,
   setArrivalSelection: (toPinId: string) => {
     const state = get();
     const boardId = state.selectedBoardId;
@@ -442,6 +458,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       isStalemate: stalemateStatus,
       gameOver: checkmateStatus || stalemateStatus,
       winner: checkmateStatus ? state.currentTurn : (stalemateStatus ? null : state.winner),
+      attackBoardActivatedThisTurn: false, // Reset on turn change
     });
   },
 
@@ -503,6 +520,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       trackStates: newTrackStates,
       selectedBoardId: null,
       moveHistory: [],
+      attackBoardActivatedThisTurn: false,
     });
   },
 
@@ -721,6 +739,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       currentTurn: nextTurn,
       attackBoardStates: newAttackBoardStates,
       trackStates: nextTrackStates,
+      attackBoardActivatedThisTurn: true, // Mark that attack board was activated
     });
 
     console.log('[moveAttackBoard] Calling updateGameState...');
@@ -841,6 +860,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
         },
       },
       trackStates: nextTrackStates,
+      attackBoardActivatedThisTurn: true, // Mark that attack board was activated
     });
 
     get().updateGameState();
@@ -870,6 +890,108 @@ export const useGameStore = create<GameState>()((set, get) => ({
         [boardId]: { activeInstanceId: instanceId },
       },
     }));
+  },
+
+  executeCastle: (castleType: CastleType) => {
+    const state = get();
+    const { currentTurn, pieces, world, trackStates, attackBoardActivatedThisTurn } = state;
+
+    const validation = validateCastle({
+      color: currentTurn,
+      castleType,
+      pieces,
+      world,
+      trackStates: trackStates ?? {
+        QL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
+        KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
+      },
+      currentTurn,
+      attackBoardActivatedThisTurn,
+    });
+
+    if (!validation.valid) {
+      console.error(`[executeCastle] Invalid castle: ${validation.reason}`);
+      return;
+    }
+
+    const { kingFrom, kingTo, rookFrom, rookTo } = validation;
+    if (!kingFrom || !kingTo || !rookFrom || !rookTo) {
+      console.error('[executeCastle] Missing position data from validation');
+      return;
+    }
+
+    const king = pieces.find(
+      (p) => p.type === 'king' && p.color === currentTurn && 
+             p.file === kingFrom.file && p.rank === kingFrom.rank && p.level === kingFrom.level
+    );
+    const rook = pieces.find(
+      (p) => p.type === 'rook' && p.color === currentTurn && 
+             p.file === rookFrom.file && p.rank === rookFrom.rank && p.level === rookFrom.level
+    );
+
+    if (!king || !rook) {
+      console.error('[executeCastle] Could not find king or rook');
+      return;
+    }
+
+    const updatedPieces = pieces.map((p) => {
+      if (p.id === king.id) {
+        return {
+          ...p,
+          file: kingTo.file,
+          rank: kingTo.rank,
+          level: kingTo.level,
+          hasMoved: true,
+        };
+      }
+      if (p.id === rook.id) {
+        return {
+          ...p,
+          file: rookTo.file,
+          rank: rookTo.rank,
+          level: rookTo.level,
+          hasMoved: true,
+        };
+      }
+      return p;
+    });
+
+    const kingFromSquareId = createSquareId(kingFrom.file, kingFrom.rank, kingFrom.level);
+    const kingToSquareId = createSquareId(kingTo.file, kingTo.rank, kingTo.level);
+    const rookFromSquareId = createSquareId(rookFrom.file, rookFrom.rank, rookFrom.level);
+    const rookToSquareId = createSquareId(rookTo.file, rookTo.rank, rookTo.level);
+
+    const move: Move = {
+      type: 'castle',
+      castleType,
+      color: currentTurn,
+      kingFrom: kingFromSquareId,
+      kingTo: kingToSquareId,
+      rookFrom: rookFromSquareId,
+      rookTo: rookToSquareId,
+    };
+
+    const nextTurn = currentTurn === 'white' ? 'black' : 'white';
+
+    const checkStatus = isInCheck(nextTurn, world, updatedPieces, state.attackBoardStates);
+    const checkmateStatus = isCheckmate(nextTurn, world, updatedPieces, state.attackBoardStates);
+    const stalemateStatus = isStalemate(nextTurn, world, updatedPieces, state.attackBoardStates);
+
+    __snapshots.push(takeSnapshot(state));
+
+    set({
+      pieces: updatedPieces,
+      moveHistory: [...state.moveHistory, move],
+      currentTurn: nextTurn,
+      selectedSquareId: null,
+      highlightedSquareIds: [],
+      isCheck: checkStatus,
+      isCheckmate: checkmateStatus,
+      isStalemate: stalemateStatus,
+      gameOver: checkmateStatus || stalemateStatus,
+      winner: checkmateStatus ? currentTurn : (stalemateStatus ? null : state.winner),
+      attackBoardActivatedThisTurn: false, // Reset on turn change
+    });
   },
 }));
 
