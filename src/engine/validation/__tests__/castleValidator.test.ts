@@ -3,7 +3,6 @@ import {
   validateCastle,
   getCastlingOptions,
   CastleContext,
-  CastleType,
 } from '../castleValidator';
 import { createChessWorld } from '../../world/worldBuilder';
 import { Piece } from '../../../store/gameStore';

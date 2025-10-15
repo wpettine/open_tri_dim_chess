@@ -3,7 +3,7 @@
 **Author:** Claude AI
 **Date:** 2025-10-15
 **Purpose:** Comprehensive implementation plan for attack-board castling in Meder-style Tri-Dimensional Chess
-**Status:** Phase I & II Complete ✅ (Phase III Pending)
+**Status:** Phase I, II & III Complete ✅ (UI Integration Pending)
 
 ---
 
@@ -732,22 +732,31 @@ When castle executes:
 - Corrected Black's back rank to 9 (not 8) for pin 6
 - Ensured proper instance ID format with rotation states
 
-### Phase 3: Store Integration (1 hour)
+### Phase 3: Store Integration (1 hour) ✅ COMPLETED
 
-**Files to Modify:**
-- `src/store/gameStore.ts`
+**Files Modified:**
+- `src/store/gameStore.ts` ✅
 
-**Tasks:**
-1. Add `attackBoardActivatedThisTurn: boolean` to state (if not exists)
-2. Add `executeCastle(castleType)` action
-3. Extend `Move` interface to include castle fields
-4. Update `resetGame()` to reset castle-related state
+**Tasks Completed:**
+1. ✅ Added `attackBoardActivatedThisTurn: boolean` to state
+2. ✅ Added `executeCastle(castleType)` action
+3. ✅ Extended `Move` interface to include castle fields
+4. ✅ Updated `resetGame()` to reset castle-related state
 
 **Acceptance Criteria:**
-- `executeCastle()` correctly updates pieces
-- Move history captures castle moves
-- Turn switches after castle
-- Check/checkmate detection works after castle
+- ✅ `executeCastle()` correctly updates pieces
+- ✅ Move history captures castle moves
+- ✅ Turn switches after castle
+- ✅ Check/checkmate detection works after castle
+
+**Implementation Details:**
+- Extended `Move` union type with new `castle` variant including all position details
+- Added `attackBoardActivatedThisTurn` state that resets on turn change
+- Set flag when attack boards are activated or rotated
+- `executeCastle()` validates castle, swaps king/rook positions, updates hasMoved flags
+- Integration with existing check/checkmate detection system
+- Proper undo support via snapshot system
+- Castle moves recorded in move history with full position information
 
 ### Phase 4: UI Components (2 hours)
 
