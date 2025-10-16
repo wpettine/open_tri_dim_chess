@@ -1,5 +1,5 @@
 import { MoveValidationContext, MoveResult } from './types';
-import { isPathClear, isPieceAt, isDestinationBlockedByVerticalShadow } from './pathValidation';
+import { isPathClear, isPieceAt, isDestinationBlockedByVerticalShadow, getPathCoordinates } from './pathValidation';
 import { ChessWorld } from '../world/types';
 import { Piece } from '../../store/gameStore';
 
@@ -38,7 +38,38 @@ export function validatePawnMove(context: MoveValidationContext): MoveResult {
   const rankChange = toSquare.rank - fromSquare.rank;
   const direction = piece.color === 'white' ? 1 : -1;
 
+  const fromLevel = parseLevelFromSquareId(fromSquare.id);
   const toLevel = parseLevelFromSquareId(toSquare.id);
+
+  // Check if moving between different attack board instances
+  // Attack boards on different tracks (QL vs KL) are disconnected
+  if (fromLevel !== toLevel) {
+    const isFromAttackBoard = fromLevel.includes(':');
+    const isToAttackBoard = toLevel.includes(':');
+
+    // Block only if BOTH are attack boards on DIFFERENT tracks
+    if (isFromAttackBoard && isToAttackBoard) {
+      const fromTrack = fromLevel.startsWith('QL') ? 'QL' : 'KL';
+      const toTrack = toLevel.startsWith('QL') ? 'QL' : 'KL';
+
+      if (fromTrack !== toTrack) {
+        return { valid: false, reason: 'cannot move between QL and KL tracks' };
+      }
+
+      // Same track - check if moving between different pins on z/e files
+      const fromPinMatch = fromLevel.match(/^(?:QL|KL)([1-6])/);
+      const toPinMatch = toLevel.match(/^(?:QL|KL)([1-6])/);
+
+      if (fromPinMatch && toPinMatch) {
+        const fromPin = parseInt(fromPinMatch[1]);
+        const toPin = parseInt(toPinMatch[1]);
+
+        if (fromPin !== toPin && (fromSquare.file === 0 || fromSquare.file === 5)) {
+          return { valid: false, reason: 'z and e files have no main board connectivity between attack boards' };
+        }
+      }
+    }
+  }
 
   const destinationBlocked = isCoordinateBlockedByAnyLevel(
     toSquare.file,
@@ -65,7 +96,7 @@ export function validatePawnMove(context: MoveValidationContext): MoveResult {
 
   if (fileChange === 0 && rankChange === 2 * direction && !piece.hasMoved && !piece.movedByAB && !destinationBlocked) {
     const intermediateRank = fromSquare.rank + direction;
-    
+
     const intermediateBlocked = isCoordinateBlockedByAnyLevel(
       fromSquare.file,
       intermediateRank,
@@ -94,22 +125,86 @@ export function validateRookMove(context: MoveValidationContext): MoveResult {
     return { valid: false, reason: 'pure vertical movement prohibited' };
   }
 
+  // Check if moving between different attack board instances
+  // Attack boards on different tracks (QL vs KL) are disconnected
+  // (The only exception is castling, which is handled separately)
+  // Attack boards to main boards, and attack boards on the same track, are allowed
+  if (levelChange) {
+    // For attack boards, the level is the instance ID (e.g., "QL1:0", "KL6:90")
+    // Main boards are "W", "N", "B" and are always connected
+    const isFromAttackBoard = fromLevel.includes(':');
+    const isToAttackBoard = toLevel.includes(':');
+
+    // Block if BOTH are attack boards on DIFFERENT tracks
+    if (isFromAttackBoard && isToAttackBoard) {
+      const fromTrack = fromLevel.startsWith('QL') ? 'QL' : 'KL';
+      const toTrack = toLevel.startsWith('QL') ? 'QL' : 'KL';
+
+      console.log(`[validateRookMove] Attack board to attack board: ${fromSquare.id} -> ${toSquare.id}`);
+      console.log(`[validateRookMove] fromTrack=${fromTrack}, toTrack=${toTrack}`);
+
+      if (fromTrack !== toTrack) {
+        console.log(`[validateRookMove] BLOCKED: Different tracks`);
+        return { valid: false, reason: 'cannot move between QL and KL tracks' };
+      }
+
+      // Even on the same track, if the instances are different, they must be connected through main boards
+      // Extract pin numbers from instance IDs (e.g., "QL1:0" -> pin 1, "QL6:0" -> pin 6)
+      const fromPinMatch = fromLevel.match(/^(?:QL|KL)([1-6])/);
+      const toPinMatch = toLevel.match(/^(?:QL|KL)([1-6])/);
+
+      if (fromPinMatch && toPinMatch) {
+        const fromPin = parseInt(fromPinMatch[1]);
+        const toPin = parseInt(toPinMatch[1]);
+
+        console.log(`[validateRookMove] Pin check: fromPin=${fromPin}, toPin=${toPin}`);
+
+        // If moving between different pins on the same track, path must go through main boards
+        if (fromPin !== toPin) {
+          // Z-file (0) and E-file (5) only exist on attack boards, not main boards
+          // So moves along these files between different pins are illegal (no main board connectivity)
+          if (fromSquare.file === 0 || fromSquare.file === 5) {
+            console.log(`[validateRookMove] BLOCKED: Cannot move along z/e file between different pins (${fromPin} -> ${toPin})`);
+            return { valid: false, reason: 'z and e files have no main board connectivity between attack boards' };
+          }
+
+          const pathCoords = getPathCoordinates(fromSquare, toSquare);
+          console.log(`[validateRookMove] Different pins detected. Path coordinates: ${pathCoords.length}`);
+
+          if (pathCoords.length === 0) {
+            console.log(`[validateRookMove] BLOCKED: Different pins (${fromPin} -> ${toPin}) with no intermediate path`);
+            console.log(`[validateRookMove] Details: ${fromSquare.id} (pin ${fromPin}) -> ${toSquare.id} (pin ${toPin})`);
+            return { valid: false, reason: 'attack boards at different pins not adjacent' };
+          }
+
+          console.log(`[validateRookMove] Different pins but has intermediate path, will check if path is clear`);
+        }
+      }
+
+      console.log(`[validateRookMove] ALLOWED: Same track connection`);
+    }
+  }
+
   const movesOnOneAxis =
     (fileChange !== 0 && rankChange === 0) ||
     (fileChange === 0 && rankChange !== 0);
 
   if (!movesOnOneAxis) {
+    console.log(`[validateRookMove] BLOCKED: Not moving on one axis (fileChange=${fileChange}, rankChange=${rankChange})`);
     return { valid: false, reason: 'rook must move in straight line' };
   }
 
   if (!isPathClear(fromSquare, toSquare, world, allPieces)) {
+    console.log(`[validateRookMove] BLOCKED: Path not clear`);
     return { valid: false, reason: 'path blocked by vertical shadow' };
   }
 
   if (isDestinationBlockedByVerticalShadow(toSquare, world, allPieces)) {
+    console.log(`[validateRookMove] BLOCKED: Destination blocked by vertical shadow`);
     return { valid: false, reason: 'destination blocked by vertical shadow' };
   }
 
+  console.log(`[validateRookMove] VALID: ${fromSquare.id} -> ${toSquare.id}`);
   return { valid: true };
 }
 
@@ -121,7 +216,37 @@ export function validateKnightMove(context: MoveValidationContext): MoveResult {
 
   const fromLevel = parseLevelFromSquareId(fromSquare.id);
   const toLevel = parseLevelFromSquareId(toSquare.id);
-  
+
+  // Check if moving between different attack board instances
+  // Attack boards on different tracks (QL vs KL) are disconnected
+  if (fromLevel !== toLevel) {
+    const isFromAttackBoard = fromLevel.includes(':');
+    const isToAttackBoard = toLevel.includes(':');
+
+    // Block only if BOTH are attack boards on DIFFERENT tracks
+    if (isFromAttackBoard && isToAttackBoard) {
+      const fromTrack = fromLevel.startsWith('QL') ? 'QL' : 'KL';
+      const toTrack = toLevel.startsWith('QL') ? 'QL' : 'KL';
+
+      if (fromTrack !== toTrack) {
+        return { valid: false, reason: 'cannot move between QL and KL tracks' };
+      }
+
+      // Same track - check if moving between different pins on z/e files
+      const fromPinMatch = fromLevel.match(/^(?:QL|KL)([1-6])/);
+      const toPinMatch = toLevel.match(/^(?:QL|KL)([1-6])/);
+
+      if (fromPinMatch && toPinMatch) {
+        const fromPin = parseInt(fromPinMatch[1]);
+        const toPin = parseInt(toPinMatch[1]);
+
+        if (fromPin !== toPin && (fromSquare.file === 0 || fromSquare.file === 5)) {
+          return { valid: false, reason: 'z and e files have no main board connectivity between attack boards' };
+        }
+      }
+    }
+  }
+
   const levelMap: Record<string, number> = {
     W: 0,
     N: 1,
@@ -168,6 +293,39 @@ export function validateBishopMove(context: MoveValidationContext): MoveResult {
 
   if (levelChange && fileChange === 0 && rankChange === 0) {
     return { valid: false, reason: 'pure vertical movement prohibited' };
+  }
+
+  // Check if moving between different attack board instances
+  // Attack boards on different tracks (QL vs KL) are disconnected
+  if (levelChange) {
+    const isFromAttackBoard = fromLevel.includes(':');
+    const isToAttackBoard = toLevel.includes(':');
+
+    // Block only if BOTH are attack boards on DIFFERENT tracks
+    if (isFromAttackBoard && isToAttackBoard) {
+      const fromTrack = fromLevel.startsWith('QL') ? 'QL' : 'KL';
+      const toTrack = toLevel.startsWith('QL') ? 'QL' : 'KL';
+
+      if (fromTrack !== toTrack) {
+        return { valid: false, reason: 'cannot move between QL and KL tracks' };
+      }
+
+      // Same track - check if moving between different pins on z/e files
+      const fromPinMatch = fromLevel.match(/^(?:QL|KL)([1-6])/);
+      const toPinMatch = toLevel.match(/^(?:QL|KL)([1-6])/);
+
+      if (fromPinMatch && toPinMatch) {
+        const fromPin = parseInt(fromPinMatch[1]);
+        const toPin = parseInt(toPinMatch[1]);
+
+        if (fromPin !== toPin) {
+          // Z-file (0) and E-file (5) only exist on attack boards, not main boards
+          if (fromSquare.file === 0 || fromSquare.file === 5) {
+            return { valid: false, reason: 'z and e files have no main board connectivity between attack boards' };
+          }
+        }
+      }
+    }
   }
 
   const levelMap: Record<string, number> = {
@@ -229,6 +387,16 @@ export function validateKingMove(context: MoveValidationContext): MoveResult {
 
   if (levelChange && fileChange === 0 && rankChange === 0) {
     return { valid: false, reason: 'pure vertical movement prohibited' };
+  }
+
+  // Check if moving between different attack board instances
+  if (levelChange) {
+    const isFromAttackBoard = fromLevel.includes(':');
+    const isToAttackBoard = toLevel.includes(':');
+
+    if (isFromAttackBoard || isToAttackBoard) {
+      return { valid: false, reason: 'cannot move between disconnected attack boards' };
+    }
   }
 
   const maxDistance = Math.max(fileChange, rankChange);

@@ -3,6 +3,7 @@ import { CameraControls } from './components/UI/CameraControls';
 import CameraDebugOverlay from './components/UI/CameraDebugOverlay';
 import { MoveHistory } from './components/UI/MoveHistory';
 import GameStatus from './components/UI/GameStatus';
+import { CastleControls } from './components/UI/CastleControls';
 import { useGameStore } from './store/gameStore';
 import { logWorldCoordinates } from './utils/debugLogger';
 import { useEffect } from 'react';
@@ -26,9 +27,10 @@ function App() {
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       <Board3D />
       <CameraControls />
-      <CameraDebugOverlay defaultVisible={import.meta.env.DEV ? true : (THEME.debug?.cameraOverlayDefault ?? false)} />
+      <CameraDebugOverlay defaultVisible={THEME.debug?.cameraOverlayDefault ?? false} />
       <MoveHistory />
       <GameStatus />
+      <CastleControls />
       {interactionMode === 'selectArrival' && selectedBoardId && selectedToPinId && (
         <ArrivalOverlay
           options={arrivalOptions}

@@ -1,0 +1,143 @@
+.castle-controls {
+  position: fixed;
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  z-index: 100;
+  min-width: 260px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+}
+
+.castle-header {
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 12px;
+}
+
+.castle-header h3 {
+  margin: 0 0 4px 0;
+  color: #66ff99;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.castle-subtitle {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.castle-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.castle-button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  background: rgba(40, 40, 70, 0.7);
+  border: 2px solid rgba(102, 255, 153, 0.3);
+  border-radius: 8px;
+  color: #e9f0ff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.castle-button:hover,
+.castle-button.hovered {
+  background: rgba(40, 40, 70, 0.95);
+  border-color: #66ff99;
+  box-shadow: 0 0 12px rgba(102, 255, 153, 0.4);
+  transform: translateX(-2px);
+}
+
+.castle-button:active {
+  transform: translateX(-2px) scale(0.98);
+}
+
+.castle-label {
+  color: #d5e7ff;
+  font-weight: 500;
+}
+
+.castle-notation {
+  font-family: 'Courier New', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: #66ff99;
+  background: rgba(102, 255, 153, 0.1);
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(102, 255, 153, 0.3);
+}
+
+.castle-button:hover .castle-notation,
+.castle-button.hovered .castle-notation {
+  background: rgba(102, 255, 153, 0.2);
+  border-color: #66ff99;
+}
+
+.castle-info {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 12px;
+}
+
+.castle-hint {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  text-align: center;
+  font-style: italic;
+}
+
+/* Animation for when component appears */
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+.castle-controls {
+  animation: slideInFromRight 0.3s ease-out;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+  .castle-controls {
+    top: auto;
+    bottom: 120px;
+    right: 12px;
+    left: 12px;
+    transform: none;
+    min-width: auto;
+  }
+
+  .castle-button {
+    font-size: 13px;
+    padding: 12px 14px;
+  }
+
+  .castle-notation {
+    font-size: 14px;
+    padding: 3px 8px;
+  }
+}

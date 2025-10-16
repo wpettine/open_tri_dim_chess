@@ -527,17 +527,30 @@ export const useGameStore = create<GameState>()((set, get) => ({
   getValidMovesForSquare: (squareId: string) => {
     const state = get();
 
+    console.warn(`🔍 PIECE SELECTED: ${squareId}`);
+
     const piece = state.pieces.find((p) => {
       const resolvedLevel = resolveBoardId(p.level, state.attackBoardStates);
       const pieceSquareId = createSquareId(p.file, p.rank, resolvedLevel);
       return pieceSquareId === squareId;
     });
 
-    if (!piece || piece.color !== state.currentTurn) {
+    if (!piece) {
+      console.warn(`❌ NO PIECE at ${squareId}`);
       return [];
     }
 
-    return getLegalMovesAvoidingCheck(piece, state.world, state.pieces, state.attackBoardStates);
+    console.warn(`✅ FOUND:`, piece.type, piece.color, `at ${squareId}`);
+
+    if (piece.color !== state.currentTurn) {
+      console.warn(`❌ WRONG TURN - piece is ${piece.color}, turn is ${state.currentTurn}`);
+      return [];
+    }
+
+    const moves = getLegalMovesAvoidingCheck(piece, state.world, state.pieces, state.attackBoardStates);
+    console.error(`🎯 ${moves.length} LEGAL MOVES:`, moves);
+
+    return moves;
   },
 
   updateGameState: () => {
@@ -896,6 +909,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
     const state = get();
     const { currentTurn, pieces, world, trackStates, attackBoardActivatedThisTurn } = state;
 
+    console.log(`[executeCastle] START - castleType: ${castleType}, currentTurn: ${currentTurn}`);
+
     const validation = validateCastle({
       color: currentTurn,
       castleType,
@@ -908,6 +923,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
       currentTurn,
       attackBoardActivatedThisTurn,
     });
+
+    console.log(`[executeCastle] Validation result:`, validation);
 
     if (!validation.valid) {
       console.error(`[executeCastle] Invalid castle: ${validation.reason}`);
@@ -973,11 +990,17 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
     const nextTurn = currentTurn === 'white' ? 'black' : 'white';
 
+    console.log(`[executeCastle] nextTurn calculated: ${nextTurn} (currentTurn was ${currentTurn})`);
+
     const checkStatus = isInCheck(nextTurn, world, updatedPieces, state.attackBoardStates);
     const checkmateStatus = isCheckmate(nextTurn, world, updatedPieces, state.attackBoardStates);
     const stalemateStatus = isStalemate(nextTurn, world, updatedPieces, state.attackBoardStates);
 
+    console.log(`[executeCastle] Game state checks - isCheck: ${checkStatus}, isCheckmate: ${checkmateStatus}, isStalemate: ${stalemateStatus}`);
+
     __snapshots.push(takeSnapshot(state));
+
+    console.log(`[executeCastle] About to call set() with currentTurn: ${nextTurn}`);
 
     set({
       pieces: updatedPieces,
@@ -992,6 +1015,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
       winner: checkmateStatus ? currentTurn : (stalemateStatus ? null : state.winner),
       attackBoardActivatedThisTurn: false, // Reset on turn change
     });
+
+    console.log(`[executeCastle] set() completed. Verifying state...`);
+    const newState = get();
+    console.log(`[executeCastle] END - currentTurn is now: ${newState.currentTurn}, moveHistory length: ${newState.moveHistory.length}`);
   },
 }));
 

@@ -266,6 +266,109 @@ export class LocalStoragePersistence implements GamePersistence {
       }
     }
 
+    const hasKingsAndRooks = index.some((e) => e.name === 'Kings and Rooks');
+    if (!hasKingsAndRooks) {
+      const kingsAndRooksPieces = [
+        {
+          id: 'white-king-0',
+          type: 'king',
+          color: 'white',
+          file: 4,
+          rank: 0,
+          level: 'WKL',
+          hasMoved: false,
+        },
+        {
+          id: 'white-rook-0',
+          type: 'rook',
+          color: 'white',
+          file: 0,
+          rank: 0,
+          level: 'WQL',
+          hasMoved: false,
+        },
+        {
+          id: 'white-rook-1',
+          type: 'rook',
+          color: 'white',
+          file: 5,
+          rank: 0,
+          level: 'WKL',
+          hasMoved: false,
+        },
+        {
+          id: 'black-king-0',
+          type: 'king',
+          color: 'black',
+          file: 4,
+          rank: 9,
+          level: 'BKL',
+          hasMoved: false,
+        },
+        {
+          id: 'black-rook-0',
+          type: 'rook',
+          color: 'black',
+          file: 0,
+          rank: 9,
+          level: 'BQL',
+          hasMoved: false,
+        },
+        {
+          id: 'black-rook-1',
+          type: 'rook',
+          color: 'black',
+          file: 5,
+          rank: 9,
+          level: 'BKL',
+          hasMoved: false,
+        },
+      ];
+      const now = nowIso();
+      const id = generateId();
+      const doc: PersistedGameState = {
+        version: SCHEMA_VERSION,
+        createdAt: now,
+        updatedAt: now,
+        id,
+        name: 'Kings and Rooks',
+        payload: {
+          pieces: kingsAndRooksPieces,
+          currentTurn: 'white',
+          isCheck: false,
+          isCheckmate: false,
+          isStalemate: false,
+          winner: null,
+          gameOver: false,
+          attackBoardPositions: {
+            WQL: 'QL1',
+            WKL: 'KL1',
+            BQL: 'QL6',
+            BKL: 'KL6',
+          },
+          attackBoardStates: {
+            WQL: { activeInstanceId: 'QL1:0' },
+            WKL: { activeInstanceId: 'KL1:0' },
+            BQL: { activeInstanceId: 'QL6:0' },
+            BKL: { activeInstanceId: 'KL6:0' },
+          },
+          trackStates: {
+            QL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
+            KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
+          },
+          moveHistory: [],
+        },
+        integrity: { schemaVersion: SCHEMA_VERSION },
+        meta: { source: 'local' },
+      } as PersistedGameState;
+      const parsed = PersistedGameStateSchema.safeParse(doc);
+      if (parsed.success) {
+        localStorage.setItem(SAVE_KEY(id), JSON.stringify(doc));
+        upsertIndex({ id, name: doc.name, updatedAt: doc.updatedAt, source: 'local' });
+        index.push({ id, name: doc.name, updatedAt: doc.updatedAt, source: 'local' });
+      }
+    }
+
     const hasKingsPawnsRooks = index.some((e) => e.name === 'Kings, pawns and rooks');
     if (!hasKingsPawnsRooks) {
       const kingsPawnsRooksPieces = [

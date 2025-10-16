@@ -66,71 +66,108 @@ function validateKingsideCastle(context: CastleContext): CastleValidation {
   const pin = color === 'white' ? 1 : 6;
   const backRank = color === 'white' ? 0 : 9;
 
+  console.log(`[validateKingsideCastle] Validating ${castleType} for ${color}`);
+  console.log(`[validateKingsideCastle] track=${track}, pin=${pin}, backRank=${backRank}`);
+
   const trackState = trackStates[track];
   const boardPin = color === 'white' ? trackState.whiteBoardPin : trackState.blackBoardPin;
   const rotation = color === 'white' ? trackState.whiteRotation : trackState.blackRotation;
 
+  console.log(`[validateKingsideCastle] boardPin=${boardPin}, rotation=${rotation}`);
+
   if (boardPin !== pin) {
+    console.log(`[validateKingsideCastle] FAIL: Board not at starting position`);
     return { valid: false, reason: `${track} board not at starting position` };
   }
 
   const boardId = color === 'white' ? `W${track}` : `B${track}`;
+  console.log(`[validateKingsideCastle] boardId=${boardId}`);
+
   const controller = getBoardController(boardId);
+  console.log(`[validateKingsideCastle] controller=${controller}`);
+
   if (controller !== color) {
+    console.log(`[validateKingsideCastle] FAIL: Board not controlled by ${color}`);
     return { valid: false, reason: `${track} board not controlled by ${color}` };
   }
 
   const instanceId = `${track}${pin}:${rotation}`;
 
+  // Find king and rook using board ID (pieces store 'WQL', 'WKL', etc., not instance IDs)
+  console.log(`[validateKingsideCastle] Looking for pieces with level=${boardId}, rank=${backRank}`);
+
   const king = pieces.find(p =>
     p.type === 'king' &&
     p.color === color &&
-    p.level === instanceId &&
+    p.level === boardId &&
     p.rank === backRank
   );
 
   const rook = pieces.find(p =>
     p.type === 'rook' &&
     p.color === color &&
-    p.level === instanceId &&
+    p.level === boardId &&
     p.rank === backRank
   );
 
+  console.log(`[validateKingsideCastle] Found king:`, king);
+  console.log(`[validateKingsideCastle] Found rook:`, rook);
+
   if (!king) {
+    console.log(`[validateKingsideCastle] FAIL: King not found`);
     return { valid: false, reason: `King not found on ${instanceId}` };
   }
 
   if (!rook) {
+    console.log(`[validateKingsideCastle] FAIL: Rook not found`);
     return { valid: false, reason: `Rook not found on ${instanceId}` };
   }
 
   if (king.hasMoved) {
+    console.log(`[validateKingsideCastle] FAIL: King has moved`);
     return { valid: false, reason: 'King has already moved' };
   }
 
   if (rook.hasMoved) {
+    console.log(`[validateKingsideCastle] FAIL: Rook has moved`);
     return { valid: false, reason: 'Rook has already moved' };
   }
 
   const kingSquareId = `${fileToString(king.file)}${king.rank}${instanceId}`;
+  console.log(`[validateKingsideCastle] King square ID: ${kingSquareId}`);
+
   const kingSquare = world.squares.get(kingSquareId);
   if (!kingSquare) {
+    console.log(`[validateKingsideCastle] FAIL: King square not found`);
     return { valid: false, reason: 'King square not found' };
   }
 
-  if (isSquareAttacked(kingSquare, getOpponentColor(color), world, pieces, attackBoardStates)) {
+  const kingAttacked = isSquareAttacked(kingSquare, getOpponentColor(color), world, pieces, attackBoardStates);
+  console.log(`[validateKingsideCastle] King square attacked: ${kingAttacked}`);
+
+  if (kingAttacked) {
+    console.log(`[validateKingsideCastle] FAIL: King is in check`);
     return { valid: false, reason: 'King is in check' };
   }
 
   const rookSquareId = `${fileToString(rook.file)}${rook.rank}${instanceId}`;
+  console.log(`[validateKingsideCastle] Rook square ID (king destination): ${rookSquareId}`);
+
   const rookSquare = world.squares.get(rookSquareId);
   if (!rookSquare) {
+    console.log(`[validateKingsideCastle] FAIL: Rook square not found`);
     return { valid: false, reason: 'Rook square not found' };
   }
 
-  if (isSquareAttacked(rookSquare, getOpponentColor(color), world, pieces, attackBoardStates)) {
+  const destAttacked = isSquareAttacked(rookSquare, getOpponentColor(color), world, pieces, attackBoardStates);
+  console.log(`[validateKingsideCastle] King destination square attacked: ${destAttacked}`);
+
+  if (destAttacked) {
+    console.log(`[validateKingsideCastle] FAIL: King destination square is attacked`);
     return { valid: false, reason: 'King destination square is attacked' };
   }
+
+  console.log(`[validateKingsideCastle] SUCCESS: All checks passed!`);
 
   return {
     valid: true,
@@ -173,17 +210,18 @@ function validateQueensideCastle(context: CastleContext): CastleValidation {
   const qlInstanceId = `QL${pin}:${qlRotation}`;
   const klInstanceId = `KL${pin}:${klRotation}`;
 
+  // Find king and rook using board IDs (pieces store 'WQL', 'WKL', 'BQL', 'BKL')
   const king = pieces.find(p =>
     p.type === 'king' &&
     p.color === color &&
-    (p.level === qlInstanceId || p.level === klInstanceId) &&
+    (p.level === qlBoardId || p.level === klBoardId) &&
     p.rank === backRank
   );
 
   const rook = pieces.find(p =>
     p.type === 'rook' &&
     p.color === color &&
-    (p.level === qlInstanceId || p.level === klInstanceId) &&
+    (p.level === qlBoardId || p.level === klBoardId) &&
     p.rank === backRank
   );
 
