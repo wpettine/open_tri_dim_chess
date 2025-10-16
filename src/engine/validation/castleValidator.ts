@@ -185,13 +185,19 @@ function validateQueensideCastle(context: CastleContext): CastleValidation {
   const backRank = color === 'white' ? 0 : 9;
   const pin = color === 'white' ? 1 : 6;
 
+  console.log(`[validateQueensideCastle] Validating queenside for ${color}`);
+  console.log(`[validateQueensideCastle] pin=${pin}, backRank=${backRank}`);
+
   const qlState = trackStates.QL;
   const klState = trackStates.KL;
 
   const qlPin = color === 'white' ? qlState.whiteBoardPin : qlState.blackBoardPin;
   const klPin = color === 'white' ? klState.whiteBoardPin : klState.blackBoardPin;
 
+  console.log(`[validateQueensideCastle] qlPin=${qlPin}, klPin=${klPin}`);
+
   if (qlPin !== pin || klPin !== pin) {
+    console.log(`[validateQueensideCastle] FAIL: Bridge boards not at starting positions`);
     return { valid: false, reason: 'Bridge boards not at starting positions' };
   }
 
@@ -201,7 +207,10 @@ function validateQueensideCastle(context: CastleContext): CastleValidation {
   const qlController = getBoardController(qlBoardId);
   const klController = getBoardController(klBoardId);
 
+  console.log(`[validateQueensideCastle] qlController=${qlController}, klController=${klController}`);
+
   if (qlController !== color || klController !== color) {
+    console.log(`[validateQueensideCastle] FAIL: Bridge boards not both controlled by player`);
     return { valid: false, reason: 'Bridge boards not both controlled by player' };
   }
 
@@ -209,6 +218,8 @@ function validateQueensideCastle(context: CastleContext): CastleValidation {
   const klRotation = color === 'white' ? klState.whiteRotation : klState.blackRotation;
   const qlInstanceId = `QL${pin}:${qlRotation}`;
   const klInstanceId = `KL${pin}:${klRotation}`;
+
+  console.log(`[validateQueensideCastle] qlInstanceId=${qlInstanceId}, klInstanceId=${klInstanceId}`);
 
   // Find king and rook using board IDs (pieces store 'WQL', 'WKL', 'BQL', 'BKL')
   const king = pieces.find(p =>
@@ -225,48 +236,108 @@ function validateQueensideCastle(context: CastleContext): CastleValidation {
     p.rank === backRank
   );
 
+  console.log(`[validateQueensideCastle] Found king:`, king);
+  console.log(`[validateQueensideCastle] Found rook:`, rook);
+
   if (!king) {
+    console.log(`[validateQueensideCastle] FAIL: King not found on bridge boards`);
     return { valid: false, reason: 'King not found on bridge boards' };
   }
 
   if (!rook) {
+    console.log(`[validateQueensideCastle] FAIL: Rook not found on bridge boards`);
     return { valid: false, reason: 'Rook not found on bridge boards' };
   }
 
   if (king.level === rook.level) {
+    console.log(`[validateQueensideCastle] FAIL: King and rook on same board`);
     return { valid: false, reason: 'King and rook must be on opposite bridge boards for queenside castle' };
   }
 
   if (king.hasMoved || rook.hasMoved) {
+    console.log(`[validateQueensideCastle] FAIL: King or rook has moved (king.hasMoved=${king.hasMoved}, rook.hasMoved=${rook.hasMoved})`);
     return { valid: false, reason: 'King or rook has already moved' };
   }
 
-  const kingSquareId = `${fileToString(king.file)}${king.rank}${king.level}`;
+  // Check if path is clear between king and rook
+  // QL attack boards have files 0-1 (z-a), KL attack boards have files 4-5 (d-e)
+  // Main boards have files 1-4 (a-d), with files 2-3 (b-c) connecting QL to KL
+  // For queenside castling, we need to check if files 2-3 (b-c) on the back rank are empty
+  const minFile = Math.min(king.file, rook.file);
+  const maxFile = Math.max(king.file, rook.file);
+
+  console.log(`[validateQueensideCastle] Checking path from file ${minFile} to ${maxFile} on rank ${backRank}`);
+
+  // Check each file between king and rook (exclusive)
+  for (let file = minFile + 1; file < maxFile; file++) {
+    console.log(`[validateQueensideCastle] Checking file ${file}, rank ${backRank}`);
+
+    // Check if any piece occupies this coordinate on any level
+    const blockingPiece = pieces.find(p =>
+      p.file === file &&
+      p.rank === backRank &&
+      p.type !== 'king' && // King and rook are allowed
+      p.type !== 'rook'
+    );
+
+    if (blockingPiece) {
+      console.log(`[validateQueensideCastle] FAIL: Path blocked by ${blockingPiece.color} ${blockingPiece.type} at file ${file}`);
+      return { valid: false, reason: `Path blocked by ${blockingPiece.type} on back rank` };
+    }
+  }
+
+  // Use instance IDs for square lookup, not board IDs
+  const kingInstanceId = king.level === qlBoardId ? qlInstanceId : klInstanceId;
+  const rookInstanceId = rook.level === qlBoardId ? qlInstanceId : klInstanceId;
+
+  const kingSquareId = `${fileToString(king.file)}${king.rank}${kingInstanceId}`;
+  console.log(`[validateQueensideCastle] King square ID: ${kingSquareId}`);
+
   const kingSquare = world.squares.get(kingSquareId);
 
   if (!kingSquare) {
+    console.log(`[validateQueensideCastle] FAIL: King square not found`);
     return { valid: false, reason: 'King square not found' };
   }
 
-  if (isSquareAttacked(kingSquare, getOpponentColor(color), world, pieces, attackBoardStates)) {
+  const kingAttacked = isSquareAttacked(kingSquare, getOpponentColor(color), world, pieces, attackBoardStates);
+  console.log(`[validateQueensideCastle] King square attacked: ${kingAttacked}`);
+
+  if (kingAttacked) {
+    console.log(`[validateQueensideCastle] FAIL: King is in check`);
     return { valid: false, reason: 'King is in check' };
   }
 
-  const kingDestSquareId = `${fileToString(rook.file)}${rook.rank}${rook.level}`;
+  // Queenside castling: King goes to square BESIDE the rook
+  // Calculate the correct destination file
+  const kingDestFile = rook.file < king.file ? rook.file + 1 : rook.file - 1;
+
+  const kingDestSquareId = `${fileToString(kingDestFile)}${backRank}${rookInstanceId}`;
+  console.log(`[validateQueensideCastle] King destination square ID: ${kingDestSquareId}`);
+
   const kingDestSquare = world.squares.get(kingDestSquareId);
 
   if (!kingDestSquare) {
+    console.log(`[validateQueensideCastle] FAIL: King destination square not found`);
     return { valid: false, reason: 'King destination square not found' };
   }
 
+  const destAttacked = isSquareAttacked(kingDestSquare, getOpponentColor(color), world, pieces, attackBoardStates);
+  console.log(`[validateQueensideCastle] King destination square attacked: ${destAttacked}`);
+
   if (isSquareAttacked(kingDestSquare, getOpponentColor(color), world, pieces, attackBoardStates)) {
+    console.log(`[validateQueensideCastle] FAIL: King destination square is attacked`);
     return { valid: false, reason: 'King destination square is attacked' };
   }
+
+  console.log(`[validateQueensideCastle] SUCCESS: All checks passed!`);
+  console.log(`[validateQueensideCastle] King destination: file ${kingDestFile}, rank ${backRank}, level ${rook.level}`);
+  console.log(`[validateQueensideCastle] Rook destination: file ${king.file}, rank ${backRank}, level ${king.level}`);
 
   return {
     valid: true,
     kingFrom: { file: king.file, rank: king.rank, level: king.level },
-    kingTo: { file: rook.file, rank: rook.rank, level: rook.level },
+    kingTo: { file: kingDestFile, rank: backRank, level: rook.level },
     rookFrom: { file: rook.file, rank: rook.rank, level: rook.level },
     rookTo: { file: king.file, rank: king.rank, level: king.level },
     involvedBoards: [qlInstanceId, klInstanceId],
