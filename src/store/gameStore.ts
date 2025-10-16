@@ -101,6 +101,7 @@ function restoreSnapshot(
     trackStates: derivedTrackStates,
     selectedSquareId: null,
     highlightedSquareIds: [],
+    castleDestinations: [],
     selectedBoardId: null,
     attackBoardActivatedThisTurn: snap.attackBoardActivatedThisTurn,
   });
@@ -151,6 +152,10 @@ export interface GameState {
   currentTurn: 'white' | 'black';
   selectedSquareId: string | null;
   highlightedSquareIds: string[];
+  castleDestinations: Array<{
+    squareId: string;
+    castleType: CastleType;
+  }>;
   isCheck: boolean;
   isCheckmate: boolean;
   isStalemate: boolean;
@@ -244,6 +249,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
   currentTurn: 'white',
   selectedSquareId: null,
   highlightedSquareIds: [],
+  castleDestinations: [],
   isCheck: false,
   isCheckmate: false,
   isStalemate: false,
@@ -368,6 +374,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
       if (piece && piece.color === state.currentTurn) {
         const validMoves = get().getValidMovesForSquare(squareId);
+        // Note: castleDestinations are set inside getValidMovesForSquare
         set({
           selectedSquareId: squareId,
           highlightedSquareIds: validMoves,
@@ -375,6 +382,17 @@ export const useGameStore = create<GameState>()((set, get) => ({
         });
       }
     } else {
+      // Check if the clicked square is a castle destination
+      const castleDestination = state.castleDestinations.find(
+        (cd) => cd.squareId === squareId
+      );
+
+      if (castleDestination) {
+        // Execute the castle
+        get().executeCastle(castleDestination.castleType);
+        return;
+      }
+
       if (state.highlightedSquareIds.includes(squareId)) {
         const selectedPiece = state.pieces.find((p) => {
           const resolvedLevel = resolveBoardId(p.level, state.attackBoardStates);
@@ -399,13 +417,14 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
         if (piece && piece.color === state.currentTurn) {
           const validMoves = get().getValidMovesForSquare(squareId);
+          // Note: castleDestinations are set inside getValidMovesForSquare
           set({
             selectedSquareId: squareId,
             highlightedSquareIds: validMoves,
             selectedBoardId: null,
           });
         } else {
-          set({ selectedSquareId: null, highlightedSquareIds: [] });
+          set({ selectedSquareId: null, highlightedSquareIds: [], castleDestinations: [] });
         }
       }
     }
@@ -453,6 +472,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       currentTurn: nextTurn,
       selectedSquareId: null,
       highlightedSquareIds: [],
+      castleDestinations: [],
       isCheck: checkStatus,
       isCheckmate: checkmateStatus,
       isStalemate: stalemateStatus,
@@ -469,7 +489,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
   },
   
   clearSelection: () => {
-    set({ selectedSquareId: null, highlightedSquareIds: [], selectedBoardId: null });
+    set({ selectedSquareId: null, highlightedSquareIds: [], castleDestinations: [], selectedBoardId: null });
   },
 
   selectBoard: (boardId: string | null) => {
@@ -485,7 +505,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
       set({
         selectedBoardId: actualBoardId,
         selectedSquareId: null,
-        highlightedSquareIds: []
+        highlightedSquareIds: [],
+        castleDestinations: [],
       });
     }
   },
@@ -505,6 +526,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       currentTurn: 'white',
       selectedSquareId: null,
       highlightedSquareIds: [],
+      castleDestinations: [],
       isCheck: false,
       isCheckmate: false,
       isStalemate: false,
@@ -549,6 +571,48 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
     const moves = getLegalMovesAvoidingCheck(piece, state.world, state.pieces, state.attackBoardStates);
     console.error(`🎯 ${moves.length} LEGAL MOVES:`, moves);
+
+    // If the selected piece is a king, check for available castles
+    const castleDestinations: Array<{ squareId: string; castleType: CastleType }> = [];
+    if (piece.type === 'king') {
+      const castleTypes: CastleType[] = ['kingside-ql', 'kingside-kl', 'queenside'];
+
+      for (const castleType of castleTypes) {
+        const validation = validateCastle({
+          color: state.currentTurn,
+          castleType,
+          pieces: state.pieces,
+          world: state.world,
+          trackStates: state.trackStates ?? {
+            QL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
+            KL: { whiteBoardPin: 1, blackBoardPin: 6, whiteRotation: 0, blackRotation: 0 },
+          },
+          currentTurn: state.currentTurn,
+          attackBoardActivatedThisTurn: state.attackBoardActivatedThisTurn,
+        });
+
+        if (validation.valid && validation.kingTo) {
+          // Convert board ID to instance ID for square lookup
+          const resolvedLevel = resolveBoardId(validation.kingTo.level, state.attackBoardStates);
+
+          // Create the square ID for the king's destination
+          const kingDestSquareId = createSquareId(
+            validation.kingTo.file,
+            validation.kingTo.rank,
+            resolvedLevel
+          );
+          castleDestinations.push({
+            squareId: kingDestSquareId,
+            castleType,
+          });
+          console.log(`✨ CASTLE AVAILABLE: ${castleType} -> ${kingDestSquareId} (board: ${validation.kingTo.level}, instance: ${resolvedLevel})`);
+        }
+      }
+    }
+
+    // Update the store with castle destinations
+    console.log(`📍 Setting ${castleDestinations.length} castle destinations in store:`, castleDestinations);
+    set({ castleDestinations });
 
     return moves;
   },
@@ -1008,6 +1072,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       currentTurn: nextTurn,
       selectedSquareId: null,
       highlightedSquareIds: [],
+      castleDestinations: [],
       isCheck: checkStatus,
       isCheckmate: checkmateStatus,
       isStalemate: stalemateStatus,
@@ -1082,6 +1147,7 @@ export function hydrateFromPersisted(
     moveHistory,
     selectedSquareId: null,
     highlightedSquareIds: [],
+    castleDestinations: [],
     selectedBoardId: null,
   });
 

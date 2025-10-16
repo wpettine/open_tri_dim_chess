@@ -777,21 +777,139 @@ When castle executes:
 - Clicking button executes castle
 - Visual feedback clear and helpful
 
-### Phase 5: Visual Enhancements (1-2 hours)
+### Phase 5: Visual Enhancements - Interactive Castle Selection (2-3 hours)
+
+**Design Decision: Approach 1 - Extend Valid Moves System**
+
+**Concept:** When the king is selected, include castle destination squares in the highlighted valid moves with distinct visual styling.
+
+**User Flow:**
+1. User clicks king → both regular moves AND castle destinations are highlighted
+2. Regular king moves (1 square away) highlighted in **green** (existing)
+3. Castle destinations highlighted in **gold/yellow** with special castle icon
+4. User clicks gold square → `executeCastle(castleType)` automatically
+5. User clicks green square → regular `makeMove()`
 
 **Files to Modify:**
+- `src/store/gameStore.ts` - Add castle destination state
 - `src/components/Board3D/BoardRenderer.tsx` - Add castle highlighting
-- `src/components/Board3D/Pieces3D.tsx` - Add castle animations
+- `src/components/Board3D/Pieces3D.tsx` - Add castle animations (optional)
+- `src/engine/validation/castleValidator.ts` - Add helper to get king destinations
 
 **Tasks:**
-1. Highlight squares when hovering over castle button
-2. Animate pieces during castle execution (GSAP)
-3. Add sound effects (optional)
+
+**Task 1: Add Castle Destination State** (30 min)
+```typescript
+// gameStore.ts
+interface GameState {
+  highlightedSquareIds: string[];  // regular moves (green)
+  castleDestinations: Array<{
+    squareId: string;  // king's destination
+    castleType: CastleType;
+  }>;
+}
+
+// When king selected:
+getValidMovesForSquare: (kingSquareId) => {
+  const regularMoves = getLegalMovesAvoidingCheck(...);
+
+  if (piece.type === 'king') {
+    const castleOptions = getCastlingOptions(...);
+    const castleDestinations = castleOptions.map(type => ({
+      squareId: getKingDestinationForCastle(type),
+      castleType: type
+    }));
+
+    set({
+      highlightedSquareIds: regularMoves,
+      castleDestinations
+    });
+  }
+}
+```
+
+**Task 2: Add Helper Function** (30 min)
+```typescript
+// castleValidator.ts
+export function getKingDestinationForCastle(
+  castleType: CastleType,
+  pieces: Piece[],
+  color: 'white' | 'black',
+  trackStates: TrackStates,
+  attackBoardStates: Record<string, { activeInstanceId: string }>
+): string | null {
+  // Get the castle validation which contains kingTo
+  const validation = validateCastle({...});
+  if (!validation.valid || !validation.kingTo) return null;
+
+  // Convert to square ID
+  const instanceId = resolveInstanceId(validation.kingTo.level, attackBoardStates);
+  return `${fileToString(validation.kingTo.file)}${validation.kingTo.rank}${instanceId}`;
+}
+```
+
+**Task 3: Update Board Renderer** (45 min)
+```typescript
+// BoardRenderer.tsx
+const isRegularMove = highlightedSquareIds.includes(square.id);
+const castleMove = castleDestinations.find(c => c.squareId === square.id);
+
+if (isRegularMove) {
+  // Green highlight (existing)
+  material.color.set(0x00ff00);
+  material.opacity = 0.4;
+} else if (castleMove) {
+  // Gold highlight for castle destinations
+  material.color.set(0xffd700);  // Gold
+  material.opacity = 0.5;
+
+  // Add castle icon overlay (♜ or crown)
+  addCastleIconToSquare(square, castleMove.castleType);
+}
+```
+
+**Task 4: Update Click Handler** (30 min)
+```typescript
+// BoardRenderer.tsx
+const handleSquareClick = (squareId: string) => {
+  const castleMove = castleDestinations.find(c => c.squareId === squareId);
+
+  if (castleMove) {
+    executeCastle(castleMove.castleType);
+    return;
+  }
+
+  // ... existing move logic
+}
+```
+
+**Task 5: Visual Design** (30 min)
+- **Regular moves**: Green square (existing)
+- **Castle destinations**:
+  - Gold/yellow border and glow
+  - Small castle icon (♜) or crown (♔) overlay in 3D
+  - Tooltip on hover: "Castle Queenside (O-O-O)"
+  - Subtle pulsing animation to draw attention
+
+**Task 6: Keep Panel as Optional** (15 min)
+- Keep CastleControls panel visible for traditional button-based interaction
+- Users can choose: click gold square OR click panel button
+- Panel helpful for learning and showing notation
+
+**Edge Cases to Handle:**
+1. **Multiple castles available**: King might show 2+ gold destinations (queenside, kingside-QL, kingside-KL) - each distinct, no confusion
+2. **King destination calculation**: Helper function computes where king ends for each castle type
+3. **Clear state**: When piece deselected, clear both `highlightedSquareIds` AND `castleDestinations`
+4. **Visual priority**: If overlap (unlikely), prioritize castle highlighting
 
 **Acceptance Criteria:**
-- Smooth animations
-- Clear visual feedback
-- No glitches
+- ✅ Gold highlights appear on king's castle destinations when king selected
+- ✅ Clicking gold square executes correct castle type
+- ✅ Castle panel still works as alternative interaction
+- ✅ Visual distinction clear between regular moves and castle moves
+- ✅ Tooltips show castle type and notation on hover
+- ✅ Smooth animations during castle execution (optional GSAP integration)
+- ✅ No console errors
 
 ### Phase 6: Integration Testing (1 hour)
 

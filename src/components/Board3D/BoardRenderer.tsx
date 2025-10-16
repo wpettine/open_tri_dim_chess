@@ -6,7 +6,7 @@ import { fileToWorldX, rankToWorldY } from '../../engine/world/coordinates';
 
 export function BoardRenderer() {
   const world = useGameStore(state => state.world);
-
+  // Force HMR update - Interactive castle selection enabled
   return (
     <group>
       {Array.from(world.boards.values()).map(board => (
@@ -22,10 +22,16 @@ function SingleBoard({ board }: { board: BoardLayout }) {
   const selectBoard = useGameStore(state => state.selectBoard);
   const selectedSquareId = useGameStore(state => state.selectedSquareId);
   const highlightedSquareIds = useGameStore(state => state.highlightedSquareIds);
+  const castleDestinations = useGameStore(state => state.castleDestinations);
   const selectedBoardId = useGameStore(state => state.selectedBoardId);
   const attackBoardStates = useGameStore(state => state.attackBoardStates);
   const canMoveBoard = useGameStore(state => state.canMoveBoard);
   const setArrivalSelection = useGameStore(state => state.setArrivalSelection);
+
+  // Debug logging for castle destinations
+  if (castleDestinations.length > 0) {
+    console.log(`🏰 [BoardRenderer] Rendering ${castleDestinations.length} castle destinations on board ${board.id}:`, castleDestinations);
+  }
 
   const squares = Array.from(world.squares.values()).filter(
     (sq: WorldSquare) => sq.boardId === board.id
@@ -194,30 +200,52 @@ function SingleBoard({ board }: { board: BoardLayout }) {
       {(board.type === 'main' || board.isVisible) && squares.map((square) => {
         const isSelected = square.id === selectedSquareId;
         const isLegalMove = highlightedSquareIds.includes(square.id);
-        
+        const castleData = castleDestinations.find(cd => cd.squareId === square.id);
+        const isCastleDestination = !!castleData;
+
         return (
-          <mesh
-            key={square.id}
-            position={[square.worldX, square.worldY, square.worldZ]}
-            userData={{ testId: 'square' }}
-            onClick={() => {
-              if (board.type === 'main') {
-                selectBoard(null);
-              }
-              selectSquare(square.id);
-            }}
-          >
-            <boxGeometry args={[THEME.squares.size, THEME.squares.size, 0.1]} />
-            <meshStandardMaterial
-              color={
-                isSelected ? THEME.squares.selectedColor :
-                isLegalMove ? THEME.squares.availableMoveColor :
-                square.color === 'light' ? THEME.squares.light : THEME.squares.dark
-              }
-              transparent
-              opacity={isLegalMove ? 0.7 : THEME.squares.opacity}
-            />
-          </mesh>
+          <group key={square.id}>
+            <mesh
+              position={[square.worldX, square.worldY, square.worldZ]}
+              userData={{ testId: 'square' }}
+              onClick={() => {
+                if (board.type === 'main') {
+                  selectBoard(null);
+                }
+                selectSquare(square.id);
+              }}
+            >
+              <boxGeometry args={[THEME.squares.size, THEME.squares.size, 0.1]} />
+              <meshStandardMaterial
+                color={
+                  isSelected ? THEME.squares.selectedColor :
+                  isCastleDestination ? '#FFD700' : // Gold color for castle destinations
+                  isLegalMove ? THEME.squares.availableMoveColor :
+                  square.color === 'light' ? THEME.squares.light : THEME.squares.dark
+                }
+                transparent
+                opacity={isCastleDestination ? 0.85 : isLegalMove ? 0.7 : THEME.squares.opacity}
+                emissive={isCastleDestination ? '#FFD700' : undefined}
+                emissiveIntensity={isCastleDestination ? 0.3 : 0}
+              />
+            </mesh>
+            {isCastleDestination && (
+              <mesh
+                position={[square.worldX, square.worldY, square.worldZ + 0.3]}
+                rotation={[Math.PI / 2, 0, 0]}
+                userData={{ testId: 'castle-indicator' }}
+              >
+                <cylinderGeometry args={[0.3, 0.3, 0.05, 32]} />
+                <meshStandardMaterial
+                  color="#FFD700"
+                  emissive="#FFD700"
+                  emissiveIntensity={0.5}
+                  transparent
+                  opacity={0.9}
+                />
+              </mesh>
+            )}
+          </group>
         );
       })}
     </group>
