@@ -3,7 +3,7 @@ import { CameraControls } from './components/UI/CameraControls';
 import CameraDebugOverlay from './components/UI/CameraDebugOverlay';
 import { MoveHistory } from './components/UI/MoveHistory';
 import GameStatus from './components/UI/GameStatus';
-import { CastleControls } from './components/UI/CastleControls';
+// import { CastleControls } from './components/UI/CastleControls'; // Hidden - using interactive gold square selection instead
 import { useGameStore } from './store/gameStore';
 import { logWorldCoordinates } from './utils/debugLogger';
 import { useEffect } from 'react';
@@ -30,7 +30,7 @@ function App() {
       <CameraDebugOverlay defaultVisible={THEME.debug?.cameraOverlayDefault ?? false} />
       <MoveHistory />
       <GameStatus />
-      <CastleControls />
+      {/* <CastleControls /> */}
       {interactionMode === 'selectArrival' && selectedBoardId && selectedToPinId && (
         <ArrivalOverlay
           options={arrivalOptions}
