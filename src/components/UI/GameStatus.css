@@ -76,3 +76,22 @@
   margin: 0;
   font-size: 16px;
 }
+
+/* Promotion status indicators */
+.game-status.promotion {
+  background: rgba(100, 200, 100, 0.9);
+  color: white;
+  font-weight: bold;
+}
+
+.game-status.promotion.forced {
+  background: rgba(255, 215, 0, 0.9);
+  color: black;
+  font-weight: bold;
+}
+
+.game-status.promotion-deferred {
+  background: rgba(70, 130, 180, 0.9);
+  color: white;
+  font-style: italic;
+}

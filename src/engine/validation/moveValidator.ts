@@ -1,7 +1,7 @@
 import { Piece, AttackBoardStates } from '../../store/gameStore';
 import { ChessWorld } from '../world/types';
 import { createSquareId } from '../world/coordinates';
-import { MoveValidationContext, MoveResult } from './types';
+import { MoveValidationContext, MoveResult, TrackStates } from './types';
 import {
   validatePawnMove,
   validateRookMove,
@@ -16,7 +16,8 @@ export function getLegalMoves(
   piece: Piece,
   world: ChessWorld,
   allPieces: Piece[],
-  attackBoardStates?: AttackBoardStates
+  attackBoardStates?: AttackBoardStates,
+  trackStates?: TrackStates
 ): string[] {
   const legalMoves: string[] = [];
 
@@ -35,6 +36,8 @@ export function getLegalMoves(
       toSquare: square,
       world,
       allPieces,
+      trackStates,
+      attackBoardStates,
     };
 
     const result = validateMoveForPiece(context, attackBoardStates);

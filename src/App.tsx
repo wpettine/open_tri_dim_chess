@@ -8,6 +8,7 @@ import { useGameStore } from './store/gameStore';
 import { logWorldCoordinates } from './utils/debugLogger';
 import { useEffect } from 'react';
 import ArrivalOverlay from './components/UI/ArrivalOverlay';
+import PromotionOverlay from './components/UI/PromotionOverlay';
 import { THEME } from './config/theme';
 
 function App() {
@@ -43,6 +44,7 @@ function App() {
           }}
         />
       )}
+      <PromotionOverlay />
     </div>
   );
 }

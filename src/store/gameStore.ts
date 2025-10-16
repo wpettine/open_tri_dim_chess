@@ -14,6 +14,7 @@ import { validateActivation, executeActivation } from '../engine/world/worldMuta
 import { getArrivalOptions } from '../engine/world/coordinatesTransform';
 import { resolveBoardId } from '../utils/resolveBoardId';
 import { validateCastle, type CastleType } from '../engine/validation/castleValidator';
+import { checkPromotion } from '../engine/validation/promotionRules';
 export interface GameSnapshot {
   pieces: Piece[];
   currentTurn: 'white' | 'black';
@@ -111,6 +112,13 @@ function restoreSnapshot(
 
 
 
+export interface PromotionState {
+  isDeferred: boolean;           // True if on deferred corner
+  overhangBoardId?: string;      // Which board is blocking (e.g., 'BQL')
+  canPromote: boolean;           // True if at furthest rank
+  forcedPromotion?: boolean;     // True if auto-promotion pending
+}
+
 export interface Piece {
   id: string;
   type: 'pawn' | 'rook' | 'knight' | 'bishop' | 'queen' | 'king';
@@ -120,6 +128,7 @@ export interface Piece {
   level: string;
   hasMoved: boolean;
   movedByAB?: boolean;
+  promotionState?: PromotionState;
 }
 
 export type Move = 
@@ -173,6 +182,21 @@ export interface GameState {
   arrivalOptions?: Array<{ choice: 'identity' | 'rot180'; file: number; rank: number }> | null;
   selectedToPinId?: string | null;
   attackBoardActivatedThisTurn: boolean;
+
+  // Promotion state management
+  promotionPending?: {
+    pieceId: string;
+    squareId: string;
+    choices: ('queen' | 'rook' | 'bishop' | 'knight')[];
+    isForced: boolean;
+    triggeredBy: 'move' | 'geometry';
+  };
+  deferredPromotions: Array<{
+    pieceId: string;
+    squareId: string;
+    overhangBoardId: string;
+  }>;
+
   setArrivalSelection?: (toPinId: string) => void;
   clearArrivalSelection?: () => void;
 
@@ -197,6 +221,11 @@ export interface GameState {
   getActiveInstance: (boardId: string) => string;
   setActiveInstance: (boardId: string, instanceId: string) => void;
   executeCastle: (castleType: 'kingside-ql' | 'kingside-kl' | 'queenside') => void;
+
+  // Promotion actions
+  initiatePromotion: (pieceId: string, squareId: string, isForced: boolean, triggeredBy: 'move' | 'geometry') => void;
+  executePromotion: (pieceType: 'queen' | 'rook' | 'bishop' | 'knight') => void;
+  checkForcedPromotions: () => void;
 }
 const __persistence = new LocalStoragePersistence();
 
@@ -265,6 +294,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
   trackStates: initialTrackStates,
   selectedBoardId: null,
   attackBoardActivatedThisTurn: false,
+
+  // Promotion state
+  promotionPending: undefined,
+  deferredPromotions: [],
   setArrivalSelection: (toPinId: string) => {
     const state = get();
     const boardId = state.selectedBoardId;
@@ -432,13 +465,13 @@ export const useGameStore = create<GameState>()((set, get) => ({
   
   movePiece: (piece: Piece, toFile: number, toRank: number, toLevel: string) => {
     const state = get();
-    
+
     const capturedPiece = state.pieces.find(
       (p) => p.file === toFile && p.rank === toRank && p.level === toLevel
     );
-    
+
     const updatedPieces = state.pieces.filter((p) => p.id !== capturedPiece?.id);
-    
+
     const movedPieceIndex = updatedPieces.findIndex((p) => p.id === piece.id);
     if (movedPieceIndex !== -1) {
       updatedPieces[movedPieceIndex] = {
@@ -449,22 +482,106 @@ export const useGameStore = create<GameState>()((set, get) => ({
         hasMoved: true,
       };
     }
-    
+
     const fromSquare = state.world.squares.get(createSquareId(piece.file, piece.rank, piece.level));
     const toSquare = state.world.squares.get(createSquareId(toFile, toRank, toLevel));
+
+    // Check for promotion (only if piece is a pawn)
+    if (piece.type === 'pawn' && toSquare && state.trackStates) {
+      const promotionCheck = checkPromotion(
+        piece,
+        toSquare,
+        state.trackStates,
+        state.world,
+        state.attackBoardStates
+      );
+
+      if (promotionCheck.shouldPromote) {
+        console.log('[movePiece] Promotion detected:', promotionCheck);
+
+        const move: Move = {
+          type: 'piece-move',
+          from: fromSquare?.id || '',
+          to: toSquare?.id || '',
+          piece: { type: piece.type, color: piece.color },
+        };
+
+        __snapshots.push(takeSnapshot(state));
+
+        if (promotionCheck.isDeferred) {
+          // Deferred promotion - add to tracking and update piece state
+          const updatedPiecesWithPromotion = updatedPieces.map((p) => {
+            if (p.id === piece.id) {
+              return {
+                ...p,
+                promotionState: {
+                  isDeferred: true,
+                  overhangBoardId: promotionCheck.overhangBoardId,
+                  canPromote: false,
+                },
+              };
+            }
+            return p;
+          });
+
+          set({
+            pieces: updatedPiecesWithPromotion,
+            moveHistory: [...state.moveHistory, move],
+            deferredPromotions: [
+              ...state.deferredPromotions,
+              {
+                pieceId: piece.id,
+                squareId: toSquare.id,
+                overhangBoardId: promotionCheck.overhangBoardId!,
+              },
+            ],
+            selectedSquareId: null,
+            highlightedSquareIds: [],
+            castleDestinations: [],
+          });
+
+          console.log('[movePiece] Deferred promotion added for piece', piece.id);
+
+          // Still change turns for deferred promotion
+          const nextTurn = state.currentTurn === 'white' ? 'black' : 'white';
+          set({ currentTurn: nextTurn, attackBoardActivatedThisTurn: false });
+          get().updateGameState();
+
+          return;
+        } else if (promotionCheck.canPromote) {
+          // Immediate promotion - set pieces but don't change turn yet
+          set({
+            pieces: updatedPieces,
+            moveHistory: [...state.moveHistory, move],
+            selectedSquareId: null,
+            highlightedSquareIds: [],
+            castleDestinations: [],
+          });
+
+          // Trigger promotion UI (turn will change after promotion completes)
+          get().initiatePromotion(piece.id, toSquare.id, false, 'move');
+
+          console.log('[movePiece] Immediate promotion initiated for piece', piece.id);
+
+          return;
+        }
+      }
+    }
+
+    // Normal move (no promotion)
     const move: Move = {
       type: 'piece-move',
       from: fromSquare?.id || '',
       to: toSquare?.id || '',
       piece: { type: piece.type, color: piece.color },
     };
-    
+
     const nextTurn = state.currentTurn === 'white' ? 'black' : 'white';
 
-    const checkStatus = isInCheck(nextTurn, state.world, updatedPieces, state.attackBoardStates);
-    const checkmateStatus = isCheckmate(nextTurn, state.world, updatedPieces, state.attackBoardStates);
-    const stalemateStatus = isStalemate(nextTurn, state.world, updatedPieces, state.attackBoardStates);
-    
+    const checkStatus = isInCheck(nextTurn, state.world, updatedPieces, state.attackBoardStates, state.trackStates);
+    const checkmateStatus = isCheckmate(nextTurn, state.world, updatedPieces, state.attackBoardStates, state.trackStates);
+    const stalemateStatus = isStalemate(nextTurn, state.world, updatedPieces, state.attackBoardStates, state.trackStates);
+
     __snapshots.push(takeSnapshot(state));
     set({
       pieces: updatedPieces,
@@ -543,6 +660,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
       selectedBoardId: null,
       moveHistory: [],
       attackBoardActivatedThisTurn: false,
+      promotionPending: undefined,
+      deferredPromotions: [],
     });
   },
 
@@ -569,7 +688,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       return [];
     }
 
-    const moves = getLegalMovesAvoidingCheck(piece, state.world, state.pieces, state.attackBoardStates);
+    const moves = getLegalMovesAvoidingCheck(piece, state.world, state.pieces, state.attackBoardStates, state.trackStates);
     console.error(`🎯 ${moves.length} LEGAL MOVES:`, moves);
 
     // If the selected piece is a king, check for available castles
@@ -619,9 +738,9 @@ export const useGameStore = create<GameState>()((set, get) => ({
     const state = get();
     const currentPlayer = state.currentTurn;
 
-    const checkStatus = isInCheck(currentPlayer, state.world, state.pieces, state.attackBoardStates);
-    const checkmateStatus = isCheckmate(currentPlayer, state.world, state.pieces, state.attackBoardStates);
-    const stalemateStatus = isStalemate(currentPlayer, state.world, state.pieces, state.attackBoardStates);
+    const checkStatus = isInCheck(currentPlayer, state.world, state.pieces, state.attackBoardStates, state.trackStates);
+    const checkmateStatus = isCheckmate(currentPlayer, state.world, state.pieces, state.attackBoardStates, state.trackStates);
+    const stalemateStatus = isStalemate(currentPlayer, state.world, state.pieces, state.attackBoardStates, state.trackStates);
 
     set({
       isCheck: checkStatus,
@@ -820,6 +939,9 @@ export const useGameStore = create<GameState>()((set, get) => ({
     console.log('[moveAttackBoard] Calling updateGameState...');
     get().updateGameState();
 
+    console.log('[moveAttackBoard] Checking for forced promotions...');
+    get().checkForcedPromotions();
+
     console.log('[moveAttackBoard] END');
   },
 
@@ -939,6 +1061,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     });
 
     get().updateGameState();
+    get().checkForcedPromotions();
   },
   importGameFromJson: async (json: string) => {
     const doc = await __persistence.importGame(json);
@@ -1054,9 +1177,9 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
     console.log(`[executeCastle] nextTurn calculated: ${nextTurn} (currentTurn was ${currentTurn})`);
 
-    const checkStatus = isInCheck(nextTurn, world, updatedPieces, state.attackBoardStates);
-    const checkmateStatus = isCheckmate(nextTurn, world, updatedPieces, state.attackBoardStates);
-    const stalemateStatus = isStalemate(nextTurn, world, updatedPieces, state.attackBoardStates);
+    const checkStatus = isInCheck(nextTurn, world, updatedPieces, state.attackBoardStates, state.trackStates);
+    const checkmateStatus = isCheckmate(nextTurn, world, updatedPieces, state.attackBoardStates, state.trackStates);
+    const stalemateStatus = isStalemate(nextTurn, world, updatedPieces, state.attackBoardStates, state.trackStates);
 
     console.log(`[executeCastle] Game state checks - isCheck: ${checkStatus}, isCheckmate: ${checkmateStatus}, isStalemate: ${stalemateStatus}`);
 
@@ -1082,6 +1205,106 @@ export const useGameStore = create<GameState>()((set, get) => ({
     console.log(`[executeCastle] set() completed. Verifying state...`);
     const newState = get();
     console.log(`[executeCastle] END - currentTurn is now: ${newState.currentTurn}, moveHistory length: ${newState.moveHistory.length}`);
+  },
+
+  // Promotion action implementations
+  initiatePromotion: (pieceId: string, squareId: string, isForced: boolean, triggeredBy: 'move' | 'geometry') => {
+    console.log(`[initiatePromotion] Initiating promotion for piece ${pieceId} at ${squareId}, isForced: ${isForced}, triggeredBy: ${triggeredBy}`);
+
+    set({
+      promotionPending: {
+        pieceId,
+        squareId,
+        choices: ['queen', 'rook', 'bishop', 'knight'],
+        isForced,
+        triggeredBy,
+      },
+    });
+  },
+
+  executePromotion: (pieceType: 'queen' | 'rook' | 'bishop' | 'knight') => {
+    const state = get();
+    const pending = state.promotionPending;
+
+    if (!pending) {
+      console.warn('[executePromotion] No promotion pending');
+      return;
+    }
+
+    console.log(`[executePromotion] Promoting piece ${pending.pieceId} to ${pieceType}`);
+
+    // Update the piece to the new type and clear promotion state
+    const updatedPieces = state.pieces.map((p) => {
+      if (p.id === pending.pieceId) {
+        return {
+          ...p,
+          type: pieceType,
+          promotionState: undefined,
+        };
+      }
+      return p;
+    });
+
+    // Remove from deferred promotions if present
+    const updatedDeferredPromotions = state.deferredPromotions.filter(
+      (d) => d.pieceId !== pending.pieceId
+    );
+
+    set({
+      pieces: updatedPieces,
+      promotionPending: undefined,
+      deferredPromotions: updatedDeferredPromotions,
+    });
+
+    // If this was a move-triggered promotion, change turns now
+    if (pending.triggeredBy === 'move') {
+      const nextTurn = state.currentTurn === 'white' ? 'black' : 'white';
+
+      const checkStatus = isInCheck(nextTurn, state.world, updatedPieces, state.attackBoardStates, state.trackStates);
+      const checkmateStatus = isCheckmate(nextTurn, state.world, updatedPieces, state.attackBoardStates, state.trackStates);
+      const stalemateStatus = isStalemate(nextTurn, state.world, updatedPieces, state.attackBoardStates, state.trackStates);
+
+      set({
+        currentTurn: nextTurn,
+        isCheck: checkStatus,
+        isCheckmate: checkmateStatus,
+        isStalemate: stalemateStatus,
+        gameOver: checkmateStatus || stalemateStatus,
+        winner: checkmateStatus ? state.currentTurn : (stalemateStatus ? null : state.winner),
+        attackBoardActivatedThisTurn: false,
+      });
+    } else {
+      // Geometry-triggered: turn already changed, just update game state
+      get().updateGameState();
+    }
+  },
+
+  checkForcedPromotions: () => {
+    const state = get();
+
+    if (!state.trackStates) {
+      console.warn('[checkForcedPromotions] No trackStates available');
+      return;
+    }
+
+    console.log('[checkForcedPromotions] Checking for forced promotions...');
+
+    // Import the function dynamically to avoid circular dependencies
+    import('../engine/validation/promotionRules').then(({ detectForcedPromotions }) => {
+      const forced = detectForcedPromotions(
+        state.pieces,
+        state.trackStates!,
+        state.world,
+        state.attackBoardStates
+      );
+
+      console.log(`[checkForcedPromotions] Found ${forced.length} forced promotions:`, forced);
+
+      if (forced.length > 0) {
+        // Trigger first forced promotion
+        get().initiatePromotion(forced[0].pieceId, forced[0].squareId, true, 'geometry');
+      }
+    });
   },
 }));
 

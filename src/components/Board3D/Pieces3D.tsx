@@ -3,6 +3,7 @@ import { useGameStore } from '../../store/gameStore';
 import type { Piece } from '../../store/gameStore';
 import { THEME } from '../../config/theme';
 import { resolveBoardId } from '../../utils/resolveBoardId';
+import { getAssetUrl } from '../../config/assets';
 
 export function Pieces3D() {
   const pieces = useGameStore(state => state.pieces);
@@ -60,8 +61,9 @@ function Model3DPiece({
 }) {
   const color = piece.color === 'white' ? THEME.pieces.white : THEME.pieces.black;
   const modelPath = `/models/chess/${THEME.pieces.modelSet}/${piece.type}.${THEME.pieces.modelFormat}`;
+  const modelUrl = getAssetUrl(modelPath);
 
-  const { scene } = useGLTF(modelPath);
+  const { scene } = useGLTF(modelUrl);
 
   // Clone the scene to allow multiple instances
   const clonedScene = scene.clone();
@@ -76,14 +78,36 @@ function Model3DPiece({
     }
   });
 
+  // Check if this piece has deferred promotion
+  const hasDeferred = piece.type === 'pawn' && piece.promotionState?.isDeferred;
+
   return (
-    <primitive
-      object={clonedScene}
-      position={position}
-      rotation={THEME.pieces.rotation}
-      scale={THEME.pieces.scale}
-      userData={{ testId: 'piece' }}
-    />
+    <group>
+      <primitive
+        object={clonedScene}
+        position={position}
+        rotation={THEME.pieces.rotation}
+        scale={THEME.pieces.scale}
+        userData={{ testId: 'piece' }}
+      />
+      {hasDeferred && (
+        <DeferredPromotionIndicator position={[position[0], position[1], position[2] + 2.0]} />
+      )}
+    </group>
+  );
+}
+
+function DeferredPromotionIndicator({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      {/* Golden ring indicator */}
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.4, 0.08, 16, 32]} />
+        <meshStandardMaterial color="#FFD700" emissive="#FFD700" emissiveIntensity={0.5} metalness={0.8} roughness={0.2} />
+      </mesh>
+      {/* Subtle glow effect */}
+      <pointLight color="#FFD700" intensity={0.3} distance={2} />
+    </group>
   );
 }
 
@@ -92,5 +116,6 @@ const modelSet = THEME.pieces.modelSet;
 const modelFormat = THEME.pieces.modelFormat;
 const pieceTypes = ['pawn', 'rook', 'knight', 'bishop', 'queen', 'king'];
 pieceTypes.forEach(type => {
-  useGLTF.preload(`/models/chess/${modelSet}/${type}.${modelFormat}`);
+  const path = `/models/chess/${modelSet}/${type}.${modelFormat}`;
+  useGLTF.preload(getAssetUrl(path));
 });

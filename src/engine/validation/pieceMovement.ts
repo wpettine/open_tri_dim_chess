@@ -1,7 +1,8 @@
-import { MoveValidationContext, MoveResult } from './types';
+import { MoveValidationContext, MoveResult, TrackStates } from './types';
 import { isPathClear, isPieceAt, isDestinationBlockedByVerticalShadow, getPathCoordinates } from './pathValidation';
 import { ChessWorld } from '../world/types';
 import { Piece } from '../../store/gameStore';
+import { checkPromotion } from './promotionRules';
 
 function parseLevelFromSquareId(squareId: string): string {
   const match = squareId.match(/^[a-z]\d+(.+)$/);
@@ -32,7 +33,7 @@ function isCoordinateBlockedByAnyLevel(
 }
 
 export function validatePawnMove(context: MoveValidationContext): MoveResult {
-  const { piece, fromSquare, toSquare, allPieces, world } = context;
+  const { piece, fromSquare, toSquare, allPieces, world, trackStates, attackBoardStates } = context;
 
   const fileChange = toSquare.file - fromSquare.file;
   const rankChange = toSquare.rank - fromSquare.rank;
@@ -86,14 +87,55 @@ export function validatePawnMove(context: MoveValidationContext): MoveResult {
       p.color !== piece.color
   );
 
+  // Diagonal capture
   if (Math.abs(fileChange) === 1 && rankChange === direction && enemyAtDestination) {
+    // Check for promotion after valid move
+    if (trackStates) {
+      const promotionCheck = checkPromotion(piece, toSquare, trackStates, world, attackBoardStates);
+
+      // Block move if promotion square doesn't exist
+      if (promotionCheck.reason === 'E_NONEXISTENT_TARGET') {
+        return { valid: false, reason: 'Cannot move: promotion square does not exist' };
+      }
+
+      return {
+        valid: true,
+        promotion: promotionCheck.shouldPromote ? {
+          shouldPromote: promotionCheck.shouldPromote,
+          canPromote: promotionCheck.canPromote,
+          isDeferred: promotionCheck.isDeferred,
+          overhangBoardId: promotionCheck.overhangBoardId,
+        } : undefined
+      };
+    }
     return { valid: true };
   }
 
+  // Forward move (one square)
   if (fileChange === 0 && rankChange === direction && !destinationBlocked) {
+    // Check for promotion after valid move
+    if (trackStates) {
+      const promotionCheck = checkPromotion(piece, toSquare, trackStates, world, attackBoardStates);
+
+      // Block move if promotion square doesn't exist
+      if (promotionCheck.reason === 'E_NONEXISTENT_TARGET') {
+        return { valid: false, reason: 'Cannot move: promotion square does not exist' };
+      }
+
+      return {
+        valid: true,
+        promotion: promotionCheck.shouldPromote ? {
+          shouldPromote: promotionCheck.shouldPromote,
+          canPromote: promotionCheck.canPromote,
+          isDeferred: promotionCheck.isDeferred,
+          overhangBoardId: promotionCheck.overhangBoardId,
+        } : undefined
+      };
+    }
     return { valid: true };
   }
 
+  // Double-step initial move
   if (fileChange === 0 && rankChange === 2 * direction && !piece.hasMoved && !piece.movedByAB && !destinationBlocked) {
     const intermediateRank = fromSquare.rank + direction;
 
@@ -105,6 +147,7 @@ export function validatePawnMove(context: MoveValidationContext): MoveResult {
     );
 
     if (!intermediateBlocked) {
+      // Double-step moves never result in promotion
       return { valid: true };
     }
   }
