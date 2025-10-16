@@ -6,7 +6,7 @@ import { fileToWorldX, rankToWorldY } from '../../engine/world/coordinates';
 
 export function BoardRenderer() {
   const world = useGameStore(state => state.world);
-  // Force HMR update - Interactive castle selection enabled
+
   return (
     <group>
       {Array.from(world.boards.values()).map(board => (
@@ -27,11 +27,6 @@ function SingleBoard({ board }: { board: BoardLayout }) {
   const attackBoardStates = useGameStore(state => state.attackBoardStates);
   const canMoveBoard = useGameStore(state => state.canMoveBoard);
   const setArrivalSelection = useGameStore(state => state.setArrivalSelection);
-
-  // Debug logging for castle destinations
-  if (castleDestinations.length > 0) {
-    console.log(`🏰 [BoardRenderer] Rendering ${castleDestinations.length} castle destinations on board ${board.id}:`, castleDestinations);
-  }
 
   const squares = Array.from(world.squares.values()).filter(
     (sq: WorldSquare) => sq.boardId === board.id

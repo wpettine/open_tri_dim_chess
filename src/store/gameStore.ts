@@ -605,13 +605,11 @@ export const useGameStore = create<GameState>()((set, get) => ({
             squareId: kingDestSquareId,
             castleType,
           });
-          console.log(`✨ CASTLE AVAILABLE: ${castleType} -> ${kingDestSquareId} (board: ${validation.kingTo.level}, instance: ${resolvedLevel})`);
         }
       }
     }
 
     // Update the store with castle destinations
-    console.log(`📍 Setting ${castleDestinations.length} castle destinations in store:`, castleDestinations);
     set({ castleDestinations });
 
     return moves;
