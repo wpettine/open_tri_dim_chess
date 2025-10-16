@@ -74,6 +74,21 @@ Build for production:
 npm run build
 ```
 
+## Deployment
+
+The app is configured to deploy to Vercel with 3D model assets served from Cloudflare R2 CDN.
+
+**Live Demo**: [Coming soon - Deploy to Vercel]
+
+For detailed deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md).
+
+Quick deploy:
+```bash
+git push origin main  # Vercel auto-deploys from GitHub
+```
+
+**Why CDN?** The 3D models (111MB) exceed Vercel's 100MB limit. By using Cloudflare R2, deployment is only 1.4MB.
+
 ## Project Structure
 
 ```

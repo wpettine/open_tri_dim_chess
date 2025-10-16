@@ -1,7 +1,13 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "env": {
+    "VITE_ASSET_CDN_URL": "https://pub-c1e064438dc14d9482c4a25803834822.r2.dev"
+  },
   "rewrites": [
     {
-      "source": "/((?!models|fonts|assets|vite.svg).*)",
+      "source": "/((?!fonts|assets|vite.svg|favicon.svg).*)",
       "destination": "/index.html"
     }
   ]

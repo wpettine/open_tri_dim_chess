@@ -46,7 +46,7 @@ export function validateCastle(context: CastleContext): CastleValidation {
     return { valid: false, reason: 'Cannot castle after attack board activation' };
   }
 
-  if (isInCheck(color, world, pieces, attackBoardStates)) {
+  if (isInCheck(color, world, pieces, attackBoardStates, context.trackStates)) {
     return { valid: false, reason: 'Cannot castle while in check' };
   }
 
@@ -142,7 +142,7 @@ function validateKingsideCastle(context: CastleContext): CastleValidation {
     return { valid: false, reason: 'King square not found' };
   }
 
-  const kingAttacked = isSquareAttacked(kingSquare, getOpponentColor(color), world, pieces, attackBoardStates);
+  const kingAttacked = isSquareAttacked(kingSquare, getOpponentColor(color), world, pieces, attackBoardStates, trackStates);
   console.log(`[validateKingsideCastle] King square attacked: ${kingAttacked}`);
 
   if (kingAttacked) {
@@ -159,7 +159,7 @@ function validateKingsideCastle(context: CastleContext): CastleValidation {
     return { valid: false, reason: 'Rook square not found' };
   }
 
-  const destAttacked = isSquareAttacked(rookSquare, getOpponentColor(color), world, pieces, attackBoardStates);
+  const destAttacked = isSquareAttacked(rookSquare, getOpponentColor(color), world, pieces, attackBoardStates, trackStates);
   console.log(`[validateKingsideCastle] King destination square attacked: ${destAttacked}`);
 
   if (destAttacked) {
@@ -300,7 +300,7 @@ function validateQueensideCastle(context: CastleContext): CastleValidation {
     return { valid: false, reason: 'King square not found' };
   }
 
-  const kingAttacked = isSquareAttacked(kingSquare, getOpponentColor(color), world, pieces, attackBoardStates);
+  const kingAttacked = isSquareAttacked(kingSquare, getOpponentColor(color), world, pieces, attackBoardStates, trackStates);
   console.log(`[validateQueensideCastle] King square attacked: ${kingAttacked}`);
 
   if (kingAttacked) {
@@ -322,10 +322,10 @@ function validateQueensideCastle(context: CastleContext): CastleValidation {
     return { valid: false, reason: 'King destination square not found' };
   }
 
-  const destAttacked = isSquareAttacked(kingDestSquare, getOpponentColor(color), world, pieces, attackBoardStates);
+  const destAttacked = isSquareAttacked(kingDestSquare, getOpponentColor(color), world, pieces, attackBoardStates, trackStates);
   console.log(`[validateQueensideCastle] King destination square attacked: ${destAttacked}`);
 
-  if (isSquareAttacked(kingDestSquare, getOpponentColor(color), world, pieces, attackBoardStates)) {
+  if (isSquareAttacked(kingDestSquare, getOpponentColor(color), world, pieces, attackBoardStates, trackStates)) {
     console.log(`[validateQueensideCastle] FAIL: King destination square is attacked`);
     return { valid: false, reason: 'King destination square is attacked' };
   }
