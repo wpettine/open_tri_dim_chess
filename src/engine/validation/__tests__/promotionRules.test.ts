@@ -45,69 +45,69 @@ describe('Promotion Rules', () => {
 
   describe('getFurthestRank', () => {
     describe('Files b, c (middle files) - Fixed ranks', () => {
-      it('should return rank 1 for White on file b', () => {
+      it('should return rank 8 for White on file b', () => {
         const rank = getFurthestRank(2, 'white', standardTrackStates, world, standardAttackBoardStates); // file 2 = 'b'
-        expect(rank).toBe(1);
+        expect(rank).toBe(8);
       });
 
-      it('should return rank 1 for White on file c', () => {
+      it('should return rank 8 for White on file c', () => {
         const rank = getFurthestRank(3, 'white', standardTrackStates, world, standardAttackBoardStates); // file 3 = 'c'
+        expect(rank).toBe(8);
+      });
+
+      it('should return rank 1 for Black on file b', () => {
+        const rank = getFurthestRank(2, 'black', standardTrackStates, world, standardAttackBoardStates); // file 2 = 'b'
         expect(rank).toBe(1);
       });
 
-      it('should return rank 8 for Black on file b', () => {
-        const rank = getFurthestRank(2, 'black', standardTrackStates, world, standardAttackBoardStates); // file 2 = 'b'
-        expect(rank).toBe(8);
-      });
-
-      it('should return rank 8 for Black on file c', () => {
+      it('should return rank 1 for Black on file c', () => {
         const rank = getFurthestRank(3, 'black', standardTrackStates, world, standardAttackBoardStates); // file 3 = 'c'
-        expect(rank).toBe(8);
+        expect(rank).toBe(1);
       });
     });
 
     describe('Files z, e (outer files) - Rank 0/9 when board present', () => {
-      it('should return rank 0 for White on file z when QL board at pin 1', () => {
+      it('should return rank 9 for White on file z when BLACK QL board at pin 6', () => {
         const rank = getFurthestRank(0, 'white', standardTrackStates, world, standardAttackBoardStates);
-        expect(rank).toBe(0);
+        expect(rank).toBe(9);
       });
 
-      it('should return rank 0 for White on file e when KL board at pin 1', () => {
+      it('should return rank 9 for White on file e when BLACK KL board at pin 6', () => {
         const rank = getFurthestRank(5, 'white', standardTrackStates, world, standardAttackBoardStates);
+        expect(rank).toBe(9);
+      });
+
+      it('should return rank 0 for Black on file z when WHITE QL board at pin 1', () => {
+        const rank = getFurthestRank(0, 'black', standardTrackStates, world, standardAttackBoardStates);
         expect(rank).toBe(0);
       });
 
-      it('should return rank 9 for Black on file z when QL board at pin 6', () => {
-        const rank = getFurthestRank(0, 'black', standardTrackStates, world, standardAttackBoardStates);
-        expect(rank).toBe(9);
-      });
-
-      it('should return rank 9 for Black on file e when KL board at pin 6', () => {
+      it('should return rank 0 for Black on file e when WHITE KL board at pin 1', () => {
         const rank = getFurthestRank(5, 'black', standardTrackStates, world, standardAttackBoardStates);
-        expect(rank).toBe(9);
+        expect(rank).toBe(0);
       });
 
-      it('should return null for White on file z when QL board NOT at pin 1', () => {
+      it('should return null for White on file z when BLACK QL board NOT at pin 6', () => {
         const modifiedTrackStates: TrackStates = {
           ...standardTrackStates,
-          QL: { ...standardTrackStates.QL, whiteBoardPin: 3 },
+          QL: { ...standardTrackStates.QL, blackBoardPin: 3 },
         };
         const modifiedAttackBoardStates = {
           ...standardAttackBoardStates,
-          WQL: { activeInstanceId: 'QL3:0' },
+          BQL: { activeInstanceId: 'QL3:0' },
         };
         const rank = getFurthestRank(0, 'white', modifiedTrackStates, world, modifiedAttackBoardStates);
         expect(rank).toBeNull();
       });
 
-      it('should return null for Black on file e when KL board NOT at pin 6', () => {
+      it('should return null for Black on file e when WHITE KL board NOT at pin 1', () => {
         const modifiedTrackStates: TrackStates = {
           ...standardTrackStates,
-          KL: { ...standardTrackStates.KL, blackBoardPin: 4 },
+          KL: { ...standardTrackStates.KL, whiteBoardPin: 4 },
         };
         const modifiedAttackBoardStates = {
           ...standardAttackBoardStates,
-          BKL: { activeInstanceId: 'KL4:0' },
+          WKL: { activeInstanceId: 'KL4:0' },
         };
         const rank = getFurthestRank(5, 'black', modifiedTrackStates, world, modifiedAttackBoardStates);
         expect(rank).toBeNull();
@@ -115,52 +115,52 @@ describe('Promotion Rules', () => {
     });
 
     describe('Files a, d (corner files) - Dynamic based on overhang', () => {
-      it('should return rank 0 for White on file a WITH overhang (Black at QL6)', () => {
+      it('should return rank 9 for White on file a WITH overhang (Black at QL6)', () => {
         const rank = getFurthestRank(1, 'white', standardTrackStates, world, standardAttackBoardStates);
         // Black QL is at pin 6, so there IS overhang
-        expect(rank).toBe(0);
+        expect(rank).toBe(9);
       });
 
-      it('should return rank 1 for White on file a WITHOUT overhang (Black NOT at QL6)', () => {
+      it('should return rank 8 for White on file a WITHOUT overhang (Black NOT at QL6)', () => {
         const modifiedTrackStates: TrackStates = {
           ...standardTrackStates,
           QL: { ...standardTrackStates.QL, blackBoardPin: 4 },
         };
         const rank = getFurthestRank(1, 'white', modifiedTrackStates, world, standardAttackBoardStates);
         // Black QL is at pin 4, so NO overhang
-        expect(rank).toBe(1);
+        expect(rank).toBe(8);
       });
 
-      it('should return rank 0 for White on file d WITH overhang (Black at KL6)', () => {
+      it('should return rank 9 for White on file d WITH overhang (Black at KL6)', () => {
         const rank = getFurthestRank(4, 'white', standardTrackStates, world, standardAttackBoardStates);
         // Black KL is at pin 6, so there IS overhang
-        expect(rank).toBe(0);
+        expect(rank).toBe(9);
       });
 
-      it('should return rank 1 for White on file d WITHOUT overhang (Black NOT at KL6)', () => {
+      it('should return rank 8 for White on file d WITHOUT overhang (Black NOT at KL6)', () => {
         const modifiedTrackStates: TrackStates = {
           ...standardTrackStates,
           KL: { ...standardTrackStates.KL, blackBoardPin: 4 },
         };
         const rank = getFurthestRank(4, 'white', modifiedTrackStates, world, standardAttackBoardStates);
         // Black KL is at pin 4, so NO overhang
-        expect(rank).toBe(1);
+        expect(rank).toBe(8);
       });
 
-      it('should return rank 9 for Black on file a WITH overhang (White at QL1)', () => {
+      it('should return rank 0 for Black on file a WITH overhang (White at QL1)', () => {
         const rank = getFurthestRank(1, 'black', standardTrackStates, world, standardAttackBoardStates);
         // White QL is at pin 1, so there IS overhang
-        expect(rank).toBe(9);
+        expect(rank).toBe(0);
       });
 
-      it('should return rank 8 for Black on file a WITHOUT overhang (White NOT at QL1)', () => {
+      it('should return rank 1 for Black on file a WITHOUT overhang (White NOT at QL1)', () => {
         const modifiedTrackStates: TrackStates = {
           ...standardTrackStates,
           QL: { ...standardTrackStates.QL, whiteBoardPin: 3 },
         };
         const rank = getFurthestRank(1, 'black', modifiedTrackStates, world, standardAttackBoardStates);
         // White QL is at pin 3, so NO overhang
-        expect(rank).toBe(8);
+        expect(rank).toBe(1);
       });
     });
   });
@@ -212,61 +212,61 @@ describe('Promotion Rules', () => {
   });
 
   describe('promotionSquareExists', () => {
-    it('should return true for file b rank 1 (always exists)', () => {
-      const exists = promotionSquareExists(2, 1, 'white', standardTrackStates, world, standardAttackBoardStates); // file 2 = 'b'
+    it('should return true for file b rank 8 (always exists)', () => {
+      const exists = promotionSquareExists(2, 8, 'white', standardTrackStates, world, standardAttackBoardStates); // file 2 = 'b'
       expect(exists).toBe(true);
     });
 
-    it('should return true for file z rank 0 when QL board at pin 1', () => {
-      const exists = promotionSquareExists(0, 0, 'white', standardTrackStates, world, standardAttackBoardStates);
+    it('should return true for file z rank 9 when BLACK QL board at pin 6', () => {
+      const exists = promotionSquareExists(0, 9, 'white', standardTrackStates, world, standardAttackBoardStates);
       expect(exists).toBe(true);
     });
 
-    it('should return false for file z rank 0 when QL board NOT at pin 1', () => {
+    it('should return false for file z rank 9 when BLACK QL board NOT at pin 6', () => {
       const modifiedTrackStates: TrackStates = {
         ...standardTrackStates,
-        QL: { ...standardTrackStates.QL, whiteBoardPin: 3 },
+        QL: { ...standardTrackStates.QL, blackBoardPin: 3 },
       };
       const modifiedAttackBoardStates = {
         ...standardAttackBoardStates,
-        WQL: { activeInstanceId: 'QL3:0' },
+        BQL: { activeInstanceId: 'QL3:0' },
       };
-      const exists = promotionSquareExists(0, 0, 'white', modifiedTrackStates, world, modifiedAttackBoardStates);
+      const exists = promotionSquareExists(0, 9, 'white', modifiedTrackStates, world, modifiedAttackBoardStates);
       expect(exists).toBe(false);
     });
 
-    it('should return true for file e rank 9 when KL board at pin 6', () => {
-      const exists = promotionSquareExists(5, 9, 'black', standardTrackStates, world, standardAttackBoardStates);
+    it('should return true for file e rank 0 when WHITE KL board at pin 1', () => {
+      const exists = promotionSquareExists(5, 0, 'black', standardTrackStates, world, standardAttackBoardStates);
       expect(exists).toBe(true);
     });
 
-    it('should return false for file e rank 9 when KL board NOT at pin 6', () => {
+    it('should return false for file e rank 0 when WHITE KL board NOT at pin 1', () => {
       const modifiedTrackStates: TrackStates = {
         ...standardTrackStates,
-        KL: { ...standardTrackStates.KL, blackBoardPin: 4 },
+        KL: { ...standardTrackStates.KL, whiteBoardPin: 4 },
       };
       const modifiedAttackBoardStates = {
         ...standardAttackBoardStates,
-        BKL: { activeInstanceId: 'KL4:0' },
+        WKL: { activeInstanceId: 'KL4:0' },
       };
-      const exists = promotionSquareExists(5, 9, 'black', modifiedTrackStates, world, modifiedAttackBoardStates);
+      const exists = promotionSquareExists(5, 0, 'black', modifiedTrackStates, world, modifiedAttackBoardStates);
       expect(exists).toBe(false);
     });
   });
 
   describe('checkPromotion', () => {
     describe('Normal promotion (immediate)', () => {
-      it('should trigger promotion for White pawn on b1W', () => {
+      it('should trigger promotion for White pawn on b8B', () => {
         const pawn: Piece = {
           id: 'test-pawn',
           type: 'pawn',
           color: 'white',
           file: 2, // file 2 = 'b'
-          rank: 1,
-          level: 'W',
+          rank: 8,
+          level: 'B',
           hasMoved: true,
         };
-        const square = world.squares.get('b1W')!;
+        const square = world.squares.get('b8B')!;
         const result = checkPromotion(pawn, square, standardTrackStates, world, standardAttackBoardStates);
 
         expect(result.shouldPromote).toBe(true);
@@ -274,17 +274,17 @@ describe('Promotion Rules', () => {
         expect(result.isDeferred).toBe(false);
       });
 
-      it('should trigger promotion for Black pawn on c8B', () => {
+      it('should trigger promotion for Black pawn on c1W', () => {
         const pawn: Piece = {
           id: 'test-pawn',
           type: 'pawn',
           color: 'black',
           file: 2,
-          rank: 8,
-          level: 'B',
+          rank: 1,
+          level: 'W',
           hasMoved: true,
         };
-        const square = world.squares.get('c8B')!;
+        const square = world.squares.get('c1W')!;
         const result = checkPromotion(pawn, square, standardTrackStates, world, standardAttackBoardStates);
 
         expect(result.shouldPromote).toBe(true);
@@ -354,7 +354,7 @@ describe('Promotion Rules', () => {
         expect(result.overhangBoardId).toBe('BKL');
       });
 
-      it('should NOT defer if overhang removed', () => {
+      it('should promote immediately if overhang removed', () => {
         const pawn: Piece = {
           id: 'test-pawn',
           type: 'pawn',
@@ -374,29 +374,31 @@ describe('Promotion Rules', () => {
 
         const result = checkPromotion(pawn, square, modifiedTrackStates, world, standardAttackBoardStates);
 
-        // With overhang removed, promotion moves to rank 1, so pawn at rank 8 shouldn't promote
-        expect(result.shouldPromote).toBe(false);
+        // With overhang removed, furthest rank is 8, so pawn at rank 8 promotes immediately
+        expect(result.shouldPromote).toBe(true);
+        expect(result.canPromote).toBe(true);
+        expect(result.isDeferred).toBe(false);
       });
     });
 
     describe('Missing promotion plane (z/e files)', () => {
-      it('should return error for z file when QL board not at pin 1', () => {
+      it('should return error for z file when BLACK QL board not at pin 6', () => {
         const pawn: Piece = {
           id: 'test-pawn',
           type: 'pawn',
           color: 'white',
           file: 0,
-          rank: 1,
+          rank: 8,
           level: 'QL3',
           hasMoved: true,
         };
 
         // Mock a square (won't exist in real world at this position)
         const mockSquare = {
-          id: 'z1QL3:0',
+          id: 'z8QL3:0',
           boardId: 'QL3:0',
           file: 0,
-          rank: 1,
+          rank: 8,
           worldX: 0,
           worldY: 2.1,
           worldZ: 5,
@@ -405,11 +407,11 @@ describe('Promotion Rules', () => {
 
         const modifiedTrackStates: TrackStates = {
           ...standardTrackStates,
-          QL: { ...standardTrackStates.QL, whiteBoardPin: 3 },
+          QL: { ...standardTrackStates.QL, blackBoardPin: 3 },
         };
         const modifiedAttackBoardStates = {
           ...standardAttackBoardStates,
-          WQL: { activeInstanceId: 'QL3:0' },
+          BQL: { activeInstanceId: 'QL3:0' },
         };
 
         const result = checkPromotion(pawn, mockSquare, modifiedTrackStates, world, modifiedAttackBoardStates);
@@ -558,7 +560,7 @@ describe('Promotion Rules', () => {
   });
 
   describe('isOnMissingPromotionPlane', () => {
-    it('should return true for z file pawn when QL board not at pin 1', () => {
+    it('should return true for z file pawn when BLACK QL board not at pin 6', () => {
       const pawn: Piece = {
         id: 'test-pawn',
         type: 'pawn',
@@ -571,18 +573,18 @@ describe('Promotion Rules', () => {
 
       const modifiedTrackStates: TrackStates = {
         ...standardTrackStates,
-        QL: { ...standardTrackStates.QL, whiteBoardPin: 3 },
+        QL: { ...standardTrackStates.QL, blackBoardPin: 3 },
       };
       const modifiedAttackBoardStates = {
         ...standardAttackBoardStates,
-        WQL: { activeInstanceId: 'QL3:0' },
+        BQL: { activeInstanceId: 'QL3:0' },
       };
 
       const result = isOnMissingPromotionPlane(pawn, modifiedTrackStates, world, modifiedAttackBoardStates);
       expect(result).toBe(true);
     });
 
-    it('should return false for z file pawn when QL board at pin 1', () => {
+    it('should return false for z file pawn when BLACK QL board at pin 6', () => {
       const pawn: Piece = {
         id: 'test-pawn',
         type: 'pawn',
