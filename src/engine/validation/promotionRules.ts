@@ -256,30 +256,32 @@ export function checkPromotion(
     };
   }
 
-  // Special case: Check for deferred promotion at opponent's corner FIRST
-  // This is separate from the normal furthest rank logic
   const fileStr = fileToString(toSquare.file);
   const isCornerFile = fileStr === 'a' || fileStr === 'd';
 
-  // Deferred promotion squares:
-  // - White: a8B, d8B (rank 8 on Black's main board)
-  // - Black: a1W, d1W (rank 1 on White's main board)
-  // Note: Main board IDs in WorldSquare are 'WL', 'NL', 'BL' (not 'W', 'N', 'B')
-  const isDeferredCorner = isCornerFile && (
-    (piece.color === 'white' && toSquare.rank === 8 && toSquare.boardId === 'BL') ||
-    (piece.color === 'black' && toSquare.rank === 1 && toSquare.boardId === 'WL')
-  );
+  // Special case: Corner promotion squares (separate from furthest rank logic)
+  // White: a8/d8 (rank 8 on corner files)
+  // Black: a1/d1 (rank 1 on corner files)
+  const isCornerPromotionSquare =
+    isCornerFile &&
+    ((piece.color === 'white' && toSquare.rank === 8) ||
+     (piece.color === 'black' && toSquare.rank === 1));
 
-  if (isDeferredCorner) {
+  if (isCornerPromotionSquare) {
     const hasOverhang = checkCornerOverhang(toSquare.file, piece.color, trackStates);
 
     if (hasOverhang) {
-      // Deferred promotion case - opponent's board is overhead
+      // Deferred promotion - opponent's attack board is overhead
       const track = fileStr === 'a' ? 'QL' : 'KL';
       const opponentColor = piece.color === 'white' ? 'black' : 'white';
-      const boardId = opponentColor === 'white'
-        ? (track === 'QL' ? 'WQL' : 'WKL')
-        : (track === 'QL' ? 'BQL' : 'BKL');
+      const boardId =
+        opponentColor === 'white'
+          ? track === 'QL'
+            ? 'WQL'
+            : 'WKL'
+          : track === 'QL'
+          ? 'BQL'
+          : 'BKL';
 
       return {
         shouldPromote: true,
@@ -288,10 +290,11 @@ export function checkPromotion(
         overhangBoardId: boardId,
       };
     }
-    // If at corner but no overhang, fall through to normal promotion check
+    // Without overhang, rank 8/1 corners are not promotion squares
+    // Fall through to check furthest rank (which will be rank 1 for White, rank 8 for Black)
   }
 
-  // Normal promotion logic: check if at furthest rank
+  // Normal case: Check if at furthest rank (for non-corner squares and outer edge squares)
   const furthestRank = getFurthestRank(
     toSquare.file,
     piece.color,
@@ -319,7 +322,7 @@ export function checkPromotion(
     };
   }
 
-  // Normal promotion - pawn reached its furthest rank
+  // At furthest rank - immediate promotion
   return {
     shouldPromote: true,
     canPromote: true,

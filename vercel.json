@@ -7,7 +7,7 @@
   },
   "rewrites": [
     {
-      "source": "/((?!fonts|assets|models|vite.svg|favicon.svg).*)",
+      "source": "/((?!fonts|assets|vite.svg|favicon.svg).*)",
       "destination": "/index.html"
     }
   ]
