@@ -54,10 +54,12 @@ export interface PromotionCheck {
  * - number: The promotion rank for this file/color
  * - null: Promotion plane doesn't exist (z/e files only)
  *
- * Rules:
- * - Files b, c: Fixed at rank 1 (White) / 8 (Black)
- * - Files z, e: Rank 0/9 if promotion plane exists, null otherwise
- * - Files a, d: Dynamic - 0/9 with overhang, 1/8 without overhang
+ * Rules (based on pawn movement direction):
+ * - White pawns move UPWARD (direction = +1), so promote at HIGH ranks
+ * - Black pawns move DOWNWARD (direction = -1), so promote at LOW ranks
+ * - Files b, c: Fixed at rank 8 (White) / 1 (Black)
+ * - Files z, e: Rank 9/0 if promotion plane exists, null otherwise
+ * - Files a, d: Dynamic - 9/0 with overhang, 8/1 without overhang
  */
 export function getFurthestRank(
   file: number,
@@ -70,12 +72,12 @@ export function getFurthestRank(
 
   // Files b, c: fixed ranks
   if (fileStr === 'b' || fileStr === 'c') {
-    return color === 'white' ? 1 : 8;
+    return color === 'white' ? 8 : 1;
   }
 
   // Files z, e: outer edge (if exists)
   if (fileStr === 'z' || fileStr === 'e') {
-    const promotionRank = color === 'white' ? 0 : 9;
+    const promotionRank = color === 'white' ? 9 : 0;
     return promotionSquareExists(file, promotionRank, color, trackStates, world, attackBoardStates)
       ? promotionRank
       : null;
@@ -86,14 +88,14 @@ export function getFurthestRank(
     const hasOverhang = checkCornerOverhang(file, color, trackStates);
 
     if (hasOverhang) {
-      // With overhang: promotion at rank 0/9
-      const promotionRank = color === 'white' ? 0 : 9;
+      // With overhang: promotion at rank 9/0
+      const promotionRank = color === 'white' ? 9 : 0;
       return promotionSquareExists(file, promotionRank, color, trackStates, world, attackBoardStates)
         ? promotionRank
         : null;
     } else {
-      // Without overhang: promotion at rank 1/8
-      return color === 'white' ? 1 : 8;
+      // Without overhang: promotion at rank 8/1
+      return color === 'white' ? 8 : 1;
     }
   }
 
@@ -117,27 +119,31 @@ export function promotionSquareExists(
 ): boolean {
   const fileStr = fileToString(file);
 
-  // For z/e files, check if attack board is at the required pin
+  // For z/e files, check if OPPONENT's attack board is at the required pin
+  // White promotes at rank 9 on opponent's board (BLACK at pin 6)
+  // Black promotes at rank 0 on opponent's board (WHITE at pin 1)
   if (fileStr === 'z' || fileStr === 'e') {
     const track = fileStr === 'z' ? 'QL' : 'KL';
-    const playerKey = color === 'white' ? 'whiteBoardPin' : 'blackBoardPin';
-    const playerPin = trackStates[track][playerKey];
-    const requiredPin = color === 'white' ? 1 : 6;
+    const opponentKey = color === 'white' ? 'blackBoardPin' : 'whiteBoardPin';
+    const opponentPin = trackStates[track][opponentKey];
+    const requiredPin = color === 'white' ? 6 : 1;
 
-    if (playerPin !== requiredPin) {
-      return false; // Board not at outer edge
+    if (opponentPin !== requiredPin) {
+      return false; // Opponent's board not at outer edge
     }
   }
 
-  // For a/d files at rank 0/9, also check attack board position
-  if ((fileStr === 'a' || fileStr === 'd') && (rank === 0 || rank === 9)) {
+  // For a/d files at rank 9/0, check if OPPONENT's attack board is at the required pin
+  // White promotes at rank 9 on BLACK's board (pin 6)
+  // Black promotes at rank 0 on WHITE's board (pin 1)
+  if ((fileStr === 'a' || fileStr === 'd') && (rank === 9 || rank === 0)) {
     const track = fileStr === 'a' ? 'QL' : 'KL';
-    const playerKey = color === 'white' ? 'whiteBoardPin' : 'blackBoardPin';
-    const playerPin = trackStates[track][playerKey];
-    const requiredPin = color === 'white' ? 1 : 6;
+    const opponentKey = color === 'white' ? 'blackBoardPin' : 'whiteBoardPin';
+    const opponentPin = trackStates[track][opponentKey];
+    const requiredPin = color === 'white' ? 6 : 1;
 
-    if (playerPin !== requiredPin) {
-      return false; // Board not at outer edge
+    if (opponentPin !== requiredPin) {
+      return false; // Opponent's board not at the promotion edge
     }
   }
 
@@ -169,27 +175,30 @@ export function determineBoardId(
   }
 
   // Attack board squares (files z/a for QL, d/e for KL)
+  // Determine ownership by rank: high ranks (8-9) are Black's, low ranks (0-1) are White's
   if (fileStr === 'z' || fileStr === 'a') {
-    // Queen's Line track
-    const boardKey = color === 'white' ? 'WQL' : 'BQL';
+    // Queen's Line track - determine which board by rank
+    const boardOwner = rank >= 5 ? 'black' : 'white';
+    const boardKey = boardOwner === 'white' ? 'WQL' : 'BQL';
     if (attackBoardStates?.[boardKey]) {
       return attackBoardStates[boardKey].activeInstanceId;
     }
     // Fallback: calculate instance ID from trackStates
-    const pin = color === 'white' ? trackStates.QL.whiteBoardPin : trackStates.QL.blackBoardPin;
-    const rotation = color === 'white' ? trackStates.QL.whiteRotation : trackStates.QL.blackRotation;
+    const pin = boardOwner === 'white' ? trackStates.QL.whiteBoardPin : trackStates.QL.blackBoardPin;
+    const rotation = boardOwner === 'white' ? trackStates.QL.whiteRotation : trackStates.QL.blackRotation;
     return `QL${pin}:${rotation}`;
   }
 
   if (fileStr === 'd' || fileStr === 'e') {
-    // King's Line track
-    const boardKey = color === 'white' ? 'WKL' : 'BKL';
+    // King's Line track - determine which board by rank
+    const boardOwner = rank >= 5 ? 'black' : 'white';
+    const boardKey = boardOwner === 'white' ? 'WKL' : 'BKL';
     if (attackBoardStates?.[boardKey]) {
       return attackBoardStates[boardKey].activeInstanceId;
     }
     // Fallback: calculate instance ID from trackStates
-    const pin = color === 'white' ? trackStates.KL.whiteBoardPin : trackStates.KL.blackBoardPin;
-    const rotation = color === 'white' ? trackStates.KL.whiteRotation : trackStates.KL.blackRotation;
+    const pin = boardOwner === 'white' ? trackStates.KL.whiteBoardPin : trackStates.KL.blackBoardPin;
+    const rotation = boardOwner === 'white' ? trackStates.KL.whiteRotation : trackStates.KL.blackRotation;
     return `KL${pin}:${rotation}`;
   }
 
@@ -199,12 +208,13 @@ export function determineBoardId(
 /**
  * Checks if there is an opponent attack board overhang at a corner
  *
- * Corners are:
- * - White: a8B, d8B (rank 8 on Black main board, files a/d)
- * - Black: a1W, d1W (rank 1 on White main board, files a/d)
+ * Corners are (based on pawn movement direction):
+ * - White: a8B, d8B (rank 8 on Black main board, files a/d) - when moving upward toward rank 9
+ * - Black: a1W, d1W (rank 1 on White main board, files a/d) - when moving downward toward rank 0
  *
- * Overhang occurs when the opponent's attack board is at pin 6 (for White corners)
- * or pin 1 (for Black corners) on the same track (QL for file a, KL for file d)
+ * Overhang occurs when the opponent's attack board extends over the corner:
+ * - For White (moving upward): Black board at pin 6 extends to rank 9
+ * - For Black (moving downward): White board at pin 1 extends to rank 0
  */
 export function checkCornerOverhang(
   file: number,
@@ -226,9 +236,9 @@ export function checkCornerOverhang(
   const opponentKey = opponentColor === 'white' ? 'whiteBoardPin' : 'blackBoardPin';
   const opponentPin = trackStates[track][opponentKey];
 
-  // Check if opponent's board is at the corner pin
-  // For White (promoting at rank 8), check if Black board at pin 6
-  // For Black (promoting at rank 1), check if White board at pin 1
+  // Check if opponent's board is at the corner pin that creates overhang
+  // For White (moving toward rank 9), check if Black board at pin 6
+  // For Black (moving toward rank 0), check if White board at pin 1
   const cornerPin = color === 'white' ? 6 : 1;
 
   return opponentPin === cornerPin;
@@ -260,8 +270,9 @@ export function checkPromotion(
   const isCornerFile = fileStr === 'a' || fileStr === 'd';
 
   // Special case: Corner promotion squares (separate from furthest rank logic)
-  // White: a8/d8 (rank 8 on corner files)
-  // Black: a1/d1 (rank 1 on corner files)
+  // These are where deferred promotion can occur when opponent overhang is present
+  // White: a8B/d8B (rank 8 on corner files) - the square before the overhang at rank 9
+  // Black: a1W/d1W (rank 1 on corner files) - the square before the overhang at rank 0
   const isCornerPromotionSquare =
     isCornerFile &&
     ((piece.color === 'white' && toSquare.rank === 8) ||
