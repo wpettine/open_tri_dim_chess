@@ -9,6 +9,17 @@ function parseLevelFromSquareId(squareId: string): string {
   return match ? match[1] : '';
 }
 
+/**
+ * Calculate the square color (light or dark) for a given square.
+ * In Raumschach (3D chess), square colors align vertically - the color is determined
+ * by (file + rank) % 2, regardless of level. This means a dark square on one level
+ * is dark on all levels at the same file and rank position.
+ * Returns 0 for one color, 1 for the other.
+ */
+function getSquareColor(file: number, rank: number): number {
+  return (file + rank) % 2;
+}
+
 function isCoordinateBlockedByAnyLevel(
   file: number,
   rank: number,
@@ -371,6 +382,8 @@ export function validateBishopMove(context: MoveValidationContext): MoveResult {
     }
   }
 
+  // In 3D chess, bishops move diagonally: same distance in exactly 2 of 3 dimensions
+  // Calculate level difference for 3D diagonal validation
   const levelMap: Record<string, number> = {
     W: 0,
     N: 1,
@@ -385,13 +398,24 @@ export function validateBishopMove(context: MoveValidationContext): MoveResult {
     (levelMap[toLevel] || 0) - (levelMap[fromLevel] || 0)
   );
 
+  // Valid 3D diagonal: change same amount in exactly 2 of 3 dimensions
   const validDiagonal =
-    (fileChange === rankChange && fileChange > 0) ||
-    (fileChange === levelDiff && fileChange > 0 && rankChange === 0) ||
-    (rankChange === levelDiff && rankChange > 0 && fileChange === 0);
+    (fileChange === rankChange && fileChange > 0) ||           // file-rank diagonal
+    (fileChange === levelDiff && fileChange > 0 && rankChange === 0) || // file-level diagonal
+    (rankChange === levelDiff && rankChange > 0 && fileChange === 0);   // rank-level diagonal
 
   if (!validDiagonal) {
-    return { valid: false, reason: 'bishop must move diagonally' };
+    return { valid: false, reason: 'bishop must move diagonally (same distance in exactly 2 dimensions)' };
+  }
+
+  // CRITICAL: Bishops must stay on the same color squares
+  // In Raumschach, color is based on (file + rank) only, not level
+  // Colors align vertically, so a dark square on W is also dark on N and B
+  const fromColor = getSquareColor(fromSquare.file, fromSquare.rank);
+  const toColor = getSquareColor(toSquare.file, toSquare.rank);
+
+  if (fromColor !== toColor) {
+    return { valid: false, reason: 'bishop must stay on same color squares' };
   }
 
   if (!isPathClear(fromSquare, toSquare, world, allPieces)) {

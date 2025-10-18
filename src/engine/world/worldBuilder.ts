@@ -74,6 +74,7 @@ function createMainBoard(
       const worldX = fileToWorldX(file);
       const worldY = rankToWorldY(rank);
       const worldZ = zHeight;
+      // In Raumschach, colors align vertically - same file+rank = same color on all levels
       const color = (file + rank) % 2 === 0 ? 'dark' : 'light';
       const squareId = createSquareId(file, rank, shortId);
 
@@ -151,6 +152,7 @@ function createAttackBoardInstance(
       const worldX = fileToWorldX(file);
       const worldY = rankToWorldY(rank);
       const worldZ = pinPosition.zHeight;
+      // In Raumschach, colors align vertically - same file+rank = same color on all levels
       const color = (file + rank) % 2 === 0 ? 'dark' : 'light';
       const squareId = createSquareId(file, rank, instanceId);
 

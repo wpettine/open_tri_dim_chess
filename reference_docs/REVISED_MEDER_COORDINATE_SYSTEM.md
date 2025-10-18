@@ -1466,3 +1466,80 @@ Key principle: **square existence** is a hard gate. If the furthest rank square 
     }
   ]
 }
+
+Appendix 3: Light/dark squares
+
+{
+  "version": "tri-d-chess.square-colors",
+  "mainBoards": {
+    "W": {
+      "a1W": "dark",  "b1W": "light", "c1W": "dark",  "d1W": "light",
+      "a2W": "light", "b2W": "dark",  "c2W": "light", "d2W": "dark",
+      "a3W": "dark",  "b3W": "light", "c3W": "dark",  "d3W": "light",
+      "a4W": "light", "b4W": "dark",  "c4W": "light", "d4W": "dark"
+    },
+    "N": {
+      "a3N": "dark",  "b3N": "light", "c3N": "dark",  "d3N": "light",
+      "a4N": "light", "b4N": "dark",  "c4N": "light", "d4N": "dark",
+      "a5N": "dark",  "b5N": "light", "c5N": "dark",  "d5N": "light",
+      "a6N": "light", "b6N": "dark",  "c6N": "light", "d6N": "dark"
+    },
+    "B": {
+      "a5B": "dark",  "b5B": "light", "c5B": "dark",  "d5B": "light",
+      "a6B": "light", "b6B": "dark",  "c6B": "light", "d6B": "dark",
+      "a7B": "dark",  "b7B": "light", "c7B": "dark",  "d7B": "light",
+      "a8B": "light", "b8B": "dark",  "c8B": "light", "d8B": "dark"
+    }
+  },
+  "attackBoards": {
+    "QL1": {
+      "z0QL1": "dark",  "a0QL1": "light",
+      "z1QL1": "light", "a1QL1": "dark"
+    },
+    "QL2": {
+      "z4QL2": "dark",  "a4QL2": "light",
+      "z5QL2": "light", "a5QL2": "dark"
+    },
+    "QL3": {
+      "z2QL3": "dark",  "a2QL3": "light",
+      "z3QL3": "light", "a3QL3": "dark"
+    },
+    "QL4": {
+      "z6QL4": "dark",  "a6QL4": "light",
+      "z7QL4": "light", "a7QL4": "dark"
+    },
+    "QL5": {
+      "z4QL5": "dark",  "a4QL5": "light",
+      "z5QL5": "light", "a5QL5": "dark"
+    },
+    "QL6": {
+      "z8QL6": "dark",  "a8QL6": "light",
+      "z9QL6": "light", "a9QL6": "dark"
+    },
+
+    "KL1": {
+      "d0KL1": "dark",  "e0KL1": "light",
+      "d1KL1": "light", "e1KL1": "dark"
+    },
+    "KL2": {
+      "d4KL2": "dark",  "e4KL2": "light",
+      "d5KL2": "light", "e5KL2": "dark"
+    },
+    "KL3": {
+      "d2KL3": "dark",  "e2KL3": "light",
+      "d3KL3": "light", "e3KL3": "dark"
+    },
+    "KL4": {
+      "d6KL4": "dark",  "e6KL4": "light",
+      "d7KL4": "light", "e7KL4": "dark"
+    },
+    "KL5": {
+      "d4KL5": "dark",  "e4KL5": "light",
+      "d5KL5": "light", "e5KL5": "dark"
+    },
+    "KL6": {
+      "d8KL6": "dark",  "e8KL6": "light",
+      "d9KL6": "light", "e9KL6": "dark"
+    }
+  }
+}
