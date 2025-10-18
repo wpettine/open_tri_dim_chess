@@ -394,18 +394,38 @@ export const useGameStore = create<GameState>()((set, get) => ({
   selectSquare: (squareId: string) => {
     const state = get();
 
+    console.log(`[selectSquare] ==========================================`);
+    console.log(`[selectSquare] Clicked square: ${squareId}`);
+    console.log(`[selectSquare] Game over: ${state.gameOver}`);
+    console.log(`[selectSquare] Current turn: ${state.currentTurn}`);
+    console.log(`[selectSquare] Total pieces in state: ${state.pieces.length}`);
+
     if (state.gameOver) {
+      console.log(`[selectSquare] Blocked: game over`);
       return;
     }
 
     if (!state.selectedSquareId) {
+      console.log(`[selectSquare] No square currently selected - looking for piece at ${squareId}`);
+
+      // Log all pieces and their resolved square IDs
+      console.log(`[selectSquare] Searching for piece. Current pieces:`);
+      state.pieces.forEach((p) => {
+        const resolvedLevel = resolveBoardId(p.level, state.attackBoardStates);
+        const pieceSquareId = createSquareId(p.file, p.rank, resolvedLevel);
+        console.log(`  - ${p.type} (${p.color}) at file=${p.file}, rank=${p.rank}, level=${p.level} → resolvedLevel=${resolvedLevel} → squareId=${pieceSquareId}`);
+      });
+
       const piece = state.pieces.find((p) => {
         const resolvedLevel = resolveBoardId(p.level, state.attackBoardStates);
         const pieceSquareId = createSquareId(p.file, p.rank, resolvedLevel);
         return pieceSquareId === squareId;
       });
 
+      console.log(`[selectSquare] Piece found:`, piece ? `${piece.type} (${piece.color})` : 'NONE');
+
       if (piece && piece.color === state.currentTurn) {
+        console.log(`[selectSquare] Piece is current player's - getting valid moves`);
         const validMoves = get().getValidMovesForSquare(squareId);
         // Note: castleDestinations are set inside getValidMovesForSquare
         set({
@@ -413,6 +433,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
           highlightedSquareIds: validMoves,
           selectedBoardId: null,
         });
+      } else if (piece) {
+        console.log(`[selectSquare] Piece found but wrong color: ${piece.color} vs turn ${state.currentTurn}`);
+      } else {
+        console.log(`[selectSquare] No piece at ${squareId}`);
       }
     } else {
       // Check if the clicked square is a castle destination
@@ -466,9 +490,20 @@ export const useGameStore = create<GameState>()((set, get) => ({
   movePiece: (piece: Piece, toFile: number, toRank: number, toLevel: string) => {
     const state = get();
 
+    console.log(`[movePiece] Moving ${piece.type} to file=${toFile}, rank=${toRank}, level=${toLevel}`);
+    
+    // Convert instance ID to board ID for matching
+    // Pieces are stored with board IDs (e.g., "BQL"), but toLevel might be an instance ID (e.g., "QL6:0")
+    const levelAsBoardId = instanceIdToBoardId(toLevel, state.attackBoardStates) || toLevel;
+    
+    console.log(`[movePiece] Searching for capturedPiece with file=${toFile}, rank=${toRank}, level=${levelAsBoardId} (converted from ${toLevel})`);
+    console.log(`[movePiece] All pieces:`, state.pieces.map(p => ({ type: p.type, color: p.color, file: p.file, rank: p.rank, level: p.level })));
+
     const capturedPiece = state.pieces.find(
-      (p) => p.file === toFile && p.rank === toRank && p.level === toLevel
+      (p) => p.file === toFile && p.rank === toRank && p.level === levelAsBoardId
     );
+
+    console.log(`[movePiece] capturedPiece:`, capturedPiece ? `${capturedPiece.type} (${capturedPiece.color})` : 'NONE');
 
     const updatedPieces = state.pieces.filter((p) => p.id !== capturedPiece?.id);
 

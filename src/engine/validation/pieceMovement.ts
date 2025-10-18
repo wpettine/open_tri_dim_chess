@@ -3,6 +3,7 @@ import { isPathClear, isPieceAt, isDestinationBlockedByVerticalShadow, getPathCo
 import { ChessWorld } from '../world/types';
 import { Piece } from '../../store/gameStore';
 import { checkPromotion } from './promotionRules';
+import { resolveBoardId } from '../../utils/resolveBoardId';
 
 function parseLevelFromSquareId(squareId: string): string {
   const match = squareId.match(/^[a-z]\d+(.+)$/);
@@ -167,7 +168,7 @@ export function validatePawnMove(context: MoveValidationContext): MoveResult {
 }
 
 export function validateRookMove(context: MoveValidationContext): MoveResult {
-  const { fromSquare, toSquare, world, allPieces } = context;
+  const { fromSquare, toSquare, world, allPieces, attackBoardStates } = context;
 
   const fileChange = toSquare.file - fromSquare.file;
   const rankChange = toSquare.rank - fromSquare.rank;
@@ -253,7 +254,20 @@ export function validateRookMove(context: MoveValidationContext): MoveResult {
     return { valid: false, reason: 'path blocked by vertical shadow' };
   }
 
-  if (isDestinationBlockedByVerticalShadow(toSquare, world, allPieces)) {
+  // Check if destination square has a piece on it (toLevel already declared above)
+  // Need to resolve piece levels (board IDs like "BQL") to instance IDs (like "QL6:0") for comparison
+  const pieceAtDestination = allPieces.some((p) => {
+    const resolvedPieceLevel = resolveBoardId(p.level, attackBoardStates);
+    return (
+      p.file === toSquare.file &&
+      p.rank === toSquare.rank &&
+      resolvedPieceLevel === toLevel
+    );
+  });
+
+  // Vertical shadow rule only applies to EMPTY destination squares
+  // If there's a piece at the destination (capture), vertical shadow doesn't matter
+  if (!pieceAtDestination && isDestinationBlockedByVerticalShadow(toSquare, world, allPieces)) {
     console.log(`[validateRookMove] BLOCKED: Destination blocked by vertical shadow`);
     return { valid: false, reason: 'destination blocked by vertical shadow' };
   }
@@ -301,6 +315,11 @@ export function validateKnightMove(context: MoveValidationContext): MoveResult {
     }
   }
 
+  // Extract base level ID (strip :0 or :180 suffix from attack board instances)
+  const getBaseLevelId = (level: string): string => {
+    return level.split(':')[0];
+  };
+
   const levelMap: Record<string, number> = {
     W: 0,
     N: 1,
@@ -311,8 +330,11 @@ export function validateKnightMove(context: MoveValidationContext): MoveResult {
     KL6: 3,
   };
 
+  const fromBaseLevelId = getBaseLevelId(fromLevel);
+  const toBaseLevelId = getBaseLevelId(toLevel);
+
   const levelChange = Math.abs(
-    (levelMap[toLevel] || 0) - (levelMap[fromLevel] || 0)
+    (levelMap[toBaseLevelId] || 0) - (levelMap[fromBaseLevelId] || 0)
   );
 
   const validLShape =
@@ -337,13 +359,18 @@ export function validateKnightMove(context: MoveValidationContext): MoveResult {
 }
 
 export function validateBishopMove(context: MoveValidationContext): MoveResult {
-  const { fromSquare, toSquare, world, allPieces } = context;
+  const { fromSquare, toSquare, world, allPieces, attackBoardStates } = context;
 
   const fileChange = Math.abs(toSquare.file - fromSquare.file);
   const rankChange = Math.abs(toSquare.rank - fromSquare.rank);
   const fromLevel = parseLevelFromSquareId(fromSquare.id);
   const toLevel = parseLevelFromSquareId(toSquare.id);
   const levelChange = fromLevel !== toLevel;
+
+  // Debug logging for QL6 moves
+  if (toLevel.startsWith('QL6')) {
+    console.log(`[validateBishopMove] Checking move to QL6: ${fromSquare.id} → ${toSquare.id}`);
+  }
 
   if (levelChange && fileChange === 0 && rankChange === 0) {
     return { valid: false, reason: 'pure vertical movement prohibited' };
@@ -384,6 +411,11 @@ export function validateBishopMove(context: MoveValidationContext): MoveResult {
 
   // In 3D chess, bishops move diagonally: same distance in exactly 2 of 3 dimensions
   // Calculate level difference for 3D diagonal validation
+  // Extract base level ID (strip :0 or :180 suffix from attack board instances)
+  const getBaseLevelId = (level: string): string => {
+    return level.split(':')[0];
+  };
+
   const levelMap: Record<string, number> = {
     W: 0,
     N: 1,
@@ -394,8 +426,11 @@ export function validateBishopMove(context: MoveValidationContext): MoveResult {
     KL6: 3,
   };
 
+  const fromBaseLevelId = getBaseLevelId(fromLevel);
+  const toBaseLevelId = getBaseLevelId(toLevel);
+
   const levelDiff = Math.abs(
-    (levelMap[toLevel] || 0) - (levelMap[fromLevel] || 0)
+    (levelMap[toBaseLevelId] || 0) - (levelMap[fromBaseLevelId] || 0)
   );
 
   // Valid 3D diagonal: change same amount in exactly 2 of 3 dimensions
@@ -405,6 +440,9 @@ export function validateBishopMove(context: MoveValidationContext): MoveResult {
     (rankChange === levelDiff && rankChange > 0 && fileChange === 0);   // rank-level diagonal
 
   if (!validDiagonal) {
+    if (toLevel.startsWith('QL6')) {
+      console.log(`[validateBishopMove] QL6 move REJECTED: not a valid diagonal. fileChange=${fileChange}, rankChange=${rankChange}, levelDiff=${levelDiff}`);
+    }
     return { valid: false, reason: 'bishop must move diagonally (same distance in exactly 2 dimensions)' };
   }
 
@@ -415,17 +453,41 @@ export function validateBishopMove(context: MoveValidationContext): MoveResult {
   const toColor = getSquareColor(toSquare.file, toSquare.rank);
 
   if (fromColor !== toColor) {
+    if (toLevel.startsWith('QL6')) {
+      console.log(`[validateBishopMove] QL6 move REJECTED: wrong color. fromColor=${fromColor}, toColor=${toColor}`);
+    }
     return { valid: false, reason: 'bishop must stay on same color squares' };
   }
 
   if (!isPathClear(fromSquare, toSquare, world, allPieces)) {
+    if (toLevel.startsWith('QL6')) {
+      console.log(`[validateBishopMove] QL6 move REJECTED: path not clear`);
+    }
     return { valid: false, reason: 'path blocked by vertical shadow' };
   }
 
-  if (isDestinationBlockedByVerticalShadow(toSquare, world, allPieces)) {
+  // Vertical shadow rule only applies to EMPTY destination squares
+  // Check if there's a piece at the exact destination (for captures, vertical shadow doesn't matter)
+  // Need to resolve piece levels (board IDs like "BQL") to instance IDs (like "QL6:0") for comparison
+  const destinationHasPiece = allPieces.some((p) => {
+    const resolvedPieceLevel = resolveBoardId(p.level, attackBoardStates);
+    return (
+      p.file === toSquare.file &&
+      p.rank === toSquare.rank &&
+      resolvedPieceLevel === toLevel
+    );
+  });
+
+  if (!destinationHasPiece && isDestinationBlockedByVerticalShadow(toSquare, world, allPieces)) {
+    if (toLevel.startsWith('QL6')) {
+      console.log(`[validateBishopMove] QL6 move REJECTED: destination blocked by vertical shadow (empty square)`);
+    }
     return { valid: false, reason: 'destination blocked by vertical shadow' };
   }
 
+  if (toLevel.startsWith('QL6')) {
+    console.log(`[validateBishopMove] QL6 move ACCEPTED: ${fromSquare.id} → ${toSquare.id}`);
+  }
   return { valid: true };
 }
 

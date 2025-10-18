@@ -79,19 +79,23 @@ function isCoordinateBlocked(
 ): boolean {
   const squareIdsToCheck = getSquareIdsForCoordinate(coord.file, coord.rank, world);
 
+  console.log(`[isCoordinateBlocked] Checking (${coord.file}, ${coord.rank}), found ${squareIdsToCheck.length} squares:`, squareIdsToCheck);
+
   // If there are no squares at this coordinate in the world, the path doesn't exist
   // This prevents pieces from jumping through gaps (e.g., z file has no main board squares)
   if (squareIdsToCheck.length === 0) {
-    console.log(`[isCoordinateBlocked] No squares exist at coordinate (${coord.file}, ${coord.rank}) - path gap detected`);
+    console.log(`[isCoordinateBlocked] No squares exist at coordinate (${coord.file}, ${coord.rank}) - path gap detected - BLOCKING MOVE`);
     return true; // Treat missing squares as blocked
   }
 
   for (const squareId of squareIdsToCheck) {
     if (isPieceAt(squareId, pieces)) {
+      console.log(`[isCoordinateBlocked] BLOCKED by piece at ${squareId}`);
       return true;
     }
   }
 
+  console.log(`[isCoordinateBlocked] Coordinate (${coord.file}, ${coord.rank}) is clear`);
   return false;
 }
 
